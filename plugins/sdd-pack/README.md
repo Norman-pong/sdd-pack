@@ -1,12 +1,13 @@
 # sdd-pack (omp marketplace plugin)
 
-> **状态: 0.9.0-rc** — 本版本只发布 **skills + docs-check.sh** 静态资产。
-> rules 自动加载(4 个 rule: lore-protocol / docs-update-guard / lore-commit-guard / sdd-doc-edit-guard)
-> 在当前 omp v16.1.16 上**未被 `omp-plugins provider` 发现**(marketplace install + local link 两种模式都不行)。
-> v1.0.0 推迟到 v1.1,届时通过 omp 上游修复或 hook extension 实现。
-> 详见 [`docs/prd/2026-06-24-sdd-pack.md` §11.3](https://github.com/Norman-pong/sdd-pack/blob/main/docs/prd/2026-06-24-sdd-pack.md) 验证报告。
+> **状态: 1.1.0** — hook extension 替代 0.9.0-rc 静态 rules。
+> 4 个 rule(lore-protocol / docs-update-guard / lore-commit-guard / sdd-doc-edit-guard)现以 TS hook 实现,需用 `omp --hook` 装载。
+> 详见 [`docs/architecture/decisions.md` ADR-006](https://github.com/Norman-pong/sdd-pack/blob/main/docs/architecture/decisions.md) 与 [v1.1 验证报告](https://github.com/Norman-pong/sdd-pack/blob/main/docs/phase/.working/2026-06-24-sdd-pack/b1.7-regression.md)。
 
 ## 1. 安装
+
+> **v1.1.0 起需要 `--hook` 装载**: omp v16.1.16 plugin 装载器不识别 `omp.hooks` 字段;`plugins/sdd-pack/hooks/index.ts` 必须通过 CLI flag 显式加载(详见 ADR-006)。
+> **环境要求**: Node.js + bun(omp runtime 通过 bun 加载 hook .ts 文件)。
 
 ```bash
 # 1. 添加 marketplace
@@ -14,6 +15,13 @@ omp plugin marketplace add Norman-pong/sdd-pack
 
 # 2. 安装 plugin
 omp plugin install sdd-pack@sdd-pack
+
+# 3. (推荐) 配 alias 持久化 hook 装载
+echo "alias omp='omp --hook $(pwd)/plugins/sdd-pack/hooks/index.ts'" >> ~/.zshrc
+source ~/.zshrc
+
+# 4. (或者) 每次手动加 --hook
+omp --hook ./plugins/sdd-pack/hooks/index.ts
 ```
 
 安装后 4 个 SDD 技能(`sdd-core` / `sdd-input` / `sdd-prd` / `sdd-phase`)应出现在 omp 启动时的系统提示中。
@@ -24,29 +32,31 @@ omp plugin install sdd-pack@sdd-pack
 
 ```bash
 # (a) 通过 read 工具读取技能内容
-omp -p "Use the read tool to read skill://sdd-core/SKILL.md. Show me the first 30 lines."
+omp --hook ./plugins/sdd-pack/hooks/index.ts \
+  -p "Use the read tool to read skill://sdd-core/SKILL.md. Show me the first 30 lines."
 ```
 
 期望输出: 看到 sdd-core 技能的 frontmatter(name + description)与正文开头。
 
 ```bash
 # (b) 通过 read 工具读取 docs-check.sh
-omp -p "Use the read tool to read skill://sdd-core/references/docs-check.sh. Show me the first 20 lines."
+omp --hook ./plugins/sdd-pack/hooks/index.ts \
+  -p "Use the read tool to read skill://sdd-core/references/docs-check.sh. Show me the first 20 lines."
 ```
 
 期望输出: 看到 `# docs-check.sh — SDD 文档体系结构校验` 头。
 
-**已知限制(0.9.0-rc)**: `rule://lore-protocol` 等 rule 暂不可用 — 详见状态说明。native rules 仍在 `~/.omp/agent/rules/` 加载,工作流不受影响。
+**v1.1.0 验证**: 启动 omp 时(`omp --hook plugins/sdd-pack/hooks/index.ts`),系统提示中应含「📜 lore 提交协议(... plugin hook 注入)」摘要。如未出现,检查: (1) `--hook` flag 路径正确;(2) `~/.omp/agent/rules/lore-protocol.md` 未被 native provider 覆盖(本版本 hook 与 native 共存,native 优先级更高)。
 
 ## 3. 目录结构
 
 ```
 sdd-pack/                                  # GitHub repo root
 ├── .omp-plugin/
-│   └── marketplace.json                   # omp catalog(0.9.0-rc)
+│   └── marketplace.json                   # omp catalog
 ├── plugins/
 │   └── sdd-pack/                          # plugin 根
-│       ├── package.json                   # { "name": "sdd-pack", "version": "0.9.0-rc" }
+│       ├── package.json                   # { "name": "sdd-pack", "version": "1.1.0" }
 │       ├── README.md                      # 本文件
 │       ├── skills/
 │       │   ├── sdd-core/                  # SDD 文档体系管理
@@ -67,12 +77,14 @@ sdd-pack/                                  # GitHub repo root
 │       │       ├── references/
 │       │       ├── templates/
 │       │       └── evals/
-│       └── rules/                         # 0.9.0-rc: 静态资产,暂不自动加载
-│           ├── lore-protocol.md           # alwaysApply: true
-│           ├── docs-update-guard.md
-│           ├── lore-commit-guard.md
-│           └── sdd-doc-edit-guard.md
-└── docs/                                  # 配套的 SDD 文档(prd/phase/...)
+│       ├── rules/                         # v1.1.0: 静态参考,功能由 hooks/ 接管
+│       │   ├── lore-protocol.md
+│       │   ├── docs-update-guard.md
+│       │   ├── lore-commit-guard.md
+│       │   └── sdd-doc-edit-guard.md
+│       └── hooks/                         # v1.1.0 新增 — hook 聚合
+│           └── index.ts                   # 4 工厂聚合(session_start + tool_call)
+└── docs/                                  # 配套的 SDD 文档(prd/phase/architecture/...)
 ```
 
 ## 4. 开发模式
@@ -83,28 +95,33 @@ sdd-pack/                                  # GitHub repo root
 # 在 sdd-pack 仓库根
 omp plugin link ./plugins/sdd-pack
 
-# 修改 plugins/sdd-pack/skills/<skill>/ 下的文件
-# 重启 omp 即生效(omp 不热加载 skill,需重启)
+# 修改 plugins/sdd-pack/skills/<skill>/ 或 hooks/index.ts
+# 重启 omp 即生效(omp 不热加载,需重启)
+# 注意 hook 改动必须用 --hook 装载路径
+omp --hook ./plugins/sdd-pack/hooks/index.ts
 
 # 开发完成后
 omp plugin uninstall sdd-pack@sdd-pack
 ```
 
-**注意**: 0.9.0-rc 期间 link 模式同样不加载 rules(M1 验证已确认),仅 skills 生效。
+**v1.1.0 重要变化**: link 模式下 hook 不会自动装载(omp 装载器不识别 omp.hooks 字段),必须手动加 `--hook` flag 启动 omp。
 
 ## 5. 与 native rules 的共存
 
-0.9.0-rc 期间,本 plugin 的 `rules/` 目录**不接管** `~/.omp/agent/rules/` 下的同名 rules。
-即使用户**未**安装 sdd-pack,native rules(原本就存在的 `lore-protocol` 等)也已加载;
-安装本 plugin **不会**替换或删除 native rules。
+v1.1.0 起 plugin hook 与 native rules **功能等价**;两者同时加载时 native 优先级更高(model 视角看到的是 native 内容)。
 
-**建议**: 0.9.0-rc 期间**不要**移除 `~/.omp/agent/rules/{lore-protocol,docs-update-guard,lore-commit-guard,sdd-doc-edit-guard}.md`,
-否则将失去 lore 提交协议与文档同步门控(在 omp 上游修复 rules 发现前,plugin 无法接管)。
+如需**纯 hook 路径**(排除 native 干扰,验证 hook 工作):
 
-待 v1.1 触发条件达成后,再按 PRD §7.2 「共存」建议卸载 native rules。
+```bash
+mkdir -p ~/.omp/agent/rules/disabled
+mv ~/.omp/agent/rules/{lore-protocol,docs-update-guard,lore-commit-guard,sdd-doc-edit-guard}.md ~/.omp/agent/rules/disabled/
+# 重启 omp,验证 hook 独立接管
+# 回滚: mv ~/.omp/agent/rules/disabled/*.md ~/.omp/agent/rules/
+```
+
+**保留 native rules 的好处**: 双保险(hook 失效时 native 兜底),逐步迁移观察期。**何时彻底卸载**: 至少 1 个月生产环境稳定后(本仓库 ADR-006 §副作用 与 v1.7-regression 记录)。
 
 ## 故障排查
-
 
 ### Q1. `omp plugin install` 报 "Plugin source resolves outside marketplace root"
 
@@ -112,13 +129,17 @@ omp plugin uninstall sdd-pack@sdd-pack
 
 **解决**: 确认 `.omp-plugin/marketplace.json` 含 `metadata.pluginRoot: "plugins"`(sdd-pack 仓库根的 catalog 已带此字段)。
 
-### Q2. 启动 omp 后 `rule://lore-protocol` 报 "Unknown rule"
+### Q2. 启动 omp 后 system prompt 没有「plugin hook 注入」标记
 
-**原因**: 0.9.0-rc 已知限制 — omp v16.1.16 的 `omp-plugins provider` 未发现 plugin 中的 `rules/` 目录(详见 `docs/prd/2026-06-24-sdd-pack.md` §11.3 验证报告)。
+**原因**: 没加 `--hook` flag,或路径错误,或 hook 加载失败(bun 缺类型)。
 
-**解决**: 0.9.0-rc 期间继续使用 `~/.omp/agent/rules/` 下的 native rules;v1.1 触发条件达成后此问题自然解决。
+**解决**:
+1. 确认命令含 `--hook $(pwd)/plugins/sdd-pack/hooks/index.ts`
+2. 路径用 `$(pwd)` 绝对化,避免 cwd 漂移
+3. `bun build ./plugins/sdd-pack/hooks/index.ts --target=bun --outdir=/tmp/test` 确认 TS 编译通过
+4. 设置 `alias omp='omp --hook ...'` 持久化
 
-### Q3. 系统提示中 sdd-* skill 的 description 显示为英文(而非源文件中的中文)
+### Q3. system prompt 中 sdd-* skill 的 description 显示为英文(而非源文件中的中文)
 
 **原因**: omp 在 marketplace 模式下会对 frontmatter description 做翻译(可能为多语言提示优化)。`skill://` URI 读取仍返回原始中文 frontmatter。
 
@@ -134,7 +155,7 @@ omp plugin uninstall sdd-pack@sdd-pack
 
 ### Q5. docs-check.sh 在 marketplace install 后无法执行
 
-**原因**: omp 在 cache 中保留了文件(`~/.omp/plugins/cache/plugins/sdd-pack___sdd-pack___0.9.0-rc/skills/sdd-core/references/docs-check.sh`),但若用户从 cache 拷贝到项目,可能丢失可执行权限。
+**原因**: omp 在 cache 中保留了文件(`~/.omp/plugins/cache/plugins/sdd-pack___sdd-pack___1.1.0/skills/sdd-core/references/docs-check.sh`),但若用户从 cache 拷贝到项目,可能丢失可执行权限。
 
 **解决**: 拷贝后执行 `chmod +x docs-check.sh`;脚本 bash 3.2 兼容(已在 macOS 默认 bash 验证)。
 
@@ -148,25 +169,24 @@ omp plugin uninstall sdd-pack@sdd-pack
 omp plugin marketplace remove sdd-pack
 
 # 3. 清理 cache(可选)
-rm -rf ~/.omp/plugins/cache/plugins/sdd-pack___sdd-pack___0.9.0-rc
+rm -rf ~/.omp/plugins/cache/plugins/sdd-pack___sdd-pack___1.1.0
 ```
 
-**0.9.0-rc 期间不要移除 native rules** — 详见 §5。plugin 本身不修改 `~/.omp/agent/rules/`。
+plugin 本身不修改 `~/.omp/agent/rules/`;native rules 是否卸载由用户决定(详见 §5)。
 
 ## 升级
 
 ```bash
 # 1. 拉取最新 marketplace catalog
 # (omp 在 install/upgrade 时自动 fetch)
-
 # 2. 升级 plugin
 omp plugin upgrade sdd-pack@sdd-pack
-
-# 3. 重启 omp 加载新版本
+# 3. 重启 omp 加载新版本(注意加 --hook)
+omp --hook ./plugins/sdd-pack/hooks/index.ts
 ```
 
 **版本对应**: git tag 与 plugin version 保持一致。
-- v0.9.0-rc → v0.9.0 → v1.0.0(v1.0.0 待 rules 发现修复,推迟到 v1.1)
+- v0.9.0-rc → v1.1.0(0.9.0 → v1.0.0 跳过,本版本合并 hook 路径实施)
 - 每次技能内容变更对应 plugin version 递增
 
-**升级前建议**: 备份 `plugins/sdd-pack/skills/sdd-*/SKILL.md` 的本地修改(若有);link 模式下重 link 即生效。
+**升级前建议**: 备份 `plugins/sdd-pack/skills/sdd-*/SKILL.md` 的本地修改(若有);`hooks/index.ts` 大改时(>10 行)应单独发一个 minor 版本。
