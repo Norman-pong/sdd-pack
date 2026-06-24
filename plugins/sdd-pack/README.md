@@ -105,4 +105,68 @@ omp plugin uninstall sdd-pack@sdd-pack
 
 ## 故障排查
 
-(占位,见 v1.0.0 完善)
+
+### Q1. `omp plugin install` 报 "Plugin source resolves outside marketplace root"
+
+**原因**: `.omp-plugin/marketplace.json` 缺少 `metadata.pluginRoot` 字段,omp 把 `source: "./sdd-pack"` 解析为相对 marketplace.json 同级目录,触发 OOB 安全拒绝。
+
+**解决**: 确认 `.omp-plugin/marketplace.json` 含 `metadata.pluginRoot: "plugins"`(sdd-pack 仓库根的 catalog 已带此字段)。
+
+### Q2. 启动 omp 后 `rule://lore-protocol` 报 "Unknown rule"
+
+**原因**: 0.9.0-rc 已知限制 — omp v16.1.16 的 `omp-plugins provider` 未发现 plugin 中的 `rules/` 目录(详见 `docs/prd/2026-06-24-sdd-pack.md` §11.3 验证报告)。
+
+**解决**: 0.9.0-rc 期间继续使用 `~/.omp/agent/rules/` 下的 native rules;v1.1 触发条件达成后此问题自然解决。
+
+### Q3. 系统提示中 sdd-* skill 的 description 显示为英文(而非源文件中的中文)
+
+**原因**: omp 在 marketplace 模式下会对 frontmatter description 做翻译(可能为多语言提示优化)。`skill://` URI 读取仍返回原始中文 frontmatter。
+
+**解决**: 这是 omp 的预期行为,不影响功能。如需原汁原味中文提示,可用 `omp plugin link` 本地开发模式。
+
+### Q4. `omp -p` 启动时显示双 plugin 条目(同时含 npm 与 marketplace)
+
+**原因**: 用户既执行了 `omp plugin link`(开发态,npm 模式)又执行了 `omp plugin install`(发布态,marketplace 模式)。
+
+**解决**: 二选一:
+- 仅 link(开发): `omp plugin uninstall sdd-pack@sdd-pack`
+- 仅 marketplace(发布): `omp plugin uninstall sdd-pack`(卸 npm),并清理 `~/.omp/plugins/node_modules/sdd-pack` 符号链接
+
+### Q5. docs-check.sh 在 marketplace install 后无法执行
+
+**原因**: omp 在 cache 中保留了文件(`~/.omp/plugins/cache/plugins/sdd-pack___sdd-pack___0.9.0-rc/skills/sdd-core/references/docs-check.sh`),但若用户从 cache 拷贝到项目,可能丢失可执行权限。
+
+**解决**: 拷贝后执行 `chmod +x docs-check.sh`;脚本 bash 3.2 兼容(已在 macOS 默认 bash 验证)。
+
+## 卸载
+
+```bash
+# 1. 卸载 plugin
+omp plugin uninstall sdd-pack@sdd-pack
+
+# 2. 移除 marketplace
+omp plugin marketplace remove sdd-pack
+
+# 3. 清理 cache(可选)
+rm -rf ~/.omp/plugins/cache/plugins/sdd-pack___sdd-pack___0.9.0-rc
+```
+
+**0.9.0-rc 期间不要移除 native rules** — 详见 §5。plugin 本身不修改 `~/.omp/agent/rules/`。
+
+## 升级
+
+```bash
+# 1. 拉取最新 marketplace catalog
+# (omp 在 install/upgrade 时自动 fetch)
+
+# 2. 升级 plugin
+omp plugin upgrade sdd-pack@sdd-pack
+
+# 3. 重启 omp 加载新版本
+```
+
+**版本对应**: git tag 与 plugin version 保持一致。
+- v0.9.0-rc → v0.9.0 → v1.0.0(v1.0.0 待 rules 发现修复,推迟到 v1.1)
+- 每次技能内容变更对应 plugin version 递增
+
+**升级前建议**: 备份 `plugins/sdd-pack/skills/sdd-*/SKILL.md` 的本地修改(若有);link 模式下重 link 即生效。
