@@ -1,0 +1,19 @@
+{
+  "name": "sdd-pack",
+  "owner": { "name": "norman" },
+  "metadata": {
+    "description": "SDD 技能家族(sdd-core/input/prd/phase)+ docs-check.sh(omp marketplace 0.9.0-rc;rules 自动加载待 v1.1)",
+    "version": "0.9.0-rc",
+    "pluginRoot": "plugins"
+  },
+  "plugins": [
+    {
+      "name": "sdd-pack",
+      "description": "SDD 技能家族 + docs-check.sh;完整 rule 接管待 v1.1(详见 PRD §11.3)",
+      "source": "./sdd-pack",
+      "category": "development",
+      "keywords": ["sdd", "prd", "phase", "lore", "documentation"],
+      "version": "0.9.0-rc"
+    }
+  ]
+}

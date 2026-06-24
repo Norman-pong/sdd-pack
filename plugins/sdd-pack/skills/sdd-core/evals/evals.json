@@ -1,0 +1,67 @@
+{
+  "skill_name": "sdd",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我们要做一个设备巡检功能，装维人员每天要去现场巡检设备，发现问题可以现场创建工单。帮我写一份 PRD，巡检内容包括设备运行状态、环境温度、信号强度这些。",
+      "expected_output": "创建了完整的 PRD 文档，包含背景目标、用户场景、功能需求（巡检任务分配、巡检记录、问题上报）、非功能需求、验收标准等章节，文件命名格式正确（YYYY-MM-DD-<name>.md），并同步更新 index.md",
+      "files": [],
+      "expectations": [
+        "创建了 docs/prd/ 目录下的 PRD 文件",
+        "PRD 文件名格式为 YYYY-MM-DD-<name>.md",
+        "PRD 包含背景与目标章节",
+        "PRD 包含用户与场景章节",
+        "PRD 包含功能需求章节",
+        "PRD 包含非功能需求章节",
+        "PRD 包含验收标准章节",
+        "PRD 顶部有 lore log 修改记录查询指令",
+        "PRD 链接到了对应的 Phase 文档",
+        "创建了对应的 Phase 文档（docs/phase/YYYY-MM-DD-<name>.md）",
+        "Phase 文档链接回了 PRD",
+        "更新了 docs/index.md 的 PRD 列表",
+        "使用 lore commit 提交变更",
+        "提交包含 intent 字段",
+        "修改前查询了 lore constraints"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "帮我把 docs/architecture/overview.md 里的技术栈部分更新一下，我们后端从 Spring Boot 换成了 Elysia + Bun，数据库还是 MySQL 8，前端从 Vue 2 换成了 React 18 + TypeScript。",
+      "expected_output": "正确修改了 architecture/overview.md 的技术栈章节，反映了新的技术选型（Elysia + Bun 后端、React 18 + TS 前端、MySQL 8 数据库），同步更新了 index.md 的架构文档描述（如有需要），使用 lore 提交变更",
+      "files": [],
+      "expectations": [
+        "修改了 docs/architecture/overview.md 文件",
+        "技术栈章节反映了后端变更为 Elysia + Bun",
+        "技术栈章节反映了前端变更为 React 18 + TypeScript",
+        "技术栈章节保留了 MySQL 8 数据库",
+        "修改前查询了 lore constraints docs/architecture/overview.md",
+        "使用 lore commit 提交变更",
+        "提交包含 intent 字段",
+        "提交的 trailers 中包含 Constraint 或 Directive（如适用）"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "这个项目是新建的，还没有任何文档结构。帮我初始化一套完整的项目文档体系，项目是一个物联网设备管理平台。",
+      "expected_output": "创建了完整的 docs/ 目录结构，包括 index.md、CONTRIBUTING.md、prd/_template.md、phase/_template.md、architecture/overview.md、reference/README.md 等所有必需文件，目录结构符合规范，模板文件内容完整可用",
+      "files": [],
+      "expectations": [
+        "创建了 docs/ 目录",
+        "创建了 docs/index.md",
+        "创建了 docs/CONTRIBUTING.md",
+        "创建了 docs/prd/ 目录",
+        "创建了 docs/prd/_template.md",
+        "创建了 docs/phase/ 目录",
+        "创建了 docs/phase/_template.md",
+        "创建了 docs/architecture/ 目录",
+        "创建了 docs/architecture/overview.md",
+        "创建了 docs/reference/ 目录",
+        "创建了 docs/reference/README.md",
+        "index.md 包含文档索引结构",
+        "CONTRIBUTING.md 包含贡献指南",
+        "overview.md 包含架构总览基础内容",
+        "使用 lore commit 提交初始化变更"
+      ]
+    }
+  ]
+}
