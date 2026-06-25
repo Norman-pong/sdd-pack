@@ -1,8 +1,8 @@
 # sdd-pack (omp marketplace plugin)
 
-> **状态: 1.1.0** — hook extension 替代 0.9.0-rc 静态 rules。
-> 4 个 rule(lore-protocol / docs-update-guard / lore-commit-guard / sdd-doc-edit-guard)现以 TS hook 实现,需用 `omp --hook` 装载。
-> 详见 [`docs/architecture/decisions.md` ADR-006](https://github.com/Norman-pong/sdd-pack/blob/main/docs/architecture/decisions.md) 与 [v1.1 验证报告](https://github.com/Norman-pong/sdd-pack/blob/main/docs/phase/.working/2026-06-24-sdd-pack/b1.7-regression.md)。
+> **状态: 1.2.3** — v1.2.0 新增三层守门 agent(reviewer/arch-reviewer/sdd-reviewer);v1.2.1 修正 sdd-reviewer 无 PRD 误报;v1.2.2 PRD 补齐 agent 能力;v1.2.3 版本号同步。
+> 4 个 rule(lore-protocol / docs-update-guard / lore-commit-guard / sdd-doc-edit-guard)以 TS hook 实现,需用 `omp --hook` 装载;3 个 agent 随 plugin agents/ 目录自动发现。
+> 详见 [`docs/architecture/decisions.md`](https://github.com/Norman-pong/sdd-pack/blob/main/docs/architecture/decisions.md)(ADR-006 hook + ADR-007 三层 agent)与 [`docs/reference/omp-task-agent.md`](https://github.com/Norman-pong/sdd-pack/blob/main/docs/reference/omp-task-agent.md)。
 
 ## 1. 安装
 

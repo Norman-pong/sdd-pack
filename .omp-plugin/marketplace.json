@@ -3,7 +3,7 @@
   "owner": { "name": "norman" },
   "metadata": {
     "description": "SDD 技能家族(sdd-core/input/prd/phase) + 三层代码质量守门 agent(reviewer/arch-reviewer/sdd-reviewer) + hook extension",
-    "version": "1.2.0",
+    "version": "1.2.3",
     "pluginRoot": "plugins"
   },
   "plugins": [
@@ -13,7 +13,7 @@
       "source": "./sdd-pack",
       "category": "development",
       "keywords": ["sdd", "prd", "phase", "lore", "documentation", "reviewer", "code-review", "architecture", "quality-gate", "solid", "cohesion", "coupling"],
-      "version": "1.2.0",
+      "version": "1.2.3",
       "agents": ["reviewer", "arch-reviewer", "sdd-reviewer"]
     }
   ]

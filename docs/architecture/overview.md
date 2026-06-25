@@ -84,14 +84,14 @@ graph TB
 {
   "name": "sdd-pack",
   "metadata": {
-    "version": "1.2.0",
+    "version": "1.2.3",
     "pluginRoot": "plugins"
   },
   "plugins": [
     {
       "name": "sdd-pack",
       "source": "./sdd-pack",
-      "version": "1.2.0"
+      "version": "1.2.3"
     }
   ]
 }
@@ -103,7 +103,7 @@ graph TB
 // plugins/sdd-pack/package.json（满足 omp plugin link 要求）
 {
   "name": "sdd-pack",
-  "version": "1.2.0"
+  "version": "1.2.3"
 }
 ```
 
@@ -181,7 +181,7 @@ graph LR
 ## 10. 架构演进
 
 ### 10.1 当前版本
-- 版本号：1.2.0
+- 版本号：1.2.3
 - 发布日期：2026-06-25
 - 内容：4 skills + 4 rules + docs-check.sh + 3 守门 agent + hook extension（lore-protocol + 3 TTSR 拦截）
 

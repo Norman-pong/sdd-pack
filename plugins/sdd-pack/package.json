@@ -1,6 +1,6 @@
 {
   "name": "sdd-pack",
-  "version": "1.2.0",
+  "version": "1.2.3",
   "description": "SDD 技能家族(sdd-core/input/prd/phase) + hook extension(lore-protocol + 3 个 TTSR 拦截) + 三层代码质量守门 agent(reviewer/arch-reviewer/sdd-reviewer)",
   "files": [
     "skills",
