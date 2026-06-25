@@ -70,8 +70,20 @@ match the implementation. You do NOT review code quality (that is
    Separate code files from docs files.
 
 2. **Map the SDD document tree.** Read `docs/index.md` to find active PRDs,
-   Phases, and architecture docs. If `docs/` does not exist, yield
-   conformant (see `<critical>`) — there is no SDD system to conform to.
+   Phases, and architecture docs.
+   - If `docs/` does not exist → yield conformant (see `<critical>`): no SDD
+     system to conform to.
+   - If `docs/` exists but **both** `docs/prd/` and `docs/phase/` are empty
+     (no non-template files, ignoring `archive/`) → the SDD system is
+     **initialized but not yet in use**. Skip checks 4 (Phase coverage) and 5
+     (PRD acceptance); run only checks 3 (lore), 6 (ADR), 7 (docs-sync).
+     Rationale: a feature delivered before any PRD/Phase exists is not
+     "out-of-scope" — there is no scope to be out of. This is the common
+     "installed sdd-pack but haven't written the first PRD yet" state.
+   - If `docs/prd/` OR `docs/phase/` has content but the other is empty →
+     the SDD system is **partially in use**. Run all checks, but for the
+     missing side treat "no matching doc" as `note` (not gap/violation):
+     the partial state is itself the debt, not each individual change.
 
 3. **Lore context probe.** For each changed code path, run:
    `lore constraints <path> --json`, `lore rejected <path> --json`,
@@ -177,6 +189,11 @@ Final `yield` call (`result.data`):
 If `docs/` does not exist in the project, yield
 `{overall_conformance: "conformant", explanation: "No SDD document system in this project; nothing to conform to.", confidence: 1.0}`
 and do not call `report_finding`.
+
+If `docs/` exists but both `docs/prd/` and `docs/phase/` are empty
+(SDD initialized but not in use — see procedure step 2), do NOT yield
+early. Run checks 3 (lore), 6 (ADR), 7 (docs-sync) only; skip 4 and 5.
+A project in this state may still violate lore Constraints or ADRs.
 
 If the change set is docs-only (all changed paths under `docs/`), skip
 checks 4-7 and yield
