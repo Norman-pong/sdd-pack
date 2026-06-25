@@ -34,9 +34,8 @@
 
 ## 参考资料（Reference）
 
-| 资料名称 | 类型 | 最后更新 | 说明 |
-|---------|------|---------|------|
-| [参考资料索引](reference/README.md) | omp 文档索引 | 2026-06-24 | omp marketplace / skills / rules 官方文档链接 |
+| [参考资料索引](reference/README.md) | omp 文档索引 | 2026-06-25 | omp marketplace / skills / rules / task agent 官方文档链接 |
+| [omp Task Agent 机制](reference/omp-task-agent.md) | agent 机制参考 | 2026-06-25 | agent 发现/合并/装载/执行约束，三层守门 agent 运行时依据 |
 
 ## 贡献指南
 
@@ -48,6 +47,6 @@
 - Spec 总数：0
 - Phase 总数：1
 - 架构文档：1
-- 参考资料：1
+- 参考资料：2
 
-最后更新：2026-06-24
+最后更新：2026-06-25

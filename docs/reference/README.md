@@ -48,7 +48,24 @@
 |------|------|------|
 | PR #1173 | `.omp-plugin/marketplace.json` 优先路径支持 | 决定 catalog 放置位置（选 `.omp-plugin/` 而非 `.claude-plugin/`） |
 
-## 6. 其他资料
+## 6. omp Task Agent 机制
+
+| 文档名称 | 来源 | 说明 | 版本 |
+|---------|------|------|------|
+| Task Agent Discovery | `omp://task-agent-discovery.md` | agent 发现/合并/装载/执行约束机制（权威来源） | omp 16.1.17 |
+| omp Task Agent 机制摘要 | `docs/reference/omp-task-agent.md` | 本仓库整理的 agent 机制参考，三层守门 agent 的运行时依据 | 2026-06-25 |
+
+## 7. 三层守门 Agent（sdd-pack 自有）
+
+| Agent | 来源 | blocking | 触发 | verdict 字段 | 说明 |
+|-------|------|----------|------|-------------|------|
+| reviewer | `plugins/sdd-pack/agents/reviewer.md` | true | commit-review.ts 自动 | `overall_correctness` | Layer 1 commit gate：runtime bug + patch-local design + lore/SDD 探针 |
+| arch-reviewer | `plugins/sdd-pack/agents/arch-reviewer.md` | false | 手动 task() | `overall_quality` | Layer 2 PR/plan gate：layering/SOLID/coupling/ADR，code+plan 双模式 |
+| sdd-reviewer | `plugins/sdd-pack/agents/sdd-reviewer.md` | false | 手动 task() | `overall_conformance` | Layer 3 phase/merge gate：PRD 验收/Phase 覆盖/ADR/lore/docs-sync |
+
+设计理念见 `skill://omp-three-layer-reviewer`（三层分离 vs 单体 reviewer 的权衡）。
+
+## 8. 其他资料
 
 - omp 内部文档通过 `omp://` URI 访问（harness 内部协议）
 - 项目内开发文档通过 `docs/` 目录查阅

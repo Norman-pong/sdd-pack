@@ -2,18 +2,19 @@
   "name": "sdd-pack",
   "owner": { "name": "norman" },
   "metadata": {
-    "description": "SDD 技能家族(sdd-core/input/prd/phase)+ docs-check.sh(omp marketplace 0.9.0-rc;rules 自动加载待 v1.1)",
-    "version": "0.9.0-rc",
+    "description": "SDD 技能家族(sdd-core/input/prd/phase) + 三层代码质量守门 agent(reviewer/arch-reviewer/sdd-reviewer) + hook extension",
+    "version": "1.2.0",
     "pluginRoot": "plugins"
   },
   "plugins": [
     {
       "name": "sdd-pack",
-      "description": "SDD 技能家族 + docs-check.sh;完整 rule 接管待 v1.1(详见 PRD §11.3)",
+      "description": "SDD 技能家族 + 三层守门 agent + hook extension;完整 rule 接管待 v1.1(详见 PRD §11.3)",
       "source": "./sdd-pack",
       "category": "development",
-      "keywords": ["sdd", "prd", "phase", "lore", "documentation"],
-      "version": "0.9.0-rc"
+      "keywords": ["sdd", "prd", "phase", "lore", "documentation", "reviewer", "code-review", "architecture", "quality-gate", "solid", "cohesion", "coupling"],
+      "version": "1.2.0",
+      "agents": ["reviewer", "arch-reviewer", "sdd-reviewer"]
     }
   ]
 }
