@@ -52,16 +52,16 @@ const LORE_PROTOCOL_REMINDER = [
   "",
   "1. 修改文件前: `lore constraints <path> --json` / `lore rejected <path> --json` / `lore directives <path> --json`",
   "2. 提交用 `lore commit`(禁止裸 `git commit`): 带 intent + Constraint/Rejected/Directive 等 JSON trailer",
-  "3. 文档同步: `rule://docs-update-guard` 在 commit 时检查 PRD/Phase 双向引用",
+  "3. 文档同步: `sdd validate --staged` 自动校验(已集成到 commit guard)",
   "4. 完整 schema: `rule://lore-protocol`(alwaysApply)",
-  "5. 本提醒来自 sdd-pack v1.1.0 plugin hook(`omp --hook plugins/sdd-pack/hooks/index.ts`)",
+  "5. 本提醒来自 sdd-pack v1.3.0 plugin hook(`omp --hook plugins/sdd-pack/hooks/index.ts`)",
 ].join("\n");
 
 const DOCS_UPDATE_HINT =
   "💡 docs-update-guard [hook]: 检测到 commit 命令。如果本次改动触及 docs/ 请确认 PRD↔Phase 双向引用已更新(skill://sdd-core)。";
 
 const LORE_COMMIT_BLOCK_REASON = [
-  "🚫 lore-commit-guard [hook]: 请用 `lore commit` 提交(自动满足 PRD/Phase 双向引用 + docs-check + 命名规范)。",
+  "🚫 lore-commit-guard [hook]: 请用 `lore commit` 提交(自动满足 PRD/Phase 双向引用 + sdd validate)。",
   "   `lore commit --intent \"<why>\" [--body \"<narrative>\"] [--constraint ...] [--directive ...]`",
   "   裸 `git commit` 会绕过 lore 协议,破坏决策追溯链。",
 ].join("\n");
@@ -74,6 +74,91 @@ const DOC_EDIT_GUIDANCE = [
   "   - Phase 任务 → skill://sdd-phase",
 ].join("\n");
 
+// ===== sdd CLI 路径解析 =====
+
+// 尝试解析 sdd CLI 路径（开发环境优先，安装环境 fallback）
+function resolveSddCliPath(): string | null {
+  // 优先检测开发环境（hook 文件位置推算）
+  const hookDir = import.meta?.dir ?? "";
+  if (hookDir) {
+    const devPath = `${hookDir}/../bin/sdd`;
+    try {
+      const stat = require("fs").statSync(devPath);
+      if (stat.isFile()) return devPath;
+    } catch { /* not found */ }
+  }
+
+  // fallback: 安装环境
+  const installPath = `${process.env.HOME || "~"}/.omp/plugins/node_modules/sdd-pack/bin/sdd`;
+  try {
+    const stat = require("fs").statSync(installPath);
+    if (stat.isFile()) return installPath;
+  } catch { /* not found */ }
+
+  return null;
+}
+
+// 获取 effective severity（环境变量 SDD_VALIDATE_SEVERITY 控制）
+function getValidateSeverity(): string {
+  const sev = process.env.SDD_VALIDATE_SEVERITY;
+  if (sev === "warn" || sev === "error" || sev === "block") return sev;
+  return "warn"; // Phase B 默认 warn，Phase C 升级为 error
+}
+
+// 运行 sdd validate --staged --json
+function runSddValidate(pi: HookAPI): void {
+  const sddPath = resolveSddCliPath();
+  if (!sddPath) {
+    pi.sendMessage({
+      role: "system",
+      content: "⚠ sdd validate [hook]: sdd CLI 未找到，跳过校验。",
+    });
+    return;
+  }
+
+  const severity = getValidateSeverity();
+  const { spawnSync } = require("bun");
+  const result = spawnSync([
+    "bun", "run", sddPath,
+    "validate", "--staged", "--json",
+    "--severity", severity,
+  ]);
+
+  if (result.exitCode === null || result.exitCode === undefined) return;
+
+  if (result.exitCode === 2) {
+    // block — 硬拦截
+    const output = result.stdout?.toString() || "{}";
+    let errors: string[] = [];
+    try {
+      const parsed = JSON.parse(output);
+      errors = parsed.errors || [];
+    } catch { /* ignore parse error */ }
+
+    pi.sendMessage({
+      role: "system",
+      content: `🚫 sdd validate 硬拦截:\n${errors.join("\n")}`,
+    });
+    return; // 实际拦截通过 block 返回值实现
+  }
+
+  if (result.exitCode === 1) {
+    // error — Phase B 灰度阶段仅警告
+    const output = result.stdout?.toString() || "{}";
+    let errors: string[] = [];
+    try {
+      const parsed = JSON.parse(output);
+      errors = parsed.errors || [];
+    } catch { /* ignore */ }
+
+    pi.sendMessage({
+      role: "system",
+      content: `⚠ sdd validate 错误(灰度阶段,仅警告):\n${errors.join("\n")}`,
+    });
+  }
+
+  // warn/pass (exit 0) — 无动作
+}
 // ===== 入口: 每个 event 只 on 一次,内部分发到 4 个子 handler =====
 
 export default function (pi: HookAPI): void {
@@ -83,10 +168,11 @@ export default function (pi: HookAPI): void {
     pi.sendMessage({ role: "system", content: LORE_PROTOCOL_REMINDER });
   });
 
-  // (2)(3)(4) tool_call — 单一 on + 内部按 tool 名称/路径分发
-  //     docs-update-guard:  bash + commit → 提示
-  //     lore-commit-guard:  bash + commit → 强提示(替代原 block)
-  //     sdd-doc-edit-guard: write|edit + docs/ → 提示
+  // (2)(3)(4)(5) tool_call — 单一 on + 内部按 tool 名称/路径分发
+  //     docs-update-guard:      bash + commit → 提示
+  //     lore-commit-guard:      bash + commit → 强提示(替代原 block)
+  //     sdd-validate-guard:     bash + commit → sdd validate --staged
+  //     sdd-doc-edit-guard:     write|edit + docs/ → 提示
   pi.on("tool_call", (e) => {
     const ev = e as ToolCallEvent;
     const toolName = ev.toolName;
@@ -97,6 +183,8 @@ export default function (pi: HookAPI): void {
       pi.sendMessage({ role: "system", content: DOCS_UPDATE_HINT });
       // lore-commit-guard
       pi.sendMessage({ role: "system", content: LORE_COMMIT_BLOCK_REASON });
+      // sdd-validate-guard
+      runSddValidate(pi);
       return;
     }
     if ((toolName === "write" || toolName === "edit") && isDocWritePath(input)) {

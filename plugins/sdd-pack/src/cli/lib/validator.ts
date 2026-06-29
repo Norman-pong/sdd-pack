@@ -1,0 +1,632 @@
+/**
+ * validator.ts — SDD 文档校验引擎
+ *
+ * 10 项检查，分级 severity: warn / error / block
+ * 对应 docs-check.sh 超集 + 状态机校验 + 补充检查
+ */
+
+import { existsSync, readdirSync, readFileSync, statSync } from "fs";
+import { resolve, dirname, basename, relative } from "path";
+import {
+  parseStatusLine,
+  parseStackedStatusLine,
+  parseReferences,
+  extractStatusLine,
+  isTemplateFile,
+  isValidFileName,
+  extractRequiredSections,
+  extractH1,
+} from "./doc-parser";
+import {
+  PrdStatus,
+  parseStatus,
+  isTransitionAllowed,
+} from "./prd-state-machine";
+
+/** 校验 severity */
+export type CheckSeverity = "warn" | "error" | "block";
+
+/** 单个检查结果 */
+export interface CheckResult {
+  ruleId: number;
+  name: string;
+  severity: CheckSeverity;
+  passed: boolean;
+  message?: string;
+}
+
+/** 校验结果 */
+export interface ValidationResult {
+  status: "pass" | "warn" | "error" | "block";
+  errors: string[];
+  warnings: string[];
+  checks: CheckResult[];
+}
+
+/** 校验配置 */
+export interface ValidationConfig {
+  /** 根 docs 目录（默认 docs/） */
+  docsDir: string;
+  /** 生效的 severity 阈值 */
+  severity: CheckSeverity;
+  /** 仅状态机校验 */
+  rulesOnly: boolean;
+  /** 仅结构校验 */
+  structureOnly: boolean;
+  /** 要检查的文件列表（为空则全量扫描） */
+  files?: string[];
+}
+
+/** 收集 docs/ 下的所有 PRD 和 Phase 文件 */
+function collectDocsFiles(docsDir: string): { prds: string[]; phases: string[]; all: string[] } {
+  const prds: string[] = [];
+  const phases: string[] = [];
+  const all: string[] = [];
+
+  const scanDir = (dir: string) => {
+    const fullPath = resolve(docsDir, dir);
+    if (!existsSync(fullPath)) return;
+
+    for (const entry of readdirSync(fullPath)) {
+      if (!entry.endsWith(".md")) continue;
+      const filePath = resolve(fullPath, entry);
+      if (!statSync(filePath).isFile()) continue;
+      all.push(filePath);
+    }
+  };
+
+  scanDir("prd");
+  scanDir("phase");
+
+  for (const f of all) {
+    const name = basename(f);
+    if (isTemplateFile(name)) continue;
+    if (f.includes("/prd/")) prds.push(f);
+    else if (f.includes("/phase/")) phases.push(f);
+  }
+
+  return { prds, phases, all };
+}
+
+/**
+ * 获取 docs 目录下的所有 md 文件（递归扫描）
+ */
+function collectAllMdFiles(docsDir: string): string[] {
+  const files: string[] = [];
+
+  function walk(dir: string) {
+    if (!existsSync(dir)) return;
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const fullPath = resolve(dir, entry.name);
+      if (entry.isDirectory() && !entry.name.startsWith(".") && entry.name !== "node_modules") {
+        walk(fullPath);
+      } else if (entry.isFile() && entry.name.endsWith(".md")) {
+        files.push(fullPath);
+      }
+    }
+  }
+
+  walk(docsDir);
+  return files;
+}
+
+// ===== 10 项检查实现 =====
+
+interface CheckContext {
+  docsDir: string;
+  prds: string[];
+  phases: string[];
+  allMdFiles: string[];
+}
+
+/**
+ * Check #1: PRD ↔ Phase 双向引用
+ */
+function checkBidirectionalReferences(ctx: CheckContext): CheckResult {
+  const errors: string[] = [];
+  const docsDir = ctx.docsDir;
+
+  // PRD → Phase 引用
+  for (const prd of ctx.prds) {
+    const content = readFileSync(prd, "utf-8");
+    const refs = parseReferences(content);
+    const bn = relative(docsDir, prd);
+
+    if (!refs.phaseRef) {
+      errors.push(`PRD 缺少 '> 对应阶段:' 回指行: ${bn}`);
+      continue;
+    }
+
+    const phasePath = resolve(dirname(prd), refs.phaseRef);
+    if (!existsSync(phasePath)) {
+      errors.push(`PRD 回指目标不存在: ${bn} -> ${refs.phaseRef}`);
+    }
+  }
+
+  // Phase → PRD 引用
+  for (const phase of ctx.phases) {
+    const content = readFileSync(phase, "utf-8");
+    const refs = parseReferences(content);
+    const bn = relative(docsDir, phase);
+
+    if (!refs.prdRef) {
+      errors.push(`Phase 缺少 '> 对应 PRD:' 回指行: ${bn}`);
+      continue;
+    }
+
+    const prdPath = resolve(dirname(phase), refs.prdRef);
+    if (!existsSync(prdPath)) {
+      errors.push(`Phase 回指目标不存在: ${bn} -> ${refs.prdRef}`);
+    }
+  }
+
+  return {
+    ruleId: 1,
+    name: "PRD ↔ Phase 双向引用",
+    severity: "error",
+    passed: errors.length === 0,
+    message: errors.length > 0 ? errors.join("; ") : undefined,
+  };
+}
+
+/**
+ * Check #2: 回指格式规范
+ */
+function checkRefFormat(ctx: CheckContext): CheckResult {
+  const errors: string[] = [];
+  const docsDir = ctx.docsDir;
+
+  const prdPattern = /^>\s*对应 PRD[：:]\s*\[/m;
+  const phasePattern = /^>\s*对应阶段[：:]\s*\[/m;
+
+  for (const file of [...ctx.prds, ...ctx.phases]) {
+    const content = readFileSync(file, "utf-8");
+    const bn = relative(docsDir, file);
+
+    if (file.includes("/prd/")) {
+      // PRD 文件应引用 Phase: > 对应阶段: [name](path)
+      const match = content.match(phasePattern);
+      if (match) continue;
+      const alt = content.match(/^>\s*对应\s+(?:阶段|PRD)[：:]/m);
+      if (alt) {
+        errors.push(`PRD 回指格式不规范: ${bn} (应为 '> 对应阶段: [name](path)')`);
+      }
+    } else if (file.includes("/phase/")) {
+      // Phase 文件应引用 PRD: > 对应 PRD: [name](path)
+      const match = content.match(prdPattern);
+      if (match) continue;
+      const alt = content.match(/^>\s*对应\s+(?:阶段|PRD)[：:]/m);
+      if (alt) {
+        errors.push(`Phase 回指格式不规范: ${bn} (应为 '> 对应 PRD: [name](path)')`);
+      }
+    }
+  }
+
+  return {
+    ruleId: 2,
+    name: "回指格式规范",
+    severity: "error",
+    passed: errors.length === 0,
+    message: errors.length > 0 ? errors.join("; ") : undefined,
+  };
+}
+
+/**
+ * Check #3: index.md 覆盖度
+ */
+function checkIndexCoverage(ctx: CheckContext): CheckResult {
+  const docsDir = ctx.docsDir;
+  const indexPath = resolve(docsDir, "index.md");
+
+  if (!existsSync(indexPath)) {
+    return {
+      ruleId: 3,
+      name: "index.md 覆盖度",
+      severity: "error",
+      passed: false,
+      message: "index.md 不存在",
+    };
+  }
+
+  const indexContent = readFileSync(indexPath, "utf-8");
+  const missing: string[] = [];
+
+  for (const prd of ctx.prds) {
+    const bn = basename(prd);
+    if (!indexContent.includes(bn)) {
+      missing.push(bn);
+    }
+  }
+
+  return {
+    ruleId: 3,
+    name: "index.md 覆盖度",
+    severity: "error",
+    passed: missing.length === 0,
+    message: missing.length > 0
+      ? `index.md 未覆盖: ${missing.join(", ")}`
+      : undefined,
+  };
+}
+
+/**
+ * Check #4: 相对路径链接有效性（warn）
+ */
+function checkRelativeLinks(ctx: CheckContext): CheckResult {
+  const broken: string[] = [];
+
+  for (const file of ctx.allMdFiles) {
+    // 跳过 .working 目录
+    if (file.includes("/.working/")) continue;
+
+    const content = readFileSync(file, "utf-8");
+    const dir = dirname(file);
+
+    // 提取所有 ](link) 模式
+    const linkMatches = content.matchAll(/\]\(([^)]+)\)/g);
+    for (const match of linkMatches) {
+      const link = match[1];
+      if (!link || link.startsWith("http") || link.startsWith("#") ||
+          link.startsWith("mailto:") || link.startsWith("/")) {
+        continue;
+      }
+
+      const path = link.split("#")[0];
+      if (!path) continue;
+
+      const targetPath = resolve(dir, path);
+      if (!existsSync(targetPath)) {
+        broken.push(`${relative(ctx.docsDir, file)} -> ${link}`);
+      }
+    }
+  }
+
+  return {
+    ruleId: 4,
+    name: "相对路径链接有效性",
+    severity: "warn",
+    passed: broken.length === 0,
+    message: broken.length > 0 ? `断链: ${broken.slice(0, 10).join("; ")}${broken.length > 10 ? `...(+${broken.length - 10})` : ""}` : undefined,
+  };
+}
+
+/**
+ * Check #5: 状态机合规性（block）
+ */
+function checkStateMachine(ctx: CheckContext): CheckResult {
+  const violations: string[] = [];
+  const docsDir = ctx.docsDir;
+
+  for (const file of [...ctx.prds, ...ctx.phases]) {
+    const content = readFileSync(file, "utf-8");
+    const refs = parseReferences(content);
+    const bn = relative(docsDir, file);
+
+    // 检查状态声明的合法性（堆叠行由 check #8 处理，这里跳过）
+    const statusLine = extractStatusLine(content);
+    if (statusLine) {
+      const stacked = parseStackedStatusLine(statusLine);
+      if (stacked) {
+        // 堆叠行跳过状态检查，check #8 会报 error
+      } else {
+        const parsed = parseStatusLine(statusLine);
+        if (parsed) {
+          const isPrd = file.includes("/prd/");
+          const validPrdStatuses = ["草稿", "评审中", "已评审", "已发布", "已替换", "已归档", "已废弃"];
+          const validPhaseStatuses = ["未开始", "进行中", "已完成", "已废弃"];
+          const validStatuses = isPrd ? validPrdStatuses : validPhaseStatuses;
+          if (!validStatuses.includes(parsed.status)) {
+            violations.push(`${bn}: 状态 '${parsed.status}' 不是合法 ${isPrd ? "PRD" : "Phase"} 状态（${validStatuses.join("/")}）`);
+          }
+        }
+      }
+    }
+
+    // 检查 supersedes 链: 如果 > 替代: 指向的文件状态应为 已替换
+    if (refs.supersedes) {
+      const supersedePath = resolve(dirname(file), refs.supersedes);
+      if (existsSync(supersedePath)) {
+        const targetContent = readFileSync(supersedePath, "utf-8");
+        const targetStatusLine = extractStatusLine(targetContent);
+        if (targetStatusLine) {
+          const targetParsed = parseStatusLine(targetStatusLine);
+          if (targetParsed) {
+            const targetStatus = parseStatus(targetParsed.status);
+            if (targetStatus && targetStatus !== PrdStatus.Replaced && targetStatus !== PrdStatus.Archived && targetStatus !== PrdStatus.Abandoned) {
+              violations.push(`${bn}: supersedes 目标 ${basename(supersedePath)} 状态为 '${targetParsed.status}', 应已替换/已归档/已废弃`);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return {
+    ruleId: 5,
+    name: "状态机合规性",
+    severity: "block",
+    passed: violations.length === 0,
+    message: violations.length > 0 ? violations.join("; ") : undefined,
+  };
+}
+
+
+/**
+ * Check #6: supersedes 链完整性
+ */
+function checkSupersedesChain(ctx: CheckContext): CheckResult {
+  const errors: string[] = [];
+  const docsDir = ctx.docsDir;
+
+  for (const file of [...ctx.prds, ...ctx.phases]) {
+    const content = readFileSync(file, "utf-8");
+    const refs = parseReferences(content);
+    const bn = relative(docsDir, file);
+
+    if (refs.supersedes) {
+      // > 替代: 指向的文件必须存在
+      const targetPath = resolve(dirname(file), refs.supersedes);
+      if (!existsSync(targetPath)) {
+        errors.push(`${bn}: > 替代: 目标文件不存在: ${refs.supersedes}`);
+        continue;
+      }
+
+      // 目标文件应有反向引用
+      const targetContent = readFileSync(targetPath, "utf-8");
+      const targetRefs = parseReferences(targetContent);
+      if (!targetRefs.supersededBy) {
+        errors.push(`${bn}: supersedes 目标 ${basename(targetPath)} 缺少 '> 已被:' 反向引用`);
+      }
+    }
+
+    if (refs.supersededBy) {
+      // > 已被: 指向的文件必须存在
+      const targetPath = resolve(dirname(file), refs.supersededBy);
+      if (!existsSync(targetPath)) {
+        errors.push(`${bn}: > 已被: 目标文件不存在: ${refs.supersededBy}`);
+      }
+    }
+  }
+
+  return {
+    ruleId: 6,
+    name: "supersedes 链完整性",
+    severity: "error",
+    passed: errors.length === 0,
+    message: errors.length > 0 ? errors.join("; ") : undefined,
+  };
+}
+
+/**
+ * Check #7: 命名规范（warn）
+ */
+function checkNamingConvention(ctx: CheckContext): CheckResult {
+  const warnings: string[] = [];
+  const docsDir = ctx.docsDir;
+
+  for (const file of [...ctx.prds, ...ctx.phases]) {
+    const name = basename(file);
+    if (!isValidFileName(name)) {
+      const h1 = extractH1(readFileSync(file, "utf-8"));
+      warnings.push(`${relative(docsDir, file)}: 文件名 '${name}' 不符合 YYYY-MM-DD-<kebab-case>.md 规范${h1 ? ` (标题: ${h1})` : ""}`);
+    }
+  }
+
+  return {
+    ruleId: 7,
+    name: "命名规范",
+    severity: "warn",
+    passed: warnings.length === 0,
+    message: warnings.length > 0 ? warnings.join("; ") : undefined,
+  };
+}
+
+/**
+ * Check #8: 状态行格式（error）
+ */
+function checkStatusLineFormat(ctx: CheckContext): CheckResult {
+  const errors: string[] = [];
+  const docsDir = ctx.docsDir;
+
+  for (const file of [...ctx.prds, ...ctx.phases]) {
+    const content = readFileSync(file, "utf-8");
+    const statusLine = extractStatusLine(content);
+    if (!statusLine) continue;
+
+    const bn = relative(docsDir, file);
+
+    // 检测堆叠
+    const stacked = parseStackedStatusLine(statusLine);
+    if (stacked) {
+      errors.push(`${bn}: 状态行堆叠 ${stacked.length} 个版本，应用 'sdd migrate' 清理`);
+      continue;
+    }
+
+    // 检测规范格式
+    const parsed = parseStatusLine(statusLine);
+    if (!parsed) {
+      errors.push(`${bn}: 状态行格式不规范: '${statusLine.replace(/^>\s*/, "").trim()}'`);
+      continue;
+    }
+  }
+
+  return {
+    ruleId: 8,
+    name: "状态行格式",
+    severity: "error",
+    passed: errors.length === 0,
+    message: errors.length > 0 ? errors.join("; ") : undefined,
+  };
+}
+
+/**
+ * Check #9: 归档文件位置（warn）
+ */
+function checkArchiveFileLocation(ctx: CheckContext): CheckResult {
+  const warnings: string[] = [];
+  const docsDir = ctx.docsDir;
+  const archiveDir = resolve(docsDir, "prd/archive");
+  const prdDir = resolve(docsDir, "prd");
+
+  // 检查 archive 下的文件状态是否为 已归档
+  if (existsSync(archiveDir)) {
+    for (const entry of readdirSync(archiveDir)) {
+      if (!entry.endsWith(".md")) continue;
+      const archivePath = resolve(archiveDir, entry);
+      if (!statSync(archivePath).isFile()) continue;
+
+      const content = readFileSync(archivePath, "utf-8");
+      const statusLine = extractStatusLine(content);
+      if (statusLine) {
+        const parsed = parseStatusLine(statusLine);
+        if (parsed && parsed.status !== "已归档") {
+          warnings.push(`archive/${entry}: 归档目录下文件状态应为 '已归档'，当前为 '${parsed.status}'`);
+        } else if (!parsed) {
+          const stacked = parseStackedStatusLine(statusLine);
+          if (!stacked) {
+            warnings.push(`archive/${entry}: 无法解析状态行`);
+          }
+        }
+      }
+    }
+  }
+
+  // 检查 prd/ 下是否有已归档但未移动的文件
+  if (existsSync(prdDir)) {
+    for (const entry of readdirSync(prdDir)) {
+      if (!entry.endsWith(".md") || isTemplateFile(entry)) continue;
+      const prdPath = resolve(prdDir, entry);
+      if (!statSync(prdPath).isFile()) continue;
+
+      const content = readFileSync(prdPath, "utf-8");
+      const statusLine = extractStatusLine(content);
+      if (statusLine) {
+        const parsed = parseStatusLine(statusLine);
+        if (parsed && parsed.status === "已归档") {
+          warnings.push(`prd/${entry}: 状态为 '已归档' 但仍在 prd/ 目录下，应移至 archive/`);
+        }
+      }
+    }
+  }
+
+  return {
+    ruleId: 9,
+    name: "归档文件位置",
+    severity: "warn",
+    passed: warnings.length === 0,
+    message: warnings.length > 0 ? warnings.join("; ") : undefined,
+  };
+}
+
+/**
+ * Check #10: 必需章节完整性（error, PRD 专用）
+ */
+function checkRequiredSections(ctx: CheckContext): CheckResult {
+  const errors: string[] = [];
+  const docsDir = ctx.docsDir;
+
+  for (const prd of ctx.prds) {
+    const content = readFileSync(prd, "utf-8");
+    const missing = extractRequiredSections(content);
+    const bn = relative(docsDir, prd);
+
+    if (missing.length > 0) {
+      errors.push(`${bn}: 缺少必需章节: ${missing.join(", ")}`);
+    }
+  }
+
+  return {
+    ruleId: 10,
+    name: "必需章节完整性",
+    severity: "error",
+    passed: errors.length === 0,
+    message: errors.length > 0 ? errors.join("; ") : undefined,
+  };
+}
+
+// ===== 校验引擎 =====
+
+/**
+ * 运行全量校验
+ */
+export function validate(config: ValidationConfig): ValidationResult {
+  const docsDir = resolve(config.docsDir);
+
+  if (!existsSync(docsDir)) {
+    return {
+      status: "error",
+      errors: [`docs 目录不存在: ${docsDir}`],
+      warnings: [],
+      checks: [],
+    };
+  }
+
+  let prds: string[];
+  let phases: string[];
+  let allMdFiles: string[];
+
+  if (config.files && config.files.length > 0) {
+    prds = config.files.filter((f) => f.includes("/prd/"));
+    phases = config.files.filter((f) => f.includes("/phase/"));
+    allMdFiles = [...config.files];
+
+    // 还需要所有 md 文件做链接检查
+    for (const f of collectAllMdFiles(docsDir)) {
+      if (!allMdFiles.includes(f)) allMdFiles.push(f);
+    }
+  } else {
+    const collected = collectDocsFiles(docsDir);
+    prds = collected.prds;
+    phases = collected.phases;
+    allMdFiles = collectAllMdFiles(docsDir);
+  }
+
+  const ctx: CheckContext = { docsDir, prds, phases, allMdFiles };
+
+  const allChecks: CheckResult[] = [];
+
+  if (!config.structureOnly) {
+    allChecks.push(checkStateMachine(ctx));
+  }
+
+  if (!config.rulesOnly) {
+    allChecks.push(checkBidirectionalReferences(ctx));
+    allChecks.push(checkRefFormat(ctx));
+    allChecks.push(checkIndexCoverage(ctx));
+    allChecks.push(checkRelativeLinks(ctx));
+    allChecks.push(checkSupersedesChain(ctx));
+    allChecks.push(checkNamingConvention(ctx));
+    allChecks.push(checkStatusLineFormat(ctx));
+    allChecks.push(checkArchiveFileLocation(ctx));
+    allChecks.push(checkRequiredSections(ctx));
+  }
+
+  // 按 severity 阈值汇总
+  const severityOrder: CheckSeverity[] = ["warn", "error", "block"];
+  const thresholdIdx = severityOrder.indexOf(config.severity);
+
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  for (const check of allChecks) {
+    if (check.passed) continue;
+
+    const checkIdx = severityOrder.indexOf(check.severity);
+    if (checkIdx >= thresholdIdx) {
+      // --severity warn 时，所有违规降级为警告
+      const isWarning = config.severity === "warn" || check.severity === "warn";
+      const target = isWarning ? warnings : errors;
+      target.push(
+        `[${check.severity.toUpperCase()}] #${check.ruleId} ${check.name}: ${check.message}`,
+      );
+    }
+  }
+
+  // 决定最终状态
+  let status: ValidationResult["status"] = "pass";
+  if (errors.some((e) => e.startsWith("[BLOCK]"))) status = "block";
+  else if (errors.some((e) => e.startsWith("[ERROR]"))) status = "error";
+  else if (warnings.length > 0) status = "warn";
+
+  return { status, errors, warnings, checks: allChecks };
+}

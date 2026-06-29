@@ -88,7 +88,67 @@ sdd-pack/                                  # GitHub repo root
 └── docs/                                  # 配套的 SDD 文档(prd/phase/architecture/...)
 ```
 
-## 4. 开发模式
+
+## 4. sdd CLI 工作流
+
+> **v1.3.0 新增** — `sdd` CLI 是 sdd-pack 文档生命周期的权威入口，提供 propose/validate/archive 三个核心子命令 + 4 个辅助子命令。
+
+### 4.1 安装
+
+```bash
+# 开发者（在 sdd-pack 仓库根目录）
+alias sdd='bun ./plugins/sdd-pack/bin/sdd'
+
+# 用户（安装 sdd-pack 后）
+alias sdd='bun ~/.omp/plugins/node_modules/sdd-pack/bin/sdd'
+```
+
+### 4.2 子命令速览
+
+| 命令 | 描述 | 阶段 |
+|------|------|------|
+| `sdd validate [path]` | 校验文档结构（10 项检查）+ 状态机合规 | Phase A |
+| `sdd propose` | 创建新 PRD 或 delta 变更 | Phase A |
+| `sdd archive <prd-path>` | 归档 PRD（completed/replaced/abandoned） | Phase C |
+| `sdd status` | 所有 PRD/Phase 状态总览 | Phase C |
+| `sdd list` | 带过滤的文档列表 | Phase C |
+| `sdd migrate <prd-path>` | 状态行堆叠 → 规范格式 + CHANGELOG | Phase C |
+| `sdd why <file>:<line>` | 查询 lore 决策上下文 | Phase C |
+| `sdd apply <prd-path>` | 打印 PRD 验收标准 checklist | Phase C |
+
+### 4.3 典型工作流
+
+```bash
+# 1. 创建 PRD
+sdd propose --title "new-feature" --type full
+vi docs/prd/2026-07-01-new-feature.md  # 编辑内容
+
+# 2. 校验（自动检查 10 项）
+sdd validate docs/prd/2026-07-01-new-feature.md
+
+# 3. 评审完成后归档
+sdd archive docs/prd/2026-07-01-new-feature.md --reason completed
+
+# 4. 替代旧 PRD
+sdd propose --title "v2-feature" --supersedes docs/prd/2026-06-24-sdd-pack.md
+sdd archive docs/prd/2026-06-24-sdd-pack.md --reason replaced --new-prd docs/prd/2026-07-01-v2-feature.md
+```
+
+### 4.4 手动 vs CLI 对照表
+
+| 操作 | 手动步骤 | CLI |
+|------|---------|-----|
+| 创建 PRD | 复制 _template.md → 改 frontmatter → 写章节 | `sdd propose --title "X"` |
+| 校验文档 | 跑 docs-check.sh（4 项）+ 目视状态机检查 | `sdd validate`（10 项） |
+| 归档 PRD | 改状态行 → 移动文件 → 更新 index.md → lore commit + 4 步 | `sdd archive <path> --reason completed` |
+
+### 4.5 Hook 集成
+
+commit 时自动执行 `sdd validate --staged --json`：
+- `block` 违规 → 硬拦截，commit 被拒绝
+- `error` 违规 → 灰度阶段仅警告（`SDD_VALIDATE_SEVERITY=error` 升级为阻塞）
+- 配置：`export SDD_VALIDATE_SEVERITY=warn|error|block`
+## 5. 开发模式
 
 本地开发 skill 内容并即时生效:
 
@@ -107,7 +167,7 @@ omp plugin uninstall sdd-pack@sdd-pack
 
 **v1.1.0 重要变化**: link 模式下 hook 不会自动装载(omp 装载器不识别 omp.hooks 字段),必须手动加 `--hook` flag 启动 omp。
 
-## 5. 与 native rules 的共存
+## 6. 与 native rules 的共存
 
 v1.1.0 起 plugin hook 与 native rules **功能等价**;两者同时加载时 native 优先级更高(model 视角看到的是 native 内容)。
 
