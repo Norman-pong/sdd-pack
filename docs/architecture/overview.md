@@ -2,7 +2,7 @@
 
 > 修改记录：执行 `lore log docs/architecture/overview.md`
 
-本文档描述 sdd-pack 仓库的架构定位、目录布局与分发机制。sdd-pack 是一个 omp marketplace 插件仓库，本身的"产品"是一个插件（`plugins/sdd-pack/`），其内容是 4 个 SDD skills + 4 个 rules + docs-check.sh + 三层守门 agent（reviewer/arch-reviewer/sdd-reviewer）。
+本文档描述 sdd-pack 仓库的架构定位、目录布局与分发机制。sdd-pack 是一个 omp marketplace 插件仓库，本身的"产品"是一个插件（`plugins/sdd-pack/`），其内容是 4 个 SDD skills + 5 个 rules + docs-check.sh + 三层守门 agent（reviewer/arch-reviewer/sdd-reviewer）。
 
 ## 1. 系统定位
 
@@ -25,7 +25,7 @@ graph TB
     Repo --> Plugin["plugins/sdd-pack/<br/>plugin 内容"]
     Repo --> Docs["docs/<br/>本仓库开发文档"]
     Plugin --> Skills["skills/<br/>sdd-core/input/prd/phase"]
-    Plugin --> Rules["rules/<br/>lore-protocol + 3 guards"]
+    Plugin --> Rules["rules/<br/>lore-protocol + 3 guards + prd-change-management"]
     Plugin --> Agents["agents/<br/>reviewer/arch-reviewer/sdd-reviewer"]
     Plugin --> Script["skills/sdd-core/references/<br/>docs-check.sh"]
     Plugin --> Readme["README.md<br/>package.json"]
@@ -183,7 +183,7 @@ graph LR
 ### 10.1 当前版本
 - 版本号：1.2.3
 - 发布日期：2026-06-25
-- 内容：4 skills + 4 rules + docs-check.sh + 3 守门 agent + hook extension（lore-protocol + 3 TTSR 拦截）
+- 内容：4 skills + 5 rules + docs-check.sh + 3 守门 agent + hook extension（lore-protocol + 3 TTSR 拦截；prd-change-management 为纯静态，不进 hook）
 
 ### 10.2 演进路线
 - [x] 阶段 1 验证：rules 通过 omp-plugins provider 被发现 — **v1.1.0 结论：marketplace/link 模式不自动发现，改由 hook extension（`omp --hook`）接管，ADR-006**

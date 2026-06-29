@@ -1,7 +1,7 @@
 # sdd-pack (omp marketplace plugin)
 
 > **状态: 1.2.3** — v1.2.0 新增三层守门 agent(reviewer/arch-reviewer/sdd-reviewer);v1.2.1 修正 sdd-reviewer 无 PRD 误报;v1.2.2 PRD 补齐 agent 能力;v1.2.3 版本号同步。
-> 4 个 rule(lore-protocol / docs-update-guard / lore-commit-guard / sdd-doc-edit-guard)以 TS hook 实现,需用 `omp --hook` 装载;3 个 agent 随 plugin agents/ 目录自动发现。
+> 5 个 rule(lore-protocol / docs-update-guard / lore-commit-guard / sdd-doc-edit-guard / prd-change-management);其中前 4 个以 TS hook 实现(过渡方案,等 omp 上游修复 rules 自动发现后退役,见 ADR-006),需用 `omp --hook` 装载;prd-change-management 为纯静态参考(靠 `rule://` 显式调用);3 个 agent 随 plugin agents/ 目录自动发现。
 > 详见 [`docs/architecture/decisions.md`](https://github.com/Norman-pong/sdd-pack/blob/main/docs/architecture/decisions.md)(ADR-006 hook + ADR-007 三层 agent)与 [`docs/reference/omp-task-agent.md`](https://github.com/Norman-pong/sdd-pack/blob/main/docs/reference/omp-task-agent.md)。
 
 ## 1. 安装
@@ -77,11 +77,12 @@ sdd-pack/                                  # GitHub repo root
 │       │       ├── references/
 │       │       ├── templates/
 │       │       └── evals/
-│       ├── rules/                         # v1.1.0: 静态参考,功能由 hooks/ 接管
+│       ├── rules/                         # 静态资产;前 4 个功能由 hooks/ 过渡接管(ADR-006)
 │       │   ├── lore-protocol.md
 │       │   ├── docs-update-guard.md
 │       │   ├── lore-commit-guard.md
-│       │   └── sdd-doc-edit-guard.md
+│       │   ├── sdd-doc-edit-guard.md
+│       │   └── prd-change-management.md    # PRD 需求变更处理流程(纯静态,rule:// 调用)
 │       └── hooks/                         # v1.1.0 新增 — hook 聚合
 │           └── index.ts                   # 4 工厂聚合(session_start + tool_call)
 └── docs/                                  # 配套的 SDD 文档(prd/phase/architecture/...)

@@ -67,6 +67,36 @@ alias omp='omp --hook /path/to/sdd-pack/plugins/sdd-pack/hooks/index.ts'
 - v1.2(若启动): 评估 omp 上游 `omp.hooks` 字段支持进度;若已实现,plugin manifest 路径替换 CLI flag 路径
 - 跟踪 issue: https://github.com/Norman-pong/sdd-pack/issues/1(v1.1 完成后关闭)
 
+### 状态更新(2026-06-29,v1.2.4 实测 + 官方文档核验)
+
+**触发事实**:
+
+- omp v16.2.4 官方文档(`docs/rulebook-matching-pipeline.md` §2 + `docs/skills.md` "Built-in skill providers and precedence")明确:`omp-plugins` provider(priority 90)**设计上即扫描** plugin 的 `rules/*.{md,mdc}` 与 `skills/<name>/SKILL.md`,与 `native` provider 共存去重
+- PR #1498 "fix(discovery): wire extension package sub-dirs"(2026-05-29,已合入)修复了 `omp plugin install`/`omp plugin link` 注册的包的子目录发现(Fixes #1496)
+- 跟踪 issue:https://github.com/Norman-pong/sdd-pack/issues/1 v16.1.16 阶段开启,v16.2.x 起对应修复已合入上游
+
+**本机实测**(2026-06-29,omp v16.2.4):
+
+- 配置:`~/.omp/plugins/node_modules/sdd-pack` symlink 指向工作树;`omp-plugins.lock.json` 显示 `sdd-pack` 已 `enabled: true`;`omp plugin discover` 列出 `sdd-pack@1.2.3`
+- 全新 omp 进程(`omp -p ... --no-session`)读 `rule://docs-update-guard` / `rule://prd-change-management` 均报 `Unknown rule`;available 列表仅含 19 个 native rules(`rs-*`/`ts-*`/`frontend-use-vp`),**0 个 plugin rule**
+- 同样方式读 `skill://sdd-core` 报 `Unknown skill`,available 列表仅含本机 managed-skills,**0 个 plugin skill**
+
+**结论**:**官方文档说支持,本机实测不工作**——根因待查(provider 加载时序 / 缓存 / 配置开关均可能),不在本 ADR 范围内
+
+**对本 ADR 决策的影响**:
+
+- ADR-006 决策**保持 Accepted,不变**(历史决策如实记录;前提"omp 不发现 plugin rules"在 v16.1.16 成立)
+- 但**当前 hook 仍需保留**——hook 提供 `lore-commit-guard` 的 `block: true` 硬拦截能力(强制 `git commit` 改走 `lore commit`),这是 omp rule 体系**做不到**的能力(`rule.interruptMode` 仅控制 steering 队列,不拦截工具调用,详见 `docs/hooks.md` 与 `docs/rulebook-matching-pipeline.md`)
+- 因此 hook 当前的定位**不是"过渡方案的待退役代码",而是"提供 rule 不可替代拦截能力的运行时层"**
+
+**迁移路线**(待触发条件满足):
+
+1. 触发条件:omp-plugins provider 在本机实测能发现 plugin rules/skills(全新 omp 进程 `read rule://docs-update-guard` 返回规则内容而非 `Unknown`)
+2. 阶段 a:把 `lore-protocol` 改用 `alwaysApply: true`(去掉 session_start sendMessage)
+3. 阶段 b:把 `docs-update-guard` / `sdd-doc-edit-guard` 改用 `scope` + `condition`(去掉 tool_call 提示分支)
+4. 阶段 c:`lore-commit-guard` 硬拦截能力需等 omp 提供 rule-level tool blocking(目前无此能力)——届时**该 rule 的功能可能需要保留为 hook 或重新设计**
+5. 阶段 d:hooks/ 目录移除;README §5 "与 native rules 的共存" 章节删除;CHANGELOG 标注 hook 退役
+
 ---
 
 ## ADR-007: 代码评审拆为三层守门 agent(非单体 reviewer)

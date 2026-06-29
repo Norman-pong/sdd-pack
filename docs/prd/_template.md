@@ -1,8 +1,13 @@
 # <产品/功能名称> PRD
 
-> 状态：草稿 | 评审中 | 已评审 | 已归档 | 已替换 | 已废弃
+> 状态：草稿 | 评审中 | 已评审 | 已发布 | 已归档 | 已替换 | 已废弃
 > 修改记录：执行 `lore log docs/prd/<filename>.md`
 > 对应阶段：TBD - 由 sdd-phase 补全（路径示例：`../phase/YYYY-MM-DD-<phase-name>.md`）
+> 替代：（可选）本 PRD 替代的旧 PRD，格式 `[旧 PRD 名称](../prd/YYYY-MM-DD-<old>.md)`；同时旧 PRD 状态须改 `已替换` 并反向引用本 PRD
+
+> [!IMPORTANT] PRD 生命周期状态机（遵循 `rule://prd-change-management`）
+> 草稿 → 评审中 → 已评审 → 已发布 → 已归档/已替换；已废弃为任意阶段的终态分支。
+> **硬约束**：`已评审` 不可回退 `草稿`；`已发布` 后新需求**只能新开 PRD + supersedes 链**，禁止往已发布 PRD 堆叠新版本功能。变更类型判据（A 实现偏差 / B v1 内微调 / C 跨版本叠加）与决策树见 `rule://prd-change-management`。
 
 ## 1. 背景与目标
 
