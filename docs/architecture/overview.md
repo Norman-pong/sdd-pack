@@ -184,6 +184,7 @@ graph LR
 - 版本号：1.2.3
 - 发布日期：2026-06-25
 - 内容：4 skills + 5 rules + docs-check.sh + 3 守门 agent + hook extension（lore-protocol + 3 TTSR 拦截；prd-change-management 为纯静态，不进 hook）
+- 待发布特性：sdd CLI 工作流（v1.3 候选，[PRD](../prd/2026-06-29-sdd-cli.md) 草稿 + [设计文档](sdd-cli-design.md) 已就绪，ADR-008 待评审，CLI 实现未启动）
 
 ### 10.2 演进路线
 - [x] 阶段 1 验证：rules 通过 omp-plugins provider 被发现 — **v1.1.0 结论：marketplace/link 模式不自动发现，改由 hook extension（`omp --hook`）接管，ADR-006**
