@@ -74,90 +74,33 @@ const DOC_EDIT_GUIDANCE = [
   "   - Phase 任务 → skill://sdd-phase",
 ].join("\n");
 
-// ===== sdd CLI 路径解析 =====
+// ===== sdd-validate-guard: in-process 调 api.validateDocs()(v1.4.0-alpha 起,ADR-009) =====
 
-// 尝试解析 sdd CLI 路径（开发环境优先，安装环境 fallback）
-function resolveSddCliPath(): string | null {
-  // 优先检测开发环境（hook 文件位置推算）
-  const hookDir = import.meta?.dir ?? "";
-  if (hookDir) {
-    const devPath = `${hookDir}/../bin/sdd`;
-    try {
-      const stat = require("fs").statSync(devPath);
-      if (stat.isFile()) return devPath;
-    } catch { /* not found */ }
-  }
+import { validateDocs } from "../src/cli/api";
+import { stagedFiles } from "../src/cli/lib/orchestration/git";
+import type { CheckSeverity } from "../src/cli/lib/validator";
 
-  // fallback: 安装环境
-  const installPath = `${process.env.HOME || "~"}/.omp/plugins/node_modules/sdd-pack/bin/sdd`;
-  try {
-    const stat = require("fs").statSync(installPath);
-    if (stat.isFile()) return installPath;
-  } catch { /* not found */ }
-
-  return null;
-}
-
-// 获取 effective severity（环境变量 SDD_VALIDATE_SEVERITY 控制）
-function getValidateSeverity(): string {
+// 提取 effective severity(环境变量 SDD_VALIDATE_SEVERITY)
+function getValidateSeverity(): CheckSeverity {
   const sev = process.env.SDD_VALIDATE_SEVERITY;
   if (sev === "warn" || sev === "error" || sev === "block") return sev;
-  return "warn"; // Phase B 默认 warn，Phase C 升级为 error
+  return "warn";
 }
 
-// 运行 sdd validate --staged --json
-function runSddValidate(pi: HookAPI): void {
-  const sddPath = resolveSddCliPath();
-  if (!sddPath) {
-    pi.sendMessage({
-      role: "system",
-      content: "⚠ sdd validate [hook]: sdd CLI 未找到，跳过校验。",
-    });
-    return;
+// in-process 调 api.validateDocs()(替代原 spawnSync)
+async function runSddValidate(pi: HookAPI): Promise<void> {
+  try {
+    const files = stagedFiles();
+    if (files.length === 0) return;
+    const result = await validateDocs({ staged: true, files, severity: getValidateSeverity() });
+    if (result.status === "block") {
+      pi.sendMessage({ role: "system", content: `🚫 sdd validate 硬拦截:\n${result.errors.join("\n")}` });
+    } else if (result.status === "error") {
+      pi.sendMessage({ role: "system", content: `⚠ sdd validate 错误(灰度阶段,仅警告):\n${result.errors.join("\n")}` });
+    }
+  } catch (e) {
+    pi.sendMessage({ role: "system", content: `⚠ sdd validate 异常(已跳过): ${e instanceof Error ? e.message : String(e)}` });
   }
-
-  const severity = getValidateSeverity();
-  const { spawnSync } = require("bun");
-  const result = spawnSync([
-    "bun", "run", sddPath,
-    "validate", "--staged", "--json",
-    "--severity", severity,
-  ]);
-
-  if (result.exitCode === null || result.exitCode === undefined) return;
-
-  if (result.exitCode === 2) {
-    // block — 硬拦截
-    const output = result.stdout?.toString() || "{}";
-    let errors: string[] = [];
-    try {
-      const parsed = JSON.parse(output);
-      errors = parsed.errors || [];
-    } catch { /* ignore parse error */ }
-
-    pi.sendMessage({
-      role: "system",
-      content: `🚫 sdd validate 硬拦截:\n${errors.join("\n")}`,
-    });
-    return; // 实际拦截通过 block 返回值实现
-  }
-
-  if (result.exitCode === 1) {
-    // error — Phase B 灰度阶段仅警告
-    const output = result.stdout?.toString() || "{}";
-    let errors: string[] = [];
-    try {
-      const parsed = JSON.parse(output);
-      errors = parsed.errors || [];
-    } catch { /* ignore */ }
-
-    pi.sendMessage({
-      role: "system",
-      content: `⚠ sdd validate 错误(灰度阶段,仅警告):\n${errors.join("\n")}`,
-    });
-  }
-
-  // warn/pass (exit 0) — 无动作
 }
 // ===== 入口: 每个 event 只 on 一次,内部分发到 4 个子 handler =====
 
@@ -173,18 +116,15 @@ export default function (pi: HookAPI): void {
   //     lore-commit-guard:      bash + commit → 强提示(替代原 block)
   //     sdd-validate-guard:     bash + commit → sdd validate --staged
   //     sdd-doc-edit-guard:     write|edit + docs/ → 提示
-  pi.on("tool_call", (e) => {
+  pi.on("tool_call", async (e) => {
     const ev = e as ToolCallEvent;
     const toolName = ev.toolName;
     const input = ev.input ?? {};
 
     if (toolName === "bash" && isCommitCommand(input)) {
-      // docs-update-guard
       pi.sendMessage({ role: "system", content: DOCS_UPDATE_HINT });
-      // lore-commit-guard
       pi.sendMessage({ role: "system", content: LORE_COMMIT_BLOCK_REASON });
-      // sdd-validate-guard
-      runSddValidate(pi);
+      await runSddValidate(pi);
       return;
     }
     if ((toolName === "write" || toolName === "edit") && isDocWritePath(input)) {

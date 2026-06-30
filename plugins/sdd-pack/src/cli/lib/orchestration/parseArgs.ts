@@ -1,17 +1,25 @@
 /**
- * arg-parser.ts — 命令行参数解析
+ * parseArgs.ts — 跨调用方的统一命令行参数解析
+ *
+ * extension handler(omp 注入 `args: string`)和 api-runner(从 process.argv 切片)
+ * 共用同一份解析逻辑，避免重复实现。
+ *
+ * 支持: --name value, --name=value, --flag, 位置参数
  */
 
 export interface ParsedArgs {
-  /** 位置参数 */
+  /** 位置参数(非 flag 开头的 token) */
   positional: string[];
-  /** 命名参数 */
+  /** 命名参数(以 -- 开头的 flag) */
   options: Record<string, string | boolean | undefined>;
 }
 
 /**
  * 解析命令行参数数组
- * --name value, --name=value, --flag, --name value
+ * - `--name value` → options.name = "value"
+ * - `--name=value` → options.name = "value"
+ * - `--flag`(无值)→ options.name = true
+ * - `value`(非 -- 前缀)→ positional.push(value)
  */
 export function parseArgs(raw: string[]): ParsedArgs {
   const positional: string[] = [];
@@ -28,7 +36,7 @@ export function parseArgs(raw: string[]): ParsedArgs {
         options[name] = arg.slice(eqIdx + 1);
       } else {
         const name = arg.slice(2);
-        // 检查下一个参数是否为值（非 -- 前缀）
+        // 下一个参数若是值(非 -- 前缀)则消费
         if (i + 1 < raw.length && !raw[i + 1].startsWith("--")) {
           i++;
           options[name] = raw[i];
@@ -44,9 +52,7 @@ export function parseArgs(raw: string[]): ParsedArgs {
   return { positional, options };
 }
 
-/**
- * 获取字符串选项值
- */
+/** 取字符串选项值(默认 undefined) */
 export function getStringOption(
   args: ParsedArgs,
   name: string,
@@ -57,16 +63,12 @@ export function getStringOption(
   return String(val);
 }
 
-/**
- * 获取布尔选项值
- */
+/** 取布尔选项值 */
 export function getBoolOption(args: ParsedArgs, name: string): boolean {
   return args.options[name] === true || args.options[name] === "true";
 }
 
-/**
- * 获取枚举选项值
- */
+/** 取枚举选项值(带 default) */
 export function getEnumOption<T extends string>(
   args: ParsedArgs,
   name: string,
@@ -74,7 +76,7 @@ export function getEnumOption<T extends string>(
   defaultValue: T,
 ): T {
   const val = getStringOption(args, name);
-  if (val && validValues.includes(val as T)) {
+  if (val && (validValues as readonly string[]).includes(val)) {
     return val as T;
   }
   return defaultValue;

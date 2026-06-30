@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-# sdd — SDD 文档生命周期 CLI
-# 薄壳 wrapper,实际逻辑在 src/cli/index.ts
-set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-CLI_ENTRY="$SCRIPT_DIR/../src/cli/index.ts"
-exec bun run "$CLI_ENTRY" "$@"

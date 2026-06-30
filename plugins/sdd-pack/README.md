@@ -1,8 +1,8 @@
 # sdd-pack (omp marketplace plugin)
 
-> **状态: 1.2.3** — v1.2.0 新增三层守门 agent(reviewer/arch-reviewer/sdd-reviewer);v1.2.1 修正 sdd-reviewer 无 PRD 误报;v1.2.2 PRD 补齐 agent 能力;v1.2.3 版本号同步。
-> 5 个 rule(lore-protocol / docs-update-guard / lore-commit-guard / sdd-doc-edit-guard / prd-change-management);其中前 4 个以 TS hook 实现(过渡方案,等 omp 上游修复 rules 自动发现后退役,见 ADR-006),需用 `omp --hook` 装载;prd-change-management 为纯静态参考(靠 `rule://` 显式调用);3 个 agent 随 plugin agents/ 目录自动发现。
-> 详见 [`docs/architecture/decisions.md`](https://github.com/Norman-pong/sdd-pack/blob/main/docs/architecture/decisions.md)(ADR-006 hook + ADR-007 三层 agent)与 [`docs/reference/omp-task-agent.md`](https://github.com/Norman-pong/sdd-pack/blob/main/docs/reference/omp-task-agent.md)。
+> **状态: 1.4.0-alpha** — v1.2.0 引入三层守门 agent(reviewer/arch-reviewer/sdd-reviewer);v1.3.0-rc.1 实现 sdd CLI;v1.4.0-alpha 改为 omp extension(ADR-009)。
+> 5 个 rule(lore-protocol / docs-update-guard / lore-commit-guard / sdd-doc-edit-guard / prd-change-management);其中前 4 个以 TS hook 实现(过渡方案,等 omp 上游修复 rules 自动发现后退役,见 ADR-006),需用 `omp --hook` 装载;prd-change-management 为纯静态参考(靠 `rule://` 显式调用);3 个 agent 随 plugin agents/ 目录自动发现;v1.4.0-alpha 新增 sdd-extension(8 个 `/sdd-*` slash command)+ sdd-api(程序化入口)。
+> 详见 [`docs/architecture/decisions.md`](https://github.com/Norman-pong/sdd-pack/blob/main/docs/architecture/decisions.md)(ADR-006 hook + ADR-007 三层 agent + ADR-009 sdd Extension 替代 CLI)。
 
 ## 1. 安装
 
@@ -89,65 +89,107 @@ sdd-pack/                                  # GitHub repo root
 ```
 
 
-## 4. sdd CLI 工作流
+## 4. sdd Extension 工作流(v1.4.0-alpha)
 
-> **v1.3.0 新增** — `sdd` CLI 是 sdd-pack 文档生命周期的权威入口，提供 propose/validate/archive 三个核心子命令 + 4 个辅助子命令。
+> **v1.4.0-alpha 起** — `sdd-extension`(omp slash command 集合)+ `sdd-api`(程序化入口)取代 v1.3 独立 CLI(ADR-009)。零额外配置:`omp plugin install` 后,重启 omp 即可在会话中输入 `/sdd-*` 命令。
 
-### 4.1 安装
+### 4.1 Slash Commands
 
-```bash
-# 开发者（在 sdd-pack 仓库根目录）
-alias sdd='bun ./plugins/sdd-pack/bin/sdd'
+| 命令 | 描述 |
+|------|------|
+| `/sdd-validate [--path <path>] [--staged] [--severity <warn\|error\|block>] [--rules-only\|--structure-only]` | 校验 docs/(10 项检查) + 状态机合规 |
+| `/sdd-propose --title <name> [--type full\|delta] [--supersedes <prd>] [--spec <path>] [--dry-run]` | 创建新 PRD 或 delta 变更 |
+| `/sdd-archive <prd-path> [--reason completed\|replaced\|abandoned] [--merge-delta] [--new-prd <path>] [--dry-run] [--no-commit]` | 归档 PRD |
+| `/sdd-migrate <prd-path> [--dry-run] [--no-backup]` | 状态行堆叠 → 规范格式 + CHANGELOG |
+| `/sdd-status` | 所有 PRD/Phase 状态总览 |
+| `/sdd-list [--status <s>] [--date <YYYY-MM-DD>] [--keyword <kw>] [--type prd\|phase]` | 带过滤的文档列表 |
+| `/sdd-why <file>:<line> [--json]` | 查询 lore 决策上下文 |
+| `/sdd-apply <prd-path> [--json]` | 打印 PRD 验收标准 checklist |
 
-# 用户（安装 sdd-pack 后）
-alias sdd='bun ~/.omp/plugins/node_modules/sdd-pack/bin/sdd'
+### 4.2 Programmatic API(CI / hook 复用)
+
+`src/cli/api.ts` 导出 8 个纯函数,slash command / hook / CI 三方共用:
+
+```typescript
+import { validateDocs, proposePrd, archivePrd, migratePrd,
+  getStatus, listPrds, getWhy, getApplyChecklist } from "sdd-pack/api";
+
+const result = await validateDocs({ staged: true, severity: "error" });
+if (result.status === "block") throw new Error(result.errors.join("\n"));
 ```
 
-### 4.2 子命令速览
+### 4.3 CI 逃生通道
 
-| 命令 | 描述 | 阶段 |
-|------|------|------|
-| `sdd validate [path]` | 校验文档结构（10 项检查）+ 状态机合规 | Phase A |
-| `sdd propose` | 创建新 PRD 或 delta 变更 | Phase A |
-| `sdd archive <prd-path>` | 归档 PRD（completed/replaced/abandoned） | Phase C |
-| `sdd status` | 所有 PRD/Phase 状态总览 | Phase C |
-| `sdd list` | 带过滤的文档列表 | Phase C |
-| `sdd migrate <prd-path>` | 状态行堆叠 → 规范格式 + CHANGELOG | Phase C |
-| `sdd why <file>:<line>` | 查询 lore 决策上下文 | Phase C |
-| `sdd apply <prd-path>` | 打印 PRD 验收标准 checklist | Phase C |
-
-### 4.3 典型工作流
+不在 omp 会话内时,用 `api-runner.ts` 薄壳调用:
 
 ```bash
-# 1. 创建 PRD
-sdd propose --title "new-feature" --type full
-vi docs/prd/2026-07-01-new-feature.md  # 编辑内容
+bun run plugins/sdd-pack/src/cli/api-runner.ts validate --staged --json
+bun run plugins/sdd-pack/src/cli/api-runner.ts status --json
+bun run plugins/sdd-pack/src/cli/api-runner.ts migrate docs/prd/2026-06-24-sdd-pack.md --dry-run
+```
 
-# 2. 校验（自动检查 10 项）
-sdd validate docs/prd/2026-07-01-new-feature.md
+退出码约定: `pass=0`, `warn=0`, `error=1`, `block=2`(与 hook 拦截一致)。
+
+### 4.4 典型工作流
+
+```bash
+# 1. 会话内创建 PRD
+/sdd-propose --title "v1.5-feature" --type full
+
+# 2. 校验(自动检查 10 项)
+/sdd-validate
 
 # 3. 评审完成后归档
-sdd archive docs/prd/2026-07-01-new-feature.md --reason completed
+/sdd-archive docs/prd/2026-07-01-v1-5-feature.md --reason completed
 
-# 4. 替代旧 PRD
-sdd propose --title "v2-feature" --supersedes docs/prd/2026-06-24-sdd-pack.md
-sdd archive docs/prd/2026-06-24-sdd-pack.md --reason replaced --new-prd docs/prd/2026-07-01-v2-feature.md
+# 4. 替代旧 PRD(创建新 + 归档旧)
+/sdd-propose --title "v2-feature" --supersedes docs/prd/2026-06-24-sdd-pack.md
+/sdd-archive docs/prd/2026-06-24-sdd-pack.md --reason replaced --new-prd docs/prd/2026-07-01-v2-feature.md --merge-delta
+
+# 5. CI 端到端校验
+bun run api-runner.ts validate --staged --json
 ```
 
-### 4.4 手动 vs CLI 对照表
+### 4.5 手动 vs Extension 对照表
 
-| 操作 | 手动步骤 | CLI |
-|------|---------|-----|
-| 创建 PRD | 复制 _template.md → 改 frontmatter → 写章节 | `sdd propose --title "X"` |
-| 校验文档 | 跑 docs-check.sh（4 项）+ 目视状态机检查 | `sdd validate`（10 项） |
-| 归档 PRD | 改状态行 → 移动文件 → 更新 index.md → lore commit + 4 步 | `sdd archive <path> --reason completed` |
+| 操作 | 手动步骤 | Extension / API |
+|------|---------|-----------------|
+| 创建 PRD | 复制 _template.md → 改 frontmatter → 写章节 | `/sdd-propose --title "X"` 或 `proposePrd({title: "X"})` |
+| 校验文档 | 跑 docs-check.sh(4 项)+ 目视状态机检查 | `/sdd-validate`(10 项)或 `validateDocs()` |
+| 归档 PRD | 改状态行 → 移动文件 → 更新 index.md → lore commit 4 步 | `/sdd-archive <path> --reason completed` |
+| CI 校验 | 写 shell 调 docs-check.sh | `bun run api-runner.ts validate --staged --json` |
 
-### 4.5 Hook 集成
+### 4.6 Hook 集成(已升级为 in-process)
 
-commit 时自动执行 `sdd validate --staged --json`：
-- `block` 违规 → 硬拦截，commit 被拒绝
-- `error` 违规 → 灰度阶段仅警告（`SDD_VALIDATE_SEVERITY=error` 升级为阻塞）
-- 配置：`export SDD_VALIDATE_SEVERITY=warn|error|block`
+`hooks/index.ts` 的 `runSddValidate` 不再 spawn subprocess,改为 in-process 调用 `api.validateDocs()`:
+- `block` 违规 → 硬拦截,commit 被拒绝
+- `error` 违规 → 灰度阶段仅警告(`SDD_VALIDATE_SEVERITY=error` 升级为阻塞)
+- 配置: `export SDD_VALIDATE_SEVERITY=warn|error|block`
+
+### 4.7 迁移指引 v1.3 → v1.4
+
+v1.3 独立 CLI 在 v1.4.0-alpha 改为 omp extension(ADR-009)。原 `bin/sdd` + `sdd <cmd>` 全部移除,改用 slash command + program API。
+
+| v1.3(独立 CLI) | v1.4(extension + API) |
+|---|---|
+| `alias sdd='bun .../bin/sdd'` | 删除(不再需要) |
+| `sdd validate` | `/sdd-validate`(会话内)或 `bun run api-runner.ts validate`(CI) |
+| `sdd validate --json` | `bun run api-runner.ts validate --json` |
+| `sdd validate --staged` | `/sdd-validate --staged` 或 `bun run api-runner.ts validate --staged --json` |
+| `sdd propose --title X` | `/sdd-propose --title X` |
+| `sdd propose --supersedes <old>` | `/sdd-propose --supersedes <old> --title X` |
+| `sdd archive <path> --reason completed` | `/sdd-archive <path> --reason completed` |
+| `sdd archive --merge-delta` | `/sdd-archive --merge-delta`(语义一致) |
+| `sdd migrate <path> --dry-run` | `/sdd-migrate <path> --dry-run` |
+| `sdd status` | `/sdd-status` |
+| `sdd list --status X` | `/sdd-list --status X` |
+| `sdd why <file>:<line>` | `/sdd-why <file>:<line>` |
+| `sdd apply <path>` | `/sdd-apply <path>` |
+| `package.json#bin` | 删去(改用 `omp.extensions` manifest) |
+| hook spawn subprocess | in-process `api.validateDocs()` |
+
+**零额外配置**:`omp plugin install sdd-pack` 后,重启 omp 即可在会话中用 `/sdd-*` 命令,无须手工 alias。
+
 ## 5. 开发模式
 
 本地开发 skill 内容并即时生效:

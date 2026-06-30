@@ -1,17 +1,19 @@
 {
   "name": "sdd-pack",
-  "version": "1.3.0-rc.1",
-  "description": "SDD 技能家族(sdd-core/input/prd/phase) + hook extension(lore-protocol + 3 个 TTSR 拦截) + 三层代码质量守门 agent(reviewer/arch-reviewer/sdd-reviewer) + sdd CLI 工作流",
+  "version": "1.4.0-alpha",
+  "description": "SDD 技能家族(sdd-core/input/prd/phase) + hook extension(lore-protocol + 3 个 TTSR 拦截) + 三层代码质量守门 agent(reviewer/arch-reviewer/sdd-reviewer) + sdd Extension(omp slash command 集合)+ sdd API(程序化入口)",
   "files": [
     "skills",
     "rules",
     "hooks",
     "agents",
-    "bin",
+    "extensions",
     "src",
     "README.md"
   ],
-  "bin": {
-    "sdd": "./bin/sdd"
+  "omp": {
+    "extensions": [
+      "./extensions/sdd-extension/index.ts"
+    ]
   }
 }
