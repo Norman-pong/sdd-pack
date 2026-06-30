@@ -10,9 +10,9 @@ sdd-pack 的核心定位：**SDD 技能家族 + lore 提交规则 + 三层代码
 
 ## 2. 架构原则
 
-- **静态优先**：plugin 内容全部为静态文件（SKILL.md + rule markdown + bash 脚本），无 JS/TS 运行时依赖。
-- **零副作用**：plugin 不声明 MCP servers / LSP servers / custom tools，不引入 extension modules。
-- **路径透明**：所有 skills/rules 路径遵循 omp 标准布局，便于 provider 发现。
+- **静态优先**：plugin 内容以静态文件为主（SKILL.md + rule markdown + bash 脚本），同时支持 TypeScript 运行时模块（**v1.4.0 起**：`src/cli/api.ts` 程序化入口 + `extensions/sdd-extension/index.ts` omp extension 工厂 + `hooks/index.ts` 已存在的 TypeScript 聚合）。
+- **零副作用**：plugin 不声明 MCP servers / LSP servers / custom tools。**v1.4.0 起**新增一个 omp extension (`pi.registerCommand` 注册 8 个 slash command + `pi.sendMessage` / `ctx.ui.notify` 输出），不引入 MCP/LSP 副作用。
+- **路径透明**：所有 skills/rules 路径遵循 omp 标准布局，便于 provider 发现。extension 入口遵循 `omp.extensions` manifest 约定（[omp-extension-api.md §1.2](../reference/omp-extension-api.md)）。
 - **迁移可逆**：原位置 `~/.agents/skills/` 与 `~/.omp/agent/rules/` 保留为开发态，sdd-pack 仓库为分发态，互不干扰。
 
 ## 3. 系统架构
@@ -84,7 +84,7 @@ graph TB
 {
   "name": "sdd-pack",
   "metadata": {
-    "version": "1.2.3",
+    "version": "1.4.0-alpha",
     "pluginRoot": "plugins"
   },
   "plugins": [
@@ -100,13 +100,16 @@ graph TB
 ### 5.2 Plugin manifest
 
 ```json
-// plugins/sdd-pack/package.json（满足 omp plugin link 要求）
+// plugins/sdd-pack/package.json（满足 omp plugin link 要求 + v1.4.0 起新增 omp extension manifest）
 {
   "name": "sdd-pack",
-  "version": "1.2.3"
+  "version": "1.4.0-alpha",
+  "files": ["skills", "rules", "hooks", "agents", "extensions", "src", "README.md"],
+  "omp": {
+    "extensions": ["./extensions/sdd-extension/index.ts"]
+  }
 }
 ```
-
 ### 5.3 数据存储
 
 | 数据类型 | 存储方案 | 说明 |
@@ -177,17 +180,23 @@ graph LR
 | ADR-005 | `.omp-plugin/marketplace.json` 优先于 `.claude-plugin/marketplace.json` | omp 原生路径，PR #1173 合并后优先读取 | 若未来 omp 不支持，回退到 `.claude-plugin/` |
 | ADR-006 | hook extension 替代 static rules，走 `omp --hook` CLI flag 装载（非 plugin manifest） | omp v16.1.16 plugin 装载器不识别 `omp.hooks` 字段；`--hook` flag 可直接加载 hook runtime | 4 个 rule 通过 `plugins/sdd-pack/hooks/index.ts` 单文件聚合激活（session_start reminder + 3 TTSR 拦截）；详见 `docs/architecture/decisions.md` |
 | ADR-007 | 代码评审拆为三层守门 agent（reviewer/arch-reviewer/sdd-reviewer）而非单体 reviewer | 三层认知模式/工具/触发时机/severity/output schema 差异大，合并会稀释 LLM 单人设表现力、拖慢 commit gate；详见 `skill://omp-three-layer-reviewer` | agents/ 新增 3 文件；reviewer 覆盖 bundled 同名；arch/sdd-reviewer 为手动 task() 触发 |
+| ADR-008 | sdd CLI 工作流（独立 bash + bun + TS CLI） | sdd-pack v1.2.3 PRD 状态行堆叠问题暴露文档生命周期操作缺乏自动化工具 | 900+ 行 TS CLI + bash wrapper + docs-check 集成；**v1.4.0 起被 ADR-009 Superseded** |
+| ADR-009 | sdd Extension 替代独立 CLI（omp slash command + 程序化 API + CI 逃生通道） | ADR-008 形态下第三方用户安装体验问题（手工 alias 不可持续）+ omp marketplace 不识别 `package.json#bin` | 删除 `bin/sdd`、`src/cli/index.ts`、`src/cli/lib/arg-parser.ts`、`src/cli/commands/*.ts`；新增 `src/cli/api.ts`、`src/cli/api-runner.ts`、`extensions/sdd-extension/index.ts`；`hooks/index.ts` 改 in-process；详见 [PRD 2026-06-30-sdd-extension.md](../prd/2026-06-30-sdd-extension.md) 与 [reference/omp-extension-api.md](../reference/omp-extension-api.md) |
 
 ## 10. 架构演进
 
 ### 10.1 当前版本
-- 版本号：1.2.3
-- 发布日期：2026-06-25
-- 内容：4 skills + 5 rules + docs-check.sh + 3 守门 agent + hook extension（lore-protocol + 3 TTSR 拦截；prd-change-management 为纯静态，不进 hook）
-- 待发布特性：sdd CLI 工作流（v1.3 候选，[PRD](../prd/2026-06-29-sdd-cli.md) 草稿 + [设计文档](sdd-cli-design.md) 已就绪，ADR-008 待评审，CLI 实现未启动）
+- 版本号：1.4.0-alpha（v1.3.0-rc.1 含独立 CLI 实现已 commit `6309540`，但被 ADR-009 Superseded,v1.4.0-alpha 起替换为 extension + api 形态）
+- 发布日期：2026-06-30
+- 内容：4 skills + 5 rules + docs-check.sh + 3 守门 agent + hook extension（in-process 调用 api.ts）+ **sdd-extension**（8 个 slash command）+ **src/cli/api.ts**（程序化入口）+ **src/cli/api-runner.ts**（CI 逃生通道）
+- 历史：v1.3.0-rc.1 实现了独立 CLI 形态(commit `6309540`)，但发现第三方安装体验问题，2026-06-30 经 ADR-009 决策替换为 extension 形态。CLI 形态代码保留用于 v1.3→v1.4 过渡期可读性。
 
 ### 10.2 演进路线
 - [x] 阶段 1 验证：rules 通过 omp-plugins provider 被发现 — **v1.1.0 结论：marketplace/link 模式不自动发现，改由 hook extension（`omp --hook`）接管，ADR-006**
 - [x] fallback 为 hook extension 模式 — **v1.1.0 已实施（CLI flag 路径，非 npm install）**
+- [x] v1.2.0-v1.3.0-rc.1: 独立 CLI 形态 — ADR-008, 已 commit `6309540`, 验证发现第三方安装体验问题
+- [x] v1.4.0-alpha: **ADR-009 决策 + extension 形态实现** — 当前阶段
+- [ ] v1.4.0-beta: hook 切换到 in-process `api.validateDocs()`, severity=warn 灰度
+- [ ] v1.4.0 正式: severity=error, marketplace 发布, ADR-008 完整退役
 - [ ] 增加 evals/ 评估集到每个 skill（PRD §3.1 已有目录占位）
 - [ ] 跨平台测试：Linux / WSL / macOS bash 3.2/4.x 兼容性

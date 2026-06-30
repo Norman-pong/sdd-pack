@@ -69,3 +69,39 @@
 
 - omp 内部文档通过 `omp://` URI 访问（harness 内部协议）
 - 项目内开发文档通过 `docs/` 目录查阅
+
+## 9. Omp Extension API 参考（sdd-extension 实施依据）
+
+### 9.1 本仓库整理摘要
+
+| 文档名称 | 来源 | 说明 | 版本 |
+|---------|------|------|------|
+| **Omp Extension API 参考** | `docs/reference/omp-extension-api.md` | 本仓库整理的 extension / slash command / UI / manifest / 安装路径摘要，作为 sdd-extension（方案 A）实施期的一手参考 | 2026-06-30 |
+
+### 9.2 omp 官方权威源（11 份）
+
+| 文档 | 来源 | 用途 |
+|---|---|---|
+| Extension API Reference（官方）| `https://github.com/can1357/oh-my-pi/blob/refs/heads/main/docs/extensions.md` | ExtensionAPI / registerCommand / registerTool 权威定义 |
+| Extension Authoring 指南 | `https://omp.sh/docs/extension-authoring` | 如何创建一个 omp extension（含最小完整示例） |
+| Custom Tools 文档 | `https://github.com/can1357/oh-my-pi/blob/main/docs/custom-tools.md` | ToolDefinition Schema / Zod 参数校验 |
+| Extension UI Sub-Protocol | `https://github.com/can1357/oh-my-pi/blob/main/docs/rpc.md` + `packages/coding-agent/src/modes/rpc/rpc-types.ts` | RPC 模式下 UI 调用（notify / setStatus / setWidget / select / confirm）|
+| Extension Discovery 源码 | `https://github.com/can1357/oh-my-pi/blob/main/packages/coding-agent/src/extensibility/plugins/loader.ts` | 实际如何从 node_modules / lockfile 装载 plugin 清单（`omp` 或 `pi` manifest）|
+| install 命令实现 | `https://github.com/can1357/oh-my-pi/blob/main/packages/coding-agent/src/commands/install.ts` | omp install 路由表（本地路径 → plugin link，远程 → plugin install）|
+| Extension System DeepWiki | `https://deepwiki.com/can1357/oh-my-pi/11-extension-system` | Extension 体系结构总览 |
+| Custom Tools and Commands DeepWiki | `https://deepwiki.com/can1357/oh-my-pi/11.3-custom-tools-and-commands` | Command 注册 / arg completion / 冲突后缀机制 |
+| @oh-my-pi/cli（独立 CLI 唯一先例）| `https://registry.npmjs.org/%40oh-my-pi%2Fcli` | omp 生态中**独立 CLI**的唯一先例（npm 路径，不走 marketplace） |
+| Pi 单仓库镜像 docs | `https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md` + `https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/extensions.md` | 与 omp docs 等价的备选阅读路径 |
+| Discovery wiring PR #1498 | `https://github.com/can1357/oh-my-pi/pull/1498` | `omp plugin install/link` 注册的 sub-dirs 发现修复（2026-05-29） |
+| Manifest 目录形式修复 PR #2714 | `https://github.com/can1357/oh-my-pi/pull/2714` | `pi.extensions: ["./extensions"]` 目录形式解析支持 |
+
+### 9.3 生态参考项目（扩展思路借鉴）
+
+| 项目 | 路径 | 借鉴点 |
+|------|------|--------|
+| `Dwsy/pi-extensions-skill` | `https://github.com/Dwsy/pi-extensions-skill/blob/main/guides/01-quickstart.md` | 最小完整 extension 示例（greet command） |
+| `salesforce/sf-pi` | `https://github.com/salesforce/sf-pi/blob/main/lib/common/safe-command-handler.ts` | command handler 异常安全包装 |
+| `screenfluent/omp-semantic-grep` | `https://github.com/screenfluent/omp-semantic-grep` | hybrid tool + ui.notify |
+| `usr-bin-roygbiv/omp-cmux-browser-tools` | `https://github.com/usr-bin-roygbiv/omp-cmux-browser-tools` | extension + marketplace 双重发布 |
+| `pi-mono` examples | `https://app.unpkg.com/@oh-my-pi/pi-coding-agent@16.1.11/files/examples/extensions/reload-runtime.ts` + `06-extensions.ts` + `extensions/commands.ts` | 综合性 extension / reload-runtime / 列表 + arg completion |
+| `@aliou/pi-dev-kit` | `https://cdn.jsdelivr.net/npm/@aliou/pi-dev-kit@0.8.0/src/skills/pi-extension/references/messages.md` | persistent vs ephemeral 消息区分 |
