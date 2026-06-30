@@ -37,10 +37,7 @@ export function assertNoConflict(filePath: string): void {
 }
 
 /** 必需的字符串参数;为空抛错 */
-export function requireString(
-  value: string | undefined,
-  name: string,
-): string {
+export function requireString(value: string | undefined, name: string): string {
   if (!value || value.length === 0) {
     throw new Error(`缺少必需参数: ${name}`);
   }
@@ -51,8 +48,6 @@ export function requireString(
 export function assertSupersedesPublished(prdPath: string): void {
   const status = currentStatusOf(prdPath);
   if (status !== "已发布") {
-    throw new Error(
-      `--supersedes 目标必须为"已发布"状态,实际: ${status ?? "(无法解析)"}`,
-    );
+    throw new Error(`--supersedes 目标必须为"已发布"状态,实际: ${status ?? "(无法解析)"}`);
   }
 }

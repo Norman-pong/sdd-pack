@@ -88,31 +88,38 @@ sdd-pack/                                  # GitHub repo root
 └── docs/                                  # 配套的 SDD 文档(prd/phase/architecture/...)
 ```
 
-
 ## 4. sdd Extension 工作流(v1.4.0-alpha)
 
 > **v1.4.0-alpha 起** — `sdd-extension`(omp slash command 集合)+ `sdd-api`(程序化入口)取代 v1.3 独立 CLI(ADR-009)。零额外配置:`omp plugin install` 后,重启 omp 即可在会话中输入 `/sdd-*` 命令。
 
 ### 4.1 Slash Commands
 
-| 命令 | 描述 |
-|------|------|
-| `/sdd-validate [--path <path>] [--staged] [--severity <warn\|error\|block>] [--rules-only\|--structure-only]` | 校验 docs/(10 项检查) + 状态机合规 |
-| `/sdd-propose --title <name> [--type full\|delta] [--supersedes <prd>] [--spec <path>] [--dry-run]` | 创建新 PRD 或 delta 变更 |
-| `/sdd-archive <prd-path> [--reason completed\|replaced\|abandoned] [--merge-delta] [--new-prd <path>] [--dry-run] [--no-commit]` | 归档 PRD |
-| `/sdd-migrate <prd-path> [--dry-run] [--no-backup]` | 状态行堆叠 → 规范格式 + CHANGELOG |
-| `/sdd-status` | 所有 PRD/Phase 状态总览 |
-| `/sdd-list [--status <s>] [--date <YYYY-MM-DD>] [--keyword <kw>] [--type prd\|phase]` | 带过滤的文档列表 |
-| `/sdd-why <file>:<line> [--json]` | 查询 lore 决策上下文 |
-| `/sdd-apply <prd-path> [--json]` | 打印 PRD 验收标准 checklist |
+| 命令                                                                                                                             | 描述                               |
+| -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `/sdd-validate [--path <path>] [--staged] [--severity <warn\|error\|block>] [--rules-only\|--structure-only]`                    | 校验 docs/(10 项检查) + 状态机合规 |
+| `/sdd-propose --title <name> [--type full\|delta] [--supersedes <prd>] [--spec <path>] [--dry-run]`                              | 创建新 PRD 或 delta 变更           |
+| `/sdd-archive <prd-path> [--reason completed\|replaced\|abandoned] [--merge-delta] [--new-prd <path>] [--dry-run] [--no-commit]` | 归档 PRD                           |
+| `/sdd-migrate <prd-path> [--dry-run] [--no-backup]`                                                                              | 状态行堆叠 → 规范格式 + CHANGELOG  |
+| `/sdd-status`                                                                                                                    | 所有 PRD/Phase 状态总览            |
+| `/sdd-list [--status <s>] [--date <YYYY-MM-DD>] [--keyword <kw>] [--type prd\|phase]`                                            | 带过滤的文档列表                   |
+| `/sdd-why <file>:<line> [--json]`                                                                                                | 查询 lore 决策上下文               |
+| `/sdd-apply <prd-path> [--json]`                                                                                                 | 打印 PRD 验收标准 checklist        |
 
 ### 4.2 Programmatic API(CI / hook 复用)
 
 `src/cli/api.ts` 导出 8 个纯函数,slash command / hook / CI 三方共用:
 
 ```typescript
-import { validateDocs, proposePrd, archivePrd, migratePrd,
-  getStatus, listPrds, getWhy, getApplyChecklist } from "sdd-pack/api";
+import {
+  validateDocs,
+  proposePrd,
+  archivePrd,
+  migratePrd,
+  getStatus,
+  listPrds,
+  getWhy,
+  getApplyChecklist,
+} from "sdd-pack/api";
 
 const result = await validateDocs({ staged: true, severity: "error" });
 if (result.status === "block") throw new Error(result.errors.join("\n"));
@@ -152,16 +159,17 @@ bun run api-runner.ts validate --staged --json
 
 ### 4.5 手动 vs Extension 对照表
 
-| 操作 | 手动步骤 | Extension / API |
-|------|---------|-----------------|
-| 创建 PRD | 复制 _template.md → 改 frontmatter → 写章节 | `/sdd-propose --title "X"` 或 `proposePrd({title: "X"})` |
-| 校验文档 | 跑 docs-check.sh(4 项)+ 目视状态机检查 | `/sdd-validate`(10 项)或 `validateDocs()` |
-| 归档 PRD | 改状态行 → 移动文件 → 更新 index.md → lore commit 4 步 | `/sdd-archive <path> --reason completed` |
-| CI 校验 | 写 shell 调 docs-check.sh | `bun run api-runner.ts validate --staged --json` |
+| 操作     | 手动步骤                                               | Extension / API                                          |
+| -------- | ------------------------------------------------------ | -------------------------------------------------------- |
+| 创建 PRD | 复制 \_template.md → 改 frontmatter → 写章节           | `/sdd-propose --title "X"` 或 `proposePrd({title: "X"})` |
+| 校验文档 | 跑 docs-check.sh(4 项)+ 目视状态机检查                 | `/sdd-validate`(10 项)或 `validateDocs()`                |
+| 归档 PRD | 改状态行 → 移动文件 → 更新 index.md → lore commit 4 步 | `/sdd-archive <path> --reason completed`                 |
+| CI 校验  | 写 shell 调 docs-check.sh                              | `bun run api-runner.ts validate --staged --json`         |
 
 ### 4.6 Hook 集成(已升级为 in-process)
 
 `hooks/index.ts` 的 `runSddValidate` 不再 spawn subprocess,改为 in-process 调用 `api.validateDocs()`:
+
 - `block` 违规 → 硬拦截,commit 被拒绝
 - `error` 违规 → 灰度阶段仅警告(`SDD_VALIDATE_SEVERITY=error` 升级为阻塞)
 - 配置: `export SDD_VALIDATE_SEVERITY=warn|error|block`
@@ -170,23 +178,23 @@ bun run api-runner.ts validate --staged --json
 
 v1.3 独立 CLI 在 v1.4.0-alpha 改为 omp extension(ADR-009)。原 `bin/sdd` + `sdd <cmd>` 全部移除,改用 slash command + program API。
 
-| v1.3(独立 CLI) | v1.4(extension + API) |
-|---|---|
-| `alias sdd='bun .../bin/sdd'` | 删除(不再需要) |
-| `sdd validate` | `/sdd-validate`(会话内)或 `bun run api-runner.ts validate`(CI) |
-| `sdd validate --json` | `bun run api-runner.ts validate --json` |
-| `sdd validate --staged` | `/sdd-validate --staged` 或 `bun run api-runner.ts validate --staged --json` |
-| `sdd propose --title X` | `/sdd-propose --title X` |
-| `sdd propose --supersedes <old>` | `/sdd-propose --supersedes <old> --title X` |
-| `sdd archive <path> --reason completed` | `/sdd-archive <path> --reason completed` |
-| `sdd archive --merge-delta` | `/sdd-archive --merge-delta`(语义一致) |
-| `sdd migrate <path> --dry-run` | `/sdd-migrate <path> --dry-run` |
-| `sdd status` | `/sdd-status` |
-| `sdd list --status X` | `/sdd-list --status X` |
-| `sdd why <file>:<line>` | `/sdd-why <file>:<line>` |
-| `sdd apply <path>` | `/sdd-apply <path>` |
-| `package.json#bin` | 删去(改用 `omp.extensions` manifest) |
-| hook spawn subprocess | in-process `api.validateDocs()` |
+| v1.3(独立 CLI)                          | v1.4(extension + API)                                                        |
+| --------------------------------------- | ---------------------------------------------------------------------------- |
+| `alias sdd='bun .../bin/sdd'`           | 删除(不再需要)                                                               |
+| `sdd validate`                          | `/sdd-validate`(会话内)或 `bun run api-runner.ts validate`(CI)               |
+| `sdd validate --json`                   | `bun run api-runner.ts validate --json`                                      |
+| `sdd validate --staged`                 | `/sdd-validate --staged` 或 `bun run api-runner.ts validate --staged --json` |
+| `sdd propose --title X`                 | `/sdd-propose --title X`                                                     |
+| `sdd propose --supersedes <old>`        | `/sdd-propose --supersedes <old> --title X`                                  |
+| `sdd archive <path> --reason completed` | `/sdd-archive <path> --reason completed`                                     |
+| `sdd archive --merge-delta`             | `/sdd-archive --merge-delta`(语义一致)                                       |
+| `sdd migrate <path> --dry-run`          | `/sdd-migrate <path> --dry-run`                                              |
+| `sdd status`                            | `/sdd-status`                                                                |
+| `sdd list --status X`                   | `/sdd-list --status X`                                                       |
+| `sdd why <file>:<line>`                 | `/sdd-why <file>:<line>`                                                     |
+| `sdd apply <path>`                      | `/sdd-apply <path>`                                                          |
+| `package.json#bin`                      | 删去(改用 `omp.extensions` manifest)                                         |
+| hook spawn subprocess                   | in-process `api.validateDocs()`                                              |
 
 **零额外配置**:`omp plugin install sdd-pack` 后,重启 omp 即可在会话中用 `/sdd-*` 命令,无须手工 alias。
 
@@ -237,12 +245,13 @@ mv ~/.omp/agent/rules/{lore-protocol,docs-update-guard,lore-commit-guard,sdd-doc
 **原因**: 没加 `--hook` flag,或路径错误,或 hook 加载失败(bun 缺类型)。
 
 **解决**:
+
 1. 确认命令含 `--hook $(pwd)/plugins/sdd-pack/hooks/index.ts`
 2. 路径用 `$(pwd)` 绝对化,避免 cwd 漂移
 3. `bun build ./plugins/sdd-pack/hooks/index.ts --target=bun --outdir=/tmp/test` 确认 TS 编译通过
 4. 设置 `alias omp='omp --hook ...'` 持久化
 
-### Q3. system prompt 中 sdd-* skill 的 description 显示为英文(而非源文件中的中文)
+### Q3. system prompt 中 sdd-\* skill 的 description 显示为英文(而非源文件中的中文)
 
 **原因**: omp 在 marketplace 模式下会对 frontmatter description 做翻译(可能为多语言提示优化)。`skill://` URI 读取仍返回原始中文 frontmatter。
 
@@ -253,6 +262,7 @@ mv ~/.omp/agent/rules/{lore-protocol,docs-update-guard,lore-commit-guard,sdd-doc
 **原因**: 用户既执行了 `omp plugin link`(开发态,npm 模式)又执行了 `omp plugin install`(发布态,marketplace 模式)。
 
 **解决**: 二选一:
+
 - 仅 link(开发): `omp plugin uninstall sdd-pack@sdd-pack`
 - 仅 marketplace(发布): `omp plugin uninstall sdd-pack`(卸 npm),并清理 `~/.omp/plugins/node_modules/sdd-pack` 符号链接
 
@@ -289,6 +299,7 @@ omp --hook ./plugins/sdd-pack/hooks/index.ts
 ```
 
 **版本对应**: git tag 与 plugin version 保持一致。
+
 - v0.9.0-rc → v1.1.0(0.9.0 → v1.0.0 跳过,本版本合并 hook 路径实施)
 - 每次技能内容变更对应 plugin version 递增
 

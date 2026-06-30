@@ -13,14 +13,34 @@
  */
 
 import {
-  validateDocs, proposePrd, archivePrd, migratePrd,
-  getStatus, listPrds, getWhy, getApplyChecklist,
-  type ValidateOptions, type ProposeOptions, type ArchiveOptions,
-  type MigrateOptions, type ListOptions, type ValidationResult,
-  type ProposeResult, type ArchiveResult, type MigrateResult,
-  type StatusResult, type ListResult, type WhyResult, type ApplyResult,
+  validateDocs,
+  proposePrd,
+  archivePrd,
+  migratePrd,
+  getStatus,
+  listPrds,
+  getWhy,
+  getApplyChecklist,
+  type ValidateOptions,
+  type ProposeOptions,
+  type ArchiveOptions,
+  type MigrateOptions,
+  type ListOptions,
+  type ValidationResult,
+  type ProposeResult,
+  type ArchiveResult,
+  type MigrateResult,
+  type StatusResult,
+  type ListResult,
+  type WhyResult,
+  type ApplyResult,
 } from "../../src/cli/api";
-import { parseArgs, getStringOption, getBoolOption, getEnumOption } from "../../src/cli/lib/orchestration/parseArgs";
+import {
+  parseArgs,
+  getStringOption,
+  getBoolOption,
+  getEnumOption,
+} from "../../src/cli/lib/orchestration/parseArgs";
 import { formatHuman, formatSummary } from "../../src/cli/lib/orchestration/format";
 import type { CheckSeverity } from "../../src/cli/lib/validator";
 
@@ -43,10 +63,18 @@ interface CommandContext {
 }
 
 // ===== 统一 UI adapter:把 ValidationResult 映射到 ctx.ui =====
-function notifyBySeverity(result: { status: string; errors: string[]; warnings: string[] }, ctx: CommandContext): void {
-  const level = result.status === "block" ? "error" :
-                result.status === "error" ? "error" :
-                result.status === "warn" ? "warn" : "info";
+function notifyBySeverity(
+  result: { status: string; errors: string[]; warnings: string[] },
+  ctx: CommandContext,
+): void {
+  const level =
+    result.status === "block"
+      ? "error"
+      : result.status === "error"
+        ? "error"
+        : result.status === "warn"
+          ? "warn"
+          : "info";
   ctx.ui.notify(level, formatSummary(result));
 }
 
@@ -112,12 +140,21 @@ async function handleArchive(args: string, ctx: unknown): Promise<unknown> {
   const pos = opts.positional[0];
   if (!pos) {
     const c = uiOf(ctx);
-    c.ui.notify("error", "用法: /sdd-archive <prd-path> [--reason <type>] [--merge-delta] [--dry-run] [--no-commit] [--new-prd <path>]");
+    c.ui.notify(
+      "error",
+      "用法: /sdd-archive <prd-path> [--reason <type>] [--merge-delta] [--dry-run] [--no-commit] [--new-prd <path>]",
+    );
     return { error: "missing prd-path" };
   }
-  const reason = getEnumOption(opts, "reason", ["completed", "replaced", "abandoned"], "completed") as "completed" | "replaced" | "abandoned";
+  const reason = getEnumOption(
+    opts,
+    "reason",
+    ["completed", "replaced", "abandoned"],
+    "completed",
+  ) as "completed" | "replaced" | "abandoned";
   const options: ArchiveOptions = {
-    prdPath: pos, reason,
+    prdPath: pos,
+    reason,
     mergeDelta: getBoolOption(opts, "merge-delta"),
     dryRun: getBoolOption(opts, "dry-run"),
     noCommit: getBoolOption(opts, "no-commit"),
@@ -145,7 +182,8 @@ async function handleMigrate(args: string, ctx: unknown): Promise<unknown> {
   };
   const result: MigrateResult = await migratePrd(options);
   const c = uiOf(ctx);
-  if (result.status === "pass") c.ui.notify("info", `迁移完成: 解析 ${result.parsedEntries} 个版本`);
+  if (result.status === "pass")
+    c.ui.notify("info", `迁移完成: 解析 ${result.parsedEntries} 个版本`);
   else c.ui.notify("error", `迁移失败: ${result.errors.join("; ")}`);
   return result;
 }
@@ -155,7 +193,9 @@ async function handleStatus(_args: string, ctx: unknown): Promise<unknown> {
   const c = uiOf(ctx);
   const lines = [`PRD: ${result.prdCount}, Phase: ${result.phaseCount}`, ""];
   for (const item of result.items) {
-    lines.push(`  [${item.type.toUpperCase()}] ${item.fileName} — ${item.status}${item.version ? ` (v${item.version})` : ""}`);
+    lines.push(
+      `  [${item.type.toUpperCase()}] ${item.fileName} — ${item.status}${item.version ? ` (v${item.version})` : ""}`,
+    );
   }
   c.ui.setWidget(lines.join("\n"));
   c.ui.notify("info", `状态总览: ${result.items.length} 个文档`);
@@ -194,13 +234,17 @@ async function handleWhy(args: string, ctx: unknown): Promise<unknown> {
 async function handleApply(args: string, ctx: unknown): Promise<unknown> {
   const prdPath = splitArgs(args)[0] ?? "";
   const c = uiOf(ctx);
-  if (!prdPath) { c.ui.notify("error", "用法: /sdd-apply <prd-path>"); return { error: "missing prd-path" }; }
+  if (!prdPath) {
+    c.ui.notify("error", "用法: /sdd-apply <prd-path>");
+    return { error: "missing prd-path" };
+  }
   try {
     const result: ApplyResult = await getApplyChecklist(prdPath);
     if (result.total === 0) c.ui.notify("warn", "未找到 checklist 条目");
     else {
       const lines = [`验收标准: ${result.prdPath}`, ""];
-      for (const item of result.items) lines.push(`  ${String(item.id).padStart(2)}. [ ] ${item.description}`);
+      for (const item of result.items)
+        lines.push(`  ${String(item.id).padStart(2)}. [ ] ${item.description}`);
       lines.push(`\n总计: ${result.total} 条`);
       c.ui.setWidget(lines.join("\n"));
       c.ui.notify("info", `提取 ${result.total} 条 checklist`);
@@ -214,12 +258,30 @@ async function handleApply(args: string, ctx: unknown): Promise<unknown> {
 
 // ===== Extension factory:8 个 slash command 注册 =====
 export default function (pi: ExtensionAPI): void {
-  pi.registerCommand("sdd-validate", { description: "校验 docs/ 文档结构 + 状态机 + 交叉引用一致性", handler: handleValidate });
-  pi.registerCommand("sdd-propose", { description: "创建新 PRD(full / delta 型)", handler: handlePropose });
-  pi.registerCommand("sdd-archive", { description: "归档 PRD(reason: completed|replaced|abandoned)", handler: handleArchive });
-  pi.registerCommand("sdd-migrate", { description: "状态行堆叠清理 → 单行 + CHANGELOG", handler: handleMigrate });
-  pi.registerCommand("sdd-status", { description: "所有 PRD/Phase 状态总览", handler: handleStatus });
+  pi.registerCommand("sdd-validate", {
+    description: "校验 docs/ 文档结构 + 状态机 + 交叉引用一致性",
+    handler: handleValidate,
+  });
+  pi.registerCommand("sdd-propose", {
+    description: "创建新 PRD(full / delta 型)",
+    handler: handlePropose,
+  });
+  pi.registerCommand("sdd-archive", {
+    description: "归档 PRD(reason: completed|replaced|abandoned)",
+    handler: handleArchive,
+  });
+  pi.registerCommand("sdd-migrate", {
+    description: "状态行堆叠清理 → 单行 + CHANGELOG",
+    handler: handleMigrate,
+  });
+  pi.registerCommand("sdd-status", {
+    description: "所有 PRD/Phase 状态总览",
+    handler: handleStatus,
+  });
   pi.registerCommand("sdd-list", { description: "带过滤的文档列表", handler: handleList });
-  pi.registerCommand("sdd-why", { description: "查询 lore 决策上下文(file:line)", handler: handleWhy });
+  pi.registerCommand("sdd-why", {
+    description: "查询 lore 决策上下文(file:line)",
+    handler: handleWhy,
+  });
   pi.registerCommand("sdd-apply", { description: "打印 PRD 实施 checklist", handler: handleApply });
 }

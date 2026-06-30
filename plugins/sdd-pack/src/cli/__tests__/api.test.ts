@@ -5,12 +5,18 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { rmSync, existsSync } from "fs";
+import { existsSync } from "fs";
 import { resolve } from "path";
 
 import {
-  validateDocs, proposePrd, archivePrd, migratePrd,
-  getStatus, listPrds, getWhy, getApplyChecklist,
+  validateDocs,
+  proposePrd,
+  archivePrd,
+  migratePrd,
+  getStatus,
+  listPrds,
+  getWhy,
+  getApplyChecklist,
 } from "../api";
 
 // ===== validateDocs =====
@@ -106,8 +112,9 @@ describe("listPrds", () => {
     const r = await listPrds({ keyword: "sdd-extension" });
     expect(r.items.length).toBeGreaterThan(0);
     for (const item of r.items) {
-      const hit = item.title.toLowerCase().includes("sdd-extension")
-        || item.fileName.toLowerCase().includes("sdd-extension");
+      const hit =
+        item.title.toLowerCase().includes("sdd-extension") ||
+        item.fileName.toLowerCase().includes("sdd-extension");
       expect(hit).toBe(true);
     }
   });

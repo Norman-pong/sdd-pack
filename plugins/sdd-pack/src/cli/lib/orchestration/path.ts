@@ -58,7 +58,5 @@ export function tryReadFile(filePath: string): string | undefined {
 
 /** 工具:将绝对路径转成 docs/ 相对(用于 index.md 链接) */
 export function toDocsRelative(absolutePath: string, docsDir: string): string {
-  return absolutePath.startsWith(docsDir)
-    ? absolutePath.slice(docsDir.length + 1)
-    : absolutePath;
+  return absolutePath.startsWith(docsDir) ? absolutePath.slice(docsDir.length + 1) : absolutePath;
 }

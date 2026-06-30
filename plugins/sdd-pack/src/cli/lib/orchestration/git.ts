@@ -15,7 +15,8 @@ export function stagedFiles(): string[] {
   const r = spawnSync("git", ["diff", "--cached", "--name-only"]);
   const out = r.stdout?.toString().trim() ?? "";
   if (!out) return [];
-  return out.split("\n")
+  return out
+    .split("\n")
     .filter((f) => f.startsWith("docs/") && f.endsWith(".md"))
     .map((f) => resolve(f));
 }

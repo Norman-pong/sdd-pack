@@ -32,9 +32,7 @@ export function formatHuman(result: ValidationResult): string {
     for (const w of result.warnings) lines.push(`  ${w}`);
   }
 
-  lines.push(
-    `\n总计: ${result.errors.length} error(s), ${result.warnings.length} warning(s)`,
-  );
+  lines.push(`\n总计: ${result.errors.length} error(s), ${result.warnings.length} warning(s)`);
   return lines.join("\n");
 }
 
@@ -50,14 +48,15 @@ export function formatAnsi(result: ValidationResult, color: boolean): string {
   const c = (s: string, code: string) => `\x1b[${code}m${s}\x1b[0m`;
   const status = (() => {
     switch (result.status) {
-      case "pass": return c("PASS", "32");
-      case "warn": return c("WARN", "33");
-      case "error": return c("ERROR", "31");
-      case "block": return c("BLOCK", "1;31");
+      case "pass":
+        return c("PASS", "32");
+      case "warn":
+        return c("WARN", "33");
+      case "error":
+        return c("ERROR", "31");
+      case "block":
+        return c("BLOCK", "1;31");
     }
   })();
-  return formatHuman(result).replace(
-    result.status.toUpperCase(),
-    status,
-  );
+  return formatHuman(result).replace(result.status.toUpperCase(), status);
 }

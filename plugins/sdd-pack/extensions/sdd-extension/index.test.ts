@@ -34,8 +34,12 @@ function makeCtx() {
     widgets,
     ctx: {
       ui: {
-        notify(level: "info" | "warn" | "error", text: string) { messages.push({ level, text }); },
-        setWidget(content: string) { widgets.push(content); },
+        notify(level: "info" | "warn" | "error", text: string) {
+          messages.push({ level, text });
+        },
+        setWidget(content: string) {
+          widgets.push(content);
+        },
       },
     },
   };
@@ -54,8 +58,14 @@ describe("sdd-extension — 8 slash command 注册", () => {
     expect(captured.length).toBe(8);
     const names = captured.map((c) => c.name).sort();
     expect(names).toEqual([
-      "sdd-apply", "sdd-archive", "sdd-list", "sdd-migrate",
-      "sdd-propose", "sdd-status", "sdd-validate", "sdd-why",
+      "sdd-apply",
+      "sdd-archive",
+      "sdd-list",
+      "sdd-migrate",
+      "sdd-propose",
+      "sdd-status",
+      "sdd-validate",
+      "sdd-why",
     ]);
   });
 

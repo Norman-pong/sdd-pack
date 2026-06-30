@@ -54,10 +54,7 @@ export function appendReplacedByRef(content: string, newPrdPath: string): string
   if (content.includes("> 已被:")) return content;
   const newPrdRel = `../prd/${basename(resolve(newPrdPath))}`;
   const newPrdName = basename(resolve(newPrdPath), ".md");
-  return content.replace(
-    /(> 状态[：:][^\n]+\n)/,
-    `$1> 已被：[${newPrdName}](${newPrdRel}) 替代\n`,
-  );
+  return content.replace(/(> 状态[：:][^\n]+\n)/, `$1> 已被：[${newPrdName}](${newPrdRel}) 替代\n`);
 }
 
 /** reason=replaced 时:给新 PRD 加 > 替代: 反向引用 */
@@ -67,10 +64,7 @@ export function appendSupersedesRef(newPrdPath: string, oldPrdPath: string): voi
   if (content.includes("> 替代:")) return;
   const relPath = `../prd/${basename(oldPrdPath)}`;
   const oldName = basename(oldPrdPath, ".md");
-  content = content.replace(
-    /(> 状态[：:][^\n]+\n)/,
-    `$1> 替代：[${oldName}](${relPath})\n`,
-  );
+  content = content.replace(/(> 状态[：:][^\n]+\n)/, `$1> 替代：[${oldName}](${relPath})\n`);
   writeFileSync(newPrdPath, content, "utf-8");
 }
 
@@ -83,8 +77,7 @@ export function syncIndex(
 ): boolean {
   if (!existsSync(indexPath)) return false;
   const statusLabel =
-    reason === "completed" ? "已归档" :
-    reason === "replaced" ? "已替换" : "已废弃";
+    reason === "completed" ? "已归档" : reason === "replaced" ? "已替换" : "已废弃";
   try {
     return addPrdEntry(indexPath, targetPath, statusLabel, linkText);
   } catch {

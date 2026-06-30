@@ -62,7 +62,7 @@ const DOCS_UPDATE_HINT =
 
 const LORE_COMMIT_BLOCK_REASON = [
   "🚫 lore-commit-guard [hook]: 请用 `lore commit` 提交(自动满足 PRD/Phase 双向引用 + sdd validate)。",
-  "   `lore commit --intent \"<why>\" [--body \"<narrative>\"] [--constraint ...] [--directive ...]`",
+  '   `lore commit --intent "<why>" [--body "<narrative>"] [--constraint ...] [--directive ...]`',
   "   裸 `git commit` 会绕过 lore 协议,破坏决策追溯链。",
 ].join("\n");
 
@@ -94,12 +94,21 @@ async function runSddValidate(pi: HookAPI): Promise<void> {
     if (files.length === 0) return;
     const result = await validateDocs({ staged: true, files, severity: getValidateSeverity() });
     if (result.status === "block") {
-      pi.sendMessage({ role: "system", content: `🚫 sdd validate 硬拦截:\n${result.errors.join("\n")}` });
+      pi.sendMessage({
+        role: "system",
+        content: `🚫 sdd validate 硬拦截:\n${result.errors.join("\n")}`,
+      });
     } else if (result.status === "error") {
-      pi.sendMessage({ role: "system", content: `⚠ sdd validate 错误(灰度阶段,仅警告):\n${result.errors.join("\n")}` });
+      pi.sendMessage({
+        role: "system",
+        content: `⚠ sdd validate 错误(灰度阶段,仅警告):\n${result.errors.join("\n")}`,
+      });
     }
   } catch (e) {
-    pi.sendMessage({ role: "system", content: `⚠ sdd validate 异常(已跳过): ${e instanceof Error ? e.message : String(e)}` });
+    pi.sendMessage({
+      role: "system",
+      content: `⚠ sdd validate 异常(已跳过): ${e instanceof Error ? e.message : String(e)}`,
+    });
   }
 }
 // ===== 入口: 每个 event 只 on 一次,内部分发到 4 个子 handler =====
