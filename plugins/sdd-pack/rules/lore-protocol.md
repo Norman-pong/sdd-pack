@@ -39,21 +39,21 @@ Never `git commit` directly — the TTSR rules will intercept it.
 
 Only `intent` is required. Include only the trailers that actually apply — do not pad with empty values. `Lore-id` is auto-generated.
 
-| Field | Type | When to add |
-| --- | --- | --- |
-| `intent` | string (REQUIRED, ≤72 chars) | every commit — one-line "why" |
-| `body` | string (optional) | longer narrative context |
-| `Constraint` | string[] | a rule that must hold going forward |
-| `Rejected` | string[] (`alternative \| reason`) | you chose A over B |
-| `Confidence` | `"low" \| "medium" \| "high"` | when you are unsure |
-| `Scope-risk` | `"narrow" \| "moderate" \| "wide"` | how much the change touches |
-| `Reversibility` | `"clean" \| "migration-needed" \| "irreversible"` | how easy to undo |
-| `Directive` | string[] | standing instructions for future maintainers |
-| `Tested` | string[] | what was verified |
-| `Not-tested` | string[] | known untested areas |
-| `Supersedes` | string[] (8-char hex Lore-id) | decisions this replaces |
-| `Depends-on` | string[] (8-char hex Lore-id) | decisions this requires |
-| `Related` | string[] (8-char hex Lore-id) | informational links |
+| Field           | Type                                              | When to add                                  |
+| --------------- | ------------------------------------------------- | -------------------------------------------- |
+| `intent`        | string (REQUIRED, ≤72 chars)                      | every commit — one-line "why"                |
+| `body`          | string (optional)                                 | longer narrative context                     |
+| `Constraint`    | string[]                                          | a rule that must hold going forward          |
+| `Rejected`      | string[] (`alternative \| reason`)                | you chose A over B                           |
+| `Confidence`    | `"low" \| "medium" \| "high"`                     | when you are unsure                          |
+| `Scope-risk`    | `"narrow" \| "moderate" \| "wide"`                | how much the change touches                  |
+| `Reversibility` | `"clean" \| "migration-needed" \| "irreversible"` | how easy to undo                             |
+| `Directive`     | string[]                                          | standing instructions for future maintainers |
+| `Tested`        | string[]                                          | what was verified                            |
+| `Not-tested`    | string[]                                          | known untested areas                         |
+| `Supersedes`    | string[] (8-char hex Lore-id)                     | decisions this replaces                      |
+| `Depends-on`    | string[] (8-char hex Lore-id)                     | decisions this requires                      |
+| `Related`       | string[] (8-char hex Lore-id)                     | informational links                          |
 
 ## 查看文件修改记录
 
@@ -68,7 +68,6 @@ lore context <path>              # 文件/目录的全量 lore 摘要(约束 + r
 
 `lore log <path>` 输出与 `git log <path>` 一样按时间倒序,但每条 commit 旁边会附上 `intent` 和关键 trailer(Constraint / Rejected / Directive),让"为什么这么改"立刻可见。
 
-
 ## 关联的强制执行规则
 
 These TTSR rules intercept actual tool calls to keep the protocol enforced:
@@ -76,6 +75,7 @@ These TTSR rules intercept actual tool calls to keep the protocol enforced:
 - `rule://lore-commit-guard` — quality gates (lint/test/build/reviewer) then `lore commit`
 - `rule://docs-update-guard` — docs sync (check staged → `skill://sdd`) before commit
 - `rule://frontend-use-vp` — Vite+ command enforcement (`vp` instead of raw npm/pnpm/vite)
+
 ## Other Commands
 
 ```sh

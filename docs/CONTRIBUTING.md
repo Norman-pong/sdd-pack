@@ -42,6 +42,7 @@ docs/
 ### 2.1 创建新文档
 
 1. **查询 lore 约束**：
+
    ```bash
    lore constraints docs/<path> --json
    lore rejected docs/<path> --json
@@ -74,6 +75,7 @@ bash <sdd-core>/references/docs-check.sh docs
 ```
 
 校验 4 项：
+
 1. PRD ↔ Phase 双向引用
 2. 回指格式规范（`> 对应阶段:` / `> 对应 PRD:`）
 3. index.md 覆盖度
@@ -87,12 +89,13 @@ bash <sdd-core>/references/docs-check.sh docs
 
 sdd-pack 仓库**有两个**内容区域：
 
-| 区域 | 路径 | 性质 |
-|------|------|------|
-| 文档体系 | `docs/` | 项目本身的开发文档（本文档所在） |
+| 区域         | 路径                | 性质                                       |
+| ------------ | ------------------- | ------------------------------------------ |
+| 文档体系     | `docs/`             | 项目本身的开发文档（本文档所在）           |
 | 插件分发内容 | `plugins/sdd-pack/` | 通过 omp marketplace 分发的 skills + rules |
 
 **约束**：
+
 - 改 skills/rules 内容只动 `plugins/sdd-pack/`
 - 改插件的设计、路线、版本才动 `docs/`
 - 两者提交可分开，但 plugin version 变更时 docs/ 对应 PRD/Phase 必须同步

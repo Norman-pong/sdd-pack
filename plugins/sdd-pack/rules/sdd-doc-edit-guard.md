@@ -7,15 +7,15 @@ Before you `write` or `edit` a file whose path starts with `docs/`, stop and rou
 
 ## Quick routing table
 
-| What you're about to do | Skill to use |
-| --- | --- |
-| Create/modify a spec (`docs/spec/**`) | `skill://sdd-input` (idea → spec) or `skill://sdd-core` (structure fix) |
-| Create/modify a PRD (`docs/prd/**`) | `skill://sdd-prd` (spec → PRD) or `skill://sdd-core` (structure fix) |
-| Create/modify a Phase (`docs/phase/**`) | `skill://sdd-phase` (PRD → Phase) or `skill://sdd-core` (structure fix) |
-| Create/modify architecture docs (`docs/architecture/**`) | `skill://sdd-core` |
-| Create/modify reference docs (`docs/reference/**`) | `skill://sdd-core` |
-| Initialize the docs/ tree | `skill://sdd-core` (scenario 4) |
-| Edit `docs/index.md` or `docs/CONTRIBUTING.md` | `skill://sdd-core` |
+| What you're about to do                                  | Skill to use                                                            |
+| -------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Create/modify a spec (`docs/spec/**`)                    | `skill://sdd-input` (idea → spec) or `skill://sdd-core` (structure fix) |
+| Create/modify a PRD (`docs/prd/**`)                      | `skill://sdd-prd` (spec → PRD) or `skill://sdd-core` (structure fix)    |
+| Create/modify a Phase (`docs/phase/**`)                  | `skill://sdd-phase` (PRD → Phase) or `skill://sdd-core` (structure fix) |
+| Create/modify architecture docs (`docs/architecture/**`) | `skill://sdd-core`                                                      |
+| Create/modify reference docs (`docs/reference/**`)       | `skill://sdd-core`                                                      |
+| Initialize the docs/ tree                                | `skill://sdd-core` (scenario 4)                                         |
+| Edit `docs/index.md` or `docs/CONTRIBUTING.md`           | `skill://sdd-core`                                                      |
 
 ## When this rule does NOT fire
 

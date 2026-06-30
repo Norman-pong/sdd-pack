@@ -92,15 +92,15 @@ The condition matches the bash command stream for both `git commit` and `lore co
 - **`git commit` is wrong** — it skips the Lore trailer entirely. Always redirect to `lore commit`.
 - **`lore commit` without prior gates is wrong** — it submits unverified code with no audit trail.
 
-| Pattern | Verdict |
-| --- | --- |
-| `git commit`, `git commit -m "x"`, `git commit --amend`, `git commit -a`, `git commit --no-verify`, `git commit -S` | Block; redirect to `lore commit` after gates |
-| `lore commit`, `lore commit -m "x"` | Block; remind to do gates 1-3 first |
-| `git status`, `git diff`, `git log`, `git add` | Not a commit, do not fire |
-| `lore log`, `lore why`, `lore context` | Read-only lore, do not fire |
-| `git commit-tree`, `git commit-graph` | Different git commands, do **not** match (word boundary) |
+| Pattern                                                                                                             | Verdict                                                  |
+| ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `git commit`, `git commit -m "x"`, `git commit --amend`, `git commit -a`, `git commit --no-verify`, `git commit -S` | Block; redirect to `lore commit` after gates             |
+| `lore commit`, `lore commit -m "x"`                                                                                 | Block; remind to do gates 1-3 first                      |
+| `git status`, `git diff`, `git log`, `git add`                                                                      | Not a commit, do not fire                                |
+| `lore log`, `lore why`, `lore context`                                                                              | Read-only lore, do not fire                              |
+| `git commit-tree`, `git commit-graph`                                                                               | Different git commands, do **not** match (word boundary) |
 
-## When this rule does *not* fire
+## When this rule does _not_ fire
 
 - Read-only git operations (`status`, `diff`, `log`, `show`, `blame`).
 - Read-only lore operations (`lore log`, `lore why`, `lore context`, `lore search`, `lore trace`, `lore stale`).

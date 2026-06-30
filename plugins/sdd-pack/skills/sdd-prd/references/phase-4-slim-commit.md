@@ -24,23 +24,29 @@
 **判断标准**:这段内容在执行时**会发生变化**(字段名会改、参数会增、配置会调)。
 
 **移→哪**(sdd-prd 专属路径):
+
 - 完整 Schema → `docs/architecture/api-reference.md`
 - 配置文件 → `docs/architecture/config-reference.md`
 - 部署脚本 → `docs/architecture/deployment-guide.md`
 
 **PRD 里留什么**:
+
 - 不是"API Schema 的完整内容",而是"API Schema 的位置"
 - 不是"配置文件的每项说明",而是"配置文件的路径和设计理念"
 
 **示例**:
+
 ```markdown
 # 反例:PRD 里不该写
+
 ## 用户 API
+
 POST /api/v1/users
 Body: { "name": "string (required)", "email": "string (required)", ... }
 Response: { "id": "uuid", "name": "string", ... }
 
 # 正例:PRD 里只写
+
 完整 API Schema → `docs/architecture/api-reference.md`
 ```
 
@@ -51,6 +57,7 @@ Response: { "id": "uuid", "name": "string", ... }
 **移→哪**:`docs/architecture/decisions.md`(ADR 集)
 
 **PRD 里留什么**:
+
 - 不是"为什么选 A 不选 B",而是"我们用 A"
 - 读者不需要重新做一遍你的决策——他们需要执行你的决策
 
@@ -59,26 +66,31 @@ Response: { "id": "uuid", "name": "string", ... }
 **判断标准**:同一条信息在 ≥2 个地方出现,且内容因复制粘贴而可能不同步。
 
 **处理规则**:
+
 - 保留最权威的那处(通常是"定义处"而非"引用处")
 - 其余用引用代替(短引用:"参见 §X";跨文档引用:"详见 `docs/architecture/decisions.md#ADR-003`")
 
 **不要做的事**:
+
 - 不要"为了读者方便"保留重复——方便的代价是"改一处忘改另一处"
 - 不要"摘要 + 正文"都保留——要么摘要+引用,要么只有正文
 
 ### 2.4 删过时引用
 
 **操作**:
+
 ```bash
 # 在 workspace 根目录执行
 grep -rn "见 §\|参见 §\|refer to\|详见" docs/
 ```
 
 **检查每条**:
+
 - 目标章节/表/文件存在吗?
 - 引用→的内容是当前内容吗?还是旧版本?
 
 **在阶段 4 需要跨文档校验**:
+
 - PRD 引用了 `decisions.md` 的 ADR-003?检查 ADR-003 是否存在、状态是否已更新
 - PRD 引用了 `phase/2026-06-23-xxx.md`?——这是占位,允许存在
 - 任一文档改了 → grep 全部 → 确认所有引用都同步
@@ -144,6 +156,7 @@ grep -rn "见 §\|参见 §\|refer to\|详见" docs/
 ```
 
 **关键约束**(给子代理时务必明确):
+
 - `agent_type="general-purpose"`——子代理需要读取文档和写报告
 - prompt 要明确说"只审不改"——避免它自作主张去改文档
 - 主上下文收→反馈后修复问题,再复用同一个 prompt 让子代理复审(确保修正没引入新问题)
@@ -163,6 +176,7 @@ grep -rn "见 §\|参见 §\|refer to\|详见" docs/
 "PRD 全面定型"是一个**逻辑上不可分割的事件**——所有变更服务于同一个目标:把 PRD 从草稿提升→可执行基线。
 
 拆成多个提交的问题:
+
 - "加字段 A"→"加字段 B"→"修正矛盾"→ 每个提交都丢失了"为什么改"的上下文
 - 后来的人看 git log 看→ 5 个提交,不知道哪个是"最终的 PRD 基线"
 - 如果有 Cherry-pick 需求,拆开才是对的——但 PRD 定型不需要 cherry-pick
@@ -185,6 +199,7 @@ echo '{
 ```
 
 **字段说明**(对齐 sdd-core L111-118):
+
 - `intent`(必填):一句话说明本次变更目的(≤72 字符)
 - `body`(可选):详细说明变更内容、原因、影响
 - `Constraint`(可选):本次变更引入的硬规则

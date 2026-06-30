@@ -20,21 +20,23 @@
 ## 2. 合并工作产物到 Phase 文档
 
 阶段 1-3 的工作产物是**分文件**的:
+
 - `problem-list.md`
 - `task-breakdown.md`
 - `milestone-set.md`
 
 阶段 4 需要**合并**到最终 Phase 文档(sdd-core §4.1 5 必填章节结构):
 
-| 工作产物 | 合并到 Phase 章节 |
-|---|---|
-| `problem-list.md`(已通过的不修的) | 附录(留痕) |
-| `problem-list.md`(必修已修的) | §4 风险与问题 |
-| `task-breakdown.md` | §2 任务分解 |
-| `milestone-set.md` | §3 里程碑 + §4 风险 + §6 依赖与协作 |
-| 阶段验收设计 | §5 验收 |
+| 工作产物                          | 合并到 Phase 章节                   |
+| --------------------------------- | ----------------------------------- |
+| `problem-list.md`(已通过的不修的) | 附录(留痕)                          |
+| `problem-list.md`(必修已修的)     | §4 风险与问题                       |
+| `task-breakdown.md`               | §2 任务分解                         |
+| `milestone-set.md`                | §3 里程碑 + §4 风险 + §6 依赖与协作 |
+| 阶段验收设计                      | §5 验收                             |
 
 **操作**:
+
 - 任务详情直接合并到 §2.2
 - 里程碑表合并到 §3
 - 风险表合并到 §4.1
@@ -53,13 +55,17 @@
 **移到哪**:不移动——只留"引用"。
 
 **Phase 里留什么**:
+
 - 不是 PRD §3.2.1 的全文,而是 `T001 实现用户注册 API(详见 PRD §3.2.1)`
 - 不是 PRD §4.1 的 NFR 阈值,而是"§4.1 性能要求:P99 ≤ 200ms"
 
 **示例**:
+
 ```markdown
 # 反例:Phase 里不该写
+
 ### T001 任务描述
+
 基于 PRD §3.2.1 用户注册功能:
 (把 PRD §3.2.1 全文复制过来)
 ...
@@ -69,7 +75,9 @@ Body: { "email": "string", "password": "string" }
 Response: { "id": "uuid", "email": "string" }
 
 # 正例:Phase 里只写
+
 ### T001 任务描述
+
 实现用户注册 API。
 接口定义详见 PRD §3.2.1。
 ```
@@ -81,6 +89,7 @@ Response: { "id": "uuid", "email": "string" }
 **移到哪**:`docs/architecture/decisions.md`(由 sdd-prd 阶段 2 维护)
 
 **Phase 里留什么**:
+
 - 不是"为什么用 React 而非 Vue",而是"前端任务基于 React(详见 ADR-001)"
 - 不是"任务粒度为什么是 1-3 天",而是任务列表(粒度由阶段 2 决定)
 
@@ -89,22 +98,26 @@ Response: { "id": "uuid", "email": "string" }
 **判断标准**:同一条信息在 ≥2 个任务详情中重复。
 
 **处理规则**:
+
 - 提取到 Phase §4 NFR 章节(全局阈值)
 - 任务详情中只留"对齐 §4.1 性能要求"
 
 ### 3.4 删过时引用
 
 **操作**:
+
 ```bash
 # 在 workspace 根目录执行
 grep -rn "见 §\|参见 §\|refer to\|详见" docs/phase/
 ```
 
 **检查每条**:
+
 - 目标章节/表/文件存在吗?
 - 引用到的内容是当前内容吗?
 
 **阶段 4 需要跨文档校验**:
+
 - Phase 任务引用 PRD §X?检查 §X 是否存在
 - Phase 引用 ADR-001?检查 ADR-001 是否存在(可能在 `decisions.md`)
 - Phase 依赖 `[外部:Y]`?——这是占位,允许暂未实现
@@ -165,6 +178,7 @@ grep -rn "见 §\|参见 §\|refer to\|详见" docs/phase/
 ```
 
 **关键约束**:
+
 - `agent_type="general-purpose"`——子代理需要读取文档和写报告
 - prompt 要明确说"只审不改"
 - 主上下文收到反馈后修复问题,再让子代理复审
@@ -176,6 +190,7 @@ grep -rn "见 §\|参见 §\|refer to\|详见" docs/phase/
 ### 5.1 回填条件
 
 只在以下情况同时满足时回填:
+
 - Phase 文档完成阶段 4(子代理审查通过)
 - Phase 顶部 `> 对应 PRD:` 反向链接已建立
 - 对应 PRD 顶部 `> 对应阶段:` 仍为 `TBD` 占位
@@ -195,11 +210,15 @@ grep -l "对应阶段: \[TBD" docs/prd/*.md
 
 ```markdown
 # 找到 PRD 文件,如 docs/prd/2026-06-23-foundation-setup.md
+
 # 修改顶部
+
 # Before:
+
 > 对应阶段: [TBD - 由其他技能补全](../phase/2026-06-23-foundation-setup.md)
 
 # After:
+
 > 对应阶段: [基础搭建阶段](../phase/2026-06-23-foundation-setup.md)
 ```
 

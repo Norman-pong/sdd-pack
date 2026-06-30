@@ -140,12 +140,9 @@ describe("isValidFileName", () => {
 
 describe("extractRequiredSections", () => {
   test("完整 PRD 无缺少", () => {
-    const content = [
-      "## 0. 目标声明",
-      "## 1. 背景与目标",
-      "## 3. 功能需求",
-      "## 8. 验收标准",
-    ].join("\n\n");
+    const content = ["## 0. 目标声明", "## 1. 背景与目标", "## 3. 功能需求", "## 8. 验收标准"].join(
+      "\n\n",
+    );
     expect(extractRequiredSections(content)).toEqual([]);
   });
 

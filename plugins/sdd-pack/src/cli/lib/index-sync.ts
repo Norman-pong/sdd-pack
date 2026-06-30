@@ -60,7 +60,12 @@ export function parsePrdTable(indexPath: string): string[] {
 /**
  * 在 index.md 的 PRD 表格中添加新条目
  */
-export function addPrdEntry(indexPath: string, filePath: string, status: string, linkText: string): boolean {
+export function addPrdEntry(
+  indexPath: string,
+  filePath: string,
+  status: string,
+  linkText: string,
+): boolean {
   if (!existsSync(indexPath)) return false;
 
   const content = readFileSync(indexPath, "utf-8");

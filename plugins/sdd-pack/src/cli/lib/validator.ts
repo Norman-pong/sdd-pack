@@ -17,11 +17,7 @@ import {
   extractRequiredSections,
   extractH1,
 } from "./doc-parser";
-import {
-  PrdStatus,
-  parseStatus,
-  isTransitionAllowed,
-} from "./prd-state-machine";
+import { PrdStatus, parseStatus, isTransitionAllowed } from "./prd-state-machine";
 
 /** 校验 severity */
 export type CheckSeverity = "warn" | "error" | "block";
@@ -243,9 +239,7 @@ function checkIndexCoverage(ctx: CheckContext): CheckResult {
     name: "index.md 覆盖度",
     severity: "error",
     passed: missing.length === 0,
-    message: missing.length > 0
-      ? `index.md 未覆盖: ${missing.join(", ")}`
-      : undefined,
+    message: missing.length > 0 ? `index.md 未覆盖: ${missing.join(", ")}` : undefined,
   };
 }
 
@@ -266,8 +260,13 @@ function checkRelativeLinks(ctx: CheckContext): CheckResult {
     const linkMatches = content.matchAll(/\]\(([^)]+)\)/g);
     for (const match of linkMatches) {
       const link = match[1];
-      if (!link || link.startsWith("http") || link.startsWith("#") ||
-          link.startsWith("mailto:") || link.startsWith("/")) {
+      if (
+        !link ||
+        link.startsWith("http") ||
+        link.startsWith("#") ||
+        link.startsWith("mailto:") ||
+        link.startsWith("/")
+      ) {
         continue;
       }
 
@@ -286,7 +285,10 @@ function checkRelativeLinks(ctx: CheckContext): CheckResult {
     name: "相对路径链接有效性",
     severity: "warn",
     passed: broken.length === 0,
-    message: broken.length > 0 ? `断链: ${broken.slice(0, 10).join("; ")}${broken.length > 10 ? `...(+${broken.length - 10})` : ""}` : undefined,
+    message:
+      broken.length > 0
+        ? `断链: ${broken.slice(0, 10).join("; ")}${broken.length > 10 ? `...(+${broken.length - 10})` : ""}`
+        : undefined,
   };
 }
 
@@ -312,11 +314,21 @@ function checkStateMachine(ctx: CheckContext): CheckResult {
         const parsed = parseStatusLine(statusLine);
         if (parsed) {
           const isPrd = file.includes("/prd/");
-          const validPrdStatuses = ["草稿", "评审中", "已评审", "已发布", "已替换", "已归档", "已废弃"];
+          const validPrdStatuses = [
+            "草稿",
+            "评审中",
+            "已评审",
+            "已发布",
+            "已替换",
+            "已归档",
+            "已废弃",
+          ];
           const validPhaseStatuses = ["未开始", "进行中", "已完成", "已废弃"];
           const validStatuses = isPrd ? validPrdStatuses : validPhaseStatuses;
           if (!validStatuses.includes(parsed.status)) {
-            violations.push(`${bn}: 状态 '${parsed.status}' 不是合法 ${isPrd ? "PRD" : "Phase"} 状态（${validStatuses.join("/")}）`);
+            violations.push(
+              `${bn}: 状态 '${parsed.status}' 不是合法 ${isPrd ? "PRD" : "Phase"} 状态（${validStatuses.join("/")}）`,
+            );
           }
         }
       }
@@ -332,8 +344,15 @@ function checkStateMachine(ctx: CheckContext): CheckResult {
           const targetParsed = parseStatusLine(targetStatusLine);
           if (targetParsed) {
             const targetStatus = parseStatus(targetParsed.status);
-            if (targetStatus && targetStatus !== PrdStatus.Replaced && targetStatus !== PrdStatus.Archived && targetStatus !== PrdStatus.Abandoned) {
-              violations.push(`${bn}: supersedes 目标 ${basename(supersedePath)} 状态为 '${targetParsed.status}', 应已替换/已归档/已废弃`);
+            if (
+              targetStatus &&
+              targetStatus !== PrdStatus.Replaced &&
+              targetStatus !== PrdStatus.Archived &&
+              targetStatus !== PrdStatus.Abandoned
+            ) {
+              violations.push(
+                `${bn}: supersedes 目标 ${basename(supersedePath)} 状态为 '${targetParsed.status}', 应已替换/已归档/已废弃`,
+              );
             }
           }
         }
@@ -349,7 +368,6 @@ function checkStateMachine(ctx: CheckContext): CheckResult {
     message: violations.length > 0 ? violations.join("; ") : undefined,
   };
 }
-
 
 /**
  * Check #6: supersedes 链完整性
@@ -408,7 +426,9 @@ function checkNamingConvention(ctx: CheckContext): CheckResult {
     const name = basename(file);
     if (!isValidFileName(name)) {
       const h1 = extractH1(readFileSync(file, "utf-8"));
-      warnings.push(`${relative(docsDir, file)}: 文件名 '${name}' 不符合 YYYY-MM-DD-<kebab-case>.md 规范${h1 ? ` (标题: ${h1})` : ""}`);
+      warnings.push(
+        `${relative(docsDir, file)}: 文件名 '${name}' 不符合 YYYY-MM-DD-<kebab-case>.md 规范${h1 ? ` (标题: ${h1})` : ""}`,
+      );
     }
   }
 
@@ -480,7 +500,9 @@ function checkArchiveFileLocation(ctx: CheckContext): CheckResult {
       if (statusLine) {
         const parsed = parseStatusLine(statusLine);
         if (parsed && parsed.status !== "已归档") {
-          warnings.push(`archive/${entry}: 归档目录下文件状态应为 '已归档'，当前为 '${parsed.status}'`);
+          warnings.push(
+            `archive/${entry}: 归档目录下文件状态应为 '已归档'，当前为 '${parsed.status}'`,
+          );
         } else if (!parsed) {
           const stacked = parseStackedStatusLine(statusLine);
           if (!stacked) {

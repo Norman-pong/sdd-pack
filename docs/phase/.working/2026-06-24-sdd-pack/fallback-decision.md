@@ -9,10 +9,10 @@
 
 B1.2 验证在 omp v16.1.16 上**两种安装模式均失败**:
 
-| 安装模式 | 命令 | 物理产物 | omp 启动时 rules 列表 |
-|---|---|---|---|
+| 安装模式            | 命令                                              | 物理产物                                                                                      | omp 启动时 rules 列表  |
+| ------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------- | ---------------------- |
 | marketplace install | `omp plugin install test-plugin@test-marketplace` | `~/.omp/plugins/cache/plugins/test-marketplace___test-plugin___0.0.1/rules/test-rule.md` 存在 | `test-rule` **不出现** |
-| local link | `omp plugin link /tmp/test-link-plugin` | `~/.omp/plugins/node_modules/test-link-plugin` symlink → 源存在 | `test-rule` **不出现** |
+| local link          | `omp plugin link /tmp/test-link-plugin`           | `~/.omp/plugins/node_modules/test-link-plugin` symlink → 源存在                               | `test-rule` **不出现** |
 
 omp 启动时报 `Unknown rule: test-rule`,available 列表只含 native provider 加载的 24 个 rules(位于 `~/.omp/agent/rules/`)。
 
@@ -43,11 +43,11 @@ omp 启动时报 `Unknown rule: test-rule`,available 列表只含 native provide
 
 ## 5. 与原 PRD/Phase 的偏差
 
-| 维度 | 原 PRD/Phase | 0.9.0-rc 实际 | 影响 |
-|---|---|---|---|
-| PRD §0 业务验收 5 条 | 全部 P0 | 第 3 条(规则自动生效)降级为「需配合 native rules 共存」 | 目标声明部分完成 |
-| Phase T003 | 设计 hook extension fallback | 跳过,转入应急路径 | Phase 任务列表需后续更新 |
-| Phase T015 | 移除 native rules | **不执行** | 工作流依赖 native rules,plugin rules 待 v1.1 |
+| 维度                 | 原 PRD/Phase                 | 0.9.0-rc 实际                                           | 影响                                         |
+| -------------------- | ---------------------------- | ------------------------------------------------------- | -------------------------------------------- |
+| PRD §0 业务验收 5 条 | 全部 P0                      | 第 3 条(规则自动生效)降级为「需配合 native rules 共存」 | 目标声明部分完成                             |
+| Phase T003           | 设计 hook extension fallback | 跳过,转入应急路径                                       | Phase 任务列表需后续更新                     |
+| Phase T015           | 移除 native rules            | **不执行**                                              | 工作流依赖 native rules,plugin rules 待 v1.1 |
 
 ## 6. 提交策略
 

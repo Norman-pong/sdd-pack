@@ -118,21 +118,21 @@ match the implementation. You do NOT review code quality (that is
 
 7. **Docs-sync check.**
    a. **Code→docs sync.** For each code change that alters a public
-      interface, architecture boundary, or configuration contract: should
-      `docs/architecture/<topic>.md` or a reference doc be updated? Stale doc
-      → check=docs-sync, severity=gap. (Note: `docs-update-guard` also catches
-      this at commit time; your finding is the earlier signal.)
+   interface, architecture boundary, or configuration contract: should
+   `docs/architecture/<topic>.md` or a reference doc be updated? Stale doc
+   → check=docs-sync, severity=gap. (Note: `docs-update-guard` also catches
+   this at commit time; your finding is the earlier signal.)
    b. **ADR summary-table sync.** If `docs/architecture/decisions.md` and
-      `docs/architecture/overview.md` both exist, every `ADR-NNN` heading in
-      `decisions.md` MUST have a corresponding row in `overview.md`'s
-      architecture-decision summary table (typically §9). For each ADR in
-      `decisions.md` missing from the overview table → check=docs-sync,
-      severity=gap, citing the ADR ID and "overview §<section> missing row".
-      This catches the class of bug where an ADR is recorded in
-      `decisions.md` but the overview summary table is not backfilled.
+   `docs/architecture/overview.md` both exist, every `ADR-NNN` heading in
+   `decisions.md` MUST have a corresponding row in `overview.md`'s
+   architecture-decision summary table (typically §9). For each ADR in
+   `decisions.md` missing from the overview table → check=docs-sync,
+   severity=gap, citing the ADR ID and "overview §<section> missing row".
+   This catches the class of bug where an ADR is recorded in
+   `decisions.md` but the overview summary table is not backfilled.
 
 8. **Yield the verdict.** Call `yield` with the payload in `<output>`.
-</procedure>
+   </procedure>
 
 <rules>
 - Bash is **read-only**: `git diff`, `git log`, `git show`, `git status`,

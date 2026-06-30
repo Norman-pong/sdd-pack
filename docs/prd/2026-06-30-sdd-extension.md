@@ -17,44 +17,44 @@
 
 ### ADDED
 
-| # | 目标章节 | 新增内容摘要 | 原因 |
-|---|---------|-------------|------|
-| A1 | §0 + §1 + §3 | 删去「独立 CLI 二进制」定位，改为「omp slash command 集合 + 程序化 API 双形态」 | marketplace 调研发现 omp 不支持 plugin 分发独立 CLI 二进制，`package.json#bin` 字段对 omp 是 noop |
-| A2 | §3.1 | 新增 `sdd-extension` 子模块定位（`extensions/sdd-extension/`） | 区别于「单文件 hooks 聚合」的另一种装载形态，由 `--extension` flag 装载 |
-| A3 | §3.2.1 | slash command 注册：7 个 `/sdd-*` 命令 + arg 解析从 `arg-parser.ts` 移植到 `pi.registerCommand` 的 handler 参数 | slash command 由 omp 自己完成 arg 解析，不需要自建 arg-parser |
-| A4 | §4 + §3.2 | 程序化 API：`src/cli/api.ts` 导出纯函数（`validateDocs()` / `proposePrd()` / `archivePrd()` / `migratePrd()`），CI / hook / slash command 三个调用方复用同一份代码 | 保留 CI 调用能力，避免「只能人机交互才能跑 sdd validate」的反模式 |
-| A5 | §7.1 | 集成表调整：`sdd CLI` bin → 删；新增 `sdd-extension` slash command 入口 | 旧的「spawn subprocess 调 sdd validate --staged --json」改为「in-process 调 api.ts」 |
+| #   | 目标章节     | 新增内容摘要                                                                                                                                                       | 原因                                                                                              |
+| --- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| A1  | §0 + §1 + §3 | 删去「独立 CLI 二进制」定位，改为「omp slash command 集合 + 程序化 API 双形态」                                                                                    | marketplace 调研发现 omp 不支持 plugin 分发独立 CLI 二进制，`package.json#bin` 字段对 omp 是 noop |
+| A2  | §3.1         | 新增 `sdd-extension` 子模块定位（`extensions/sdd-extension/`）                                                                                                     | 区别于「单文件 hooks 聚合」的另一种装载形态，由 `--extension` flag 装载                           |
+| A3  | §3.2.1       | slash command 注册：7 个 `/sdd-*` 命令 + arg 解析从 `arg-parser.ts` 移植到 `pi.registerCommand` 的 handler 参数                                                    | slash command 由 omp 自己完成 arg 解析，不需要自建 arg-parser                                     |
+| A4  | §4 + §3.2    | 程序化 API：`src/cli/api.ts` 导出纯函数（`validateDocs()` / `proposePrd()` / `archivePrd()` / `migratePrd()`），CI / hook / slash command 三个调用方复用同一份代码 | 保留 CI 调用能力，避免「只能人机交互才能跑 sdd validate」的反模式                                 |
+| A5  | §7.1         | 集成表调整：`sdd CLI` bin → 删；新增 `sdd-extension` slash command 入口                                                                                            | 旧的「spawn subprocess 调 sdd validate --staged --json」改为「in-process 调 api.ts」              |
 
 ### MODIFIED
 
-| # | 目标章节 | 原内容 | 新内容 | 原因 |
-|---|---------|--------|--------|------|
-| M1 | §0 目标声明 | 「构建 `sdd` 命令行工具（TypeScript + bun）」 | 「构建 `sdd-extension`（omp slash command 集合）+ `sdd-api`（程序化入口）」 | 定位从「独立 CLI」改为「omp 原生扩展 + 程序化库」 |
-| M2 | §3.2 验收 | `alias sdd='bun .../bin/sdd'` 验收 | 验收改为「装 sdd-pack plugin 后，重启 omp 进程，敲 `/sdd-validate` 可触发校验」 | marketplace 一键安装体验，无须手工 alias |
-| M3 | §6.1 命令结构 | `sdd <command> [options] [args]` | `/<sdd-command> [args]` | 入口形式变更 |
-| M4 | §6.2 输出 | stdout/--json | `pi.sendMessage()` + `ctx.ui.notify()` | 输出进入 omp 会话而非裸 stdout |
-| M5 | §9 上线计划 | v1.3.0 rc.1 计划 | v1.4.0-alpha：先内部 dogfood；v1.4.0 正式发布 | slash command 需等待 omp 装载链路稳定后再升级 severity |
+| #   | 目标章节      | 原内容                                        | 新内容                                                                          | 原因                                                   |
+| --- | ------------- | --------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| M1  | §0 目标声明   | 「构建 `sdd` 命令行工具（TypeScript + bun）」 | 「构建 `sdd-extension`（omp slash command 集合）+ `sdd-api`（程序化入口）」     | 定位从「独立 CLI」改为「omp 原生扩展 + 程序化库」      |
+| M2  | §3.2 验收     | `alias sdd='bun .../bin/sdd'` 验收            | 验收改为「装 sdd-pack plugin 后，重启 omp 进程，敲 `/sdd-validate` 可触发校验」 | marketplace 一键安装体验，无须手工 alias               |
+| M3  | §6.1 命令结构 | `sdd <command> [options] [args]`              | `/<sdd-command> [args]`                                                         | 入口形式变更                                           |
+| M4  | §6.2 输出     | stdout/--json                                 | `pi.sendMessage()` + `ctx.ui.notify()`                                          | 输出进入 omp 会话而非裸 stdout                         |
+| M5  | §9 上线计划   | v1.3.0 rc.1 计划                              | v1.4.0-alpha：先内部 dogfood；v1.4.0 正式发布                                   | slash command 需等待 omp 装载链路稳定后再升级 severity |
 
 ### REMOVED
 
-| # | 目标章节 | 移除内容 | 原因 |
-|---|---------|---------|------|
-| R1 | §1.3 + §3.2.2 + §4 | `package.json#bin`、`bin/sdd` bash wrapper、用户手工 alias 路径 | omp marketplace 不识别这些；徒增认知负担 |
-| R2 | §3.2 命令清单 | `src/cli/index.ts`（CLI 入口 + arg 解析） | slash command 不需要独立入口；arg 解析由 omp 提供 |
-| R3 | §3.2 命令清单 | `src/cli/lib/arg-parser.ts` | 同上 |
-| R4 | §7 集成 | 「用户配 alias」相关说明 | 别名不再需要 |
-| R5 | 验收 | 「`sdd` 在终端独立运行」相关验收 | 不再是验收路径 |
+| #   | 目标章节           | 移除内容                                                        | 原因                                              |
+| --- | ------------------ | --------------------------------------------------------------- | ------------------------------------------------- |
+| R1  | §1.3 + §3.2.2 + §4 | `package.json#bin`、`bin/sdd` bash wrapper、用户手工 alias 路径 | omp marketplace 不识别这些；徒增认知负担          |
+| R2  | §3.2 命令清单      | `src/cli/index.ts`（CLI 入口 + arg 解析）                       | slash command 不需要独立入口；arg 解析由 omp 提供 |
+| R3  | §3.2 命令清单      | `src/cli/lib/arg-parser.ts`                                     | 同上                                              |
+| R4  | §7 集成            | 「用户配 alias」相关说明                                        | 别名不再需要                                      |
+| R5  | 验收               | 「`sdd` 在终端独立运行」相关验收                                | 不再是验收路径                                    |
 
 ### 不变内容（显式确认）
 
-| # | 章节 | 确认 |
-|---|------|------|
-| U1 | §1.1 业务背景 | 沿用（PRD 堆叠、状态行手工维护等痛点未变） |
-| U2 | §2 目标用户与场景 | 沿用（维护者、贡献者、用户三类身份不变） |
-| U3 | §3.2.1 → §3.2.4 核心子命令语义 | 沿用（validate/propose/archive/migrate 行为定义不变，仅入口形式变化） |
-| U4 | §4.2 安全要求 | 沿用（不写 git 历史、不联网、输出不泄露敏感信息） |
-| U5 | §5 数据模型 | 沿用（CLI 操作的数据结构不变） |
-| U6 | §11 附录 | 沿用（设计思想借鉴说明不变） |
+| #   | 章节                           | 确认                                                                  |
+| --- | ------------------------------ | --------------------------------------------------------------------- |
+| U1  | §1.1 业务背景                  | 沿用（PRD 堆叠、状态行手工维护等痛点未变）                            |
+| U2  | §2 目标用户与场景              | 沿用（维护者、贡献者、用户三类身份不变）                              |
+| U3  | §3.2.1 → §3.2.4 核心子命令语义 | 沿用（validate/propose/archive/migrate 行为定义不变，仅入口形式变化） |
+| U4  | §4.2 安全要求                  | 沿用（不写 git 历史、不联网、输出不泄露敏感信息）                     |
+| U5  | §5 数据模型                    | 沿用（CLI 操作的数据结构不变）                                        |
+| U6  | §11 附录                       | 沿用（设计思想借鉴说明不变）                                          |
 
 ---
 
@@ -63,6 +63,7 @@
 为 sdd-pack 构建 **`sdd-extension`**（omp 原生 slash command 集合），同时导出 **`sdd-api`** 程序化入口供 CI / hook / 脚本复用。两者复用同一组核心库（`prd-state-machine` / `doc-parser` / `validator` / `template-engine` / `index-sync`），共同构成 sdd-pack **文档生命周期的权威入口**。
 
 入口形态：
+
 - **人机交互场景**（日常使用）：在 omp 会话内敲 `/sdd-validate` / `/sdd-propose` / `/sdd-archive` / `/sdd-migrate` / `/sdd-status` / `/sdd-list` / `/sdd-why` / `/sdd-apply`
 - **自动化场景**（CI / hook）：直接 `import { validateDocs } from 'sdd-pack/api'`，纯函数调用，无 spawn subprocess
 
@@ -114,14 +115,15 @@
 
 2026-06-30 市场调研结论（来源：[omp marketplace 文档](https://github.com/can1357/oh-my-pi/blob/main/docs/marketplace.md) + [extension authoring](https://omp.sh/docs/extension-authoring) + [@oh-my-pi/cli](https://registry.npmjs.org/%40oh-my-pi%2Fcli)）：
 
-| 第三方路径 | 例子 | omp 是否支持 | sdd-pack 是否采用 |
-|---|---|---|---|
-| omp 内部 slash command | `/handoff`, `/notes`, `/commit` | ✓ 原生 | ✓ 主路径 |
-| marketplace plugin `package.json#bin` | npm `bin` 字段 | ✗ 不识别 | ✗ 旧方案失败 |
-| 独立 npm 全局 CLI | `@oh-my-pi/cli` | ✓ 但需 npm 路径 | ✗ 违反 PRD §4.1 |
-| marketplace plugin `omp.install` | 拷贝到 `~/.pi/agent/commands/` | ✓ 但仅斜杠命令 | ✓ 兼容 |
+| 第三方路径                            | 例子                            | omp 是否支持    | sdd-pack 是否采用 |
+| ------------------------------------- | ------------------------------- | --------------- | ----------------- |
+| omp 内部 slash command                | `/handoff`, `/notes`, `/commit` | ✓ 原生          | ✓ 主路径          |
+| marketplace plugin `package.json#bin` | npm `bin` 字段                  | ✗ 不识别        | ✗ 旧方案失败      |
+| 独立 npm 全局 CLI                     | `@oh-my-pi/cli`                 | ✓ 但需 npm 路径 | ✗ 违反 PRD §4.1   |
+| marketplace plugin `omp.install`      | 拷贝到 `~/.pi/agent/commands/`  | ✓ 但仅斜杠命令  | ✓ 兼容            |
 
 旧 PRD 选择的「bash wrapper + alias 路径」在用户安装体验上是不一致的：
+
 - 用户敲 `sdd validate` 时，实际跑的是手工 alias 指向的 `bun .../bin/sdd`
 - `package.json#bin` 字段对 omp 而言是 noop，会误导用户以为 `npm install -g sdd-pack` 可用
 - 与 omp 生态已有扩展（commands / agents / hooks）的工作流不一致
@@ -130,12 +132,12 @@
 
 ### 1.3 产品目标
 
-| 目标 | 衡量标准 |
-|---|---|
-| 第三方一键安装体验 | `omp plugin install sdd-pack` 后，重启 omp 即可在会话中用 `/sdd-*` 命令，零额外配置 |
-| 保留 CI 能力 | `bun run src/cli/api-runner.ts validate` 在 GitHub Actions / drone CI 中可独立运行 |
-| 与现有守门体系正交 | slash command 做结构化检查（程序化、无 LLM），三层守门 agent 做语义检查（需 LLM 推理） |
-| 复用核心库 | `prd-state-machine` / `doc-parser` / `validator` 等核心库零修改，从 CLI 私有模块提升为 extension + api 共用代码 |
+| 目标               | 衡量标准                                                                                                        |
+| ------------------ | --------------------------------------------------------------------------------------------------------------- |
+| 第三方一键安装体验 | `omp plugin install sdd-pack` 后，重启 omp 即可在会话中用 `/sdd-*` 命令，零额外配置                             |
+| 保留 CI 能力       | `bun run src/cli/api-runner.ts validate` 在 GitHub Actions / drone CI 中可独立运行                              |
+| 与现有守门体系正交 | slash command 做结构化检查（程序化、无 LLM），三层守门 agent 做语义检查（需 LLM 推理）                          |
+| 复用核心库         | `prd-state-machine` / `doc-parser` / `validator` 等核心库零修改，从 CLI 私有模块提升为 extension + api 共用代码 |
 
 ### 1.4 成功指标
 
@@ -180,6 +182,7 @@ sequenceDiagram
 ```
 
 `api-runner.ts` 是 `src/cli/api.ts` 的薄壳 CLI 调用器：
+
 - 解析 arg（用 `Bun.argv` 或基础 split）
 - 调 `validateDocs(options)`
 - 输出 JSON 到 stdout
@@ -224,26 +227,27 @@ plugins/sdd-pack/
 ```
 
 **关键变化**：
+
 - ❌ 删除 `bin/sdd`、`src/cli/index.ts`、`src/cli/lib/arg-parser.ts`、`src/cli/commands/*.ts`
 - ✅ 新增 `src/cli/api.ts`、`src/cli/api-runner.ts`、`extensions/sdd-extension/index.ts`
 - 🔁 `src/cli/lib/*` 提升为共用代码，无业务修改
 
 ### 3.2 功能清单
 
-| 功能模块 | 功能点 | 优先级 | 说明 |
-|---------|--------|--------|------|
-| **扩展装载** | `extensions/sdd-extension/` | P0 | omp extension factory，单文件聚合 8 个 slash command 注册 |
-| 扩展装载 | hook in-process 改造 | P0 | `hooks/index.ts` 的 `runSddValidate` 从 spawn subprocess 改为 in-process 调用 `api.validateDocs()` |
-| **程序化 API** | `src/cli/api.ts` | P0 | 8 个纯函数导出，无 IO 副作用对外部不可见（文件操作封装在内部） |
-| 程序化 API | `src/cli/api-runner.ts` | P1 | CI 逃生通道，薄壳 bash + bun eval |
-| **Slash Commands** | `/sdd-validate` | P0 | 核心校验，输出 10 项检查结果到 omp 会话 |
-| Slash Commands | `/sdd-propose` | P0 | 创建新 PRD / delta 变更 |
-| Slash Commands | `/sdd-archive` | P0 | 归档 PRD，含 merge-delta |
-| Slash Commands | `/sdd-migrate` | P0 | 状态行堆叠清理 |
-| Slash Commands | `/sdd-status` | P1 | 所有 PRD/Phase 状态总览 |
-| Slash Commands | `/sdd-list` | P2 | 带过滤的文档列表 |
-| Slash Commands | `/sdd-why` | P2 | 查询 lore 决策上下文 |
-| Slash Commands | `/sdd-apply` | P2 | 打印实施 checklist（不操作文件） |
+| 功能模块           | 功能点                      | 优先级 | 说明                                                                                               |
+| ------------------ | --------------------------- | ------ | -------------------------------------------------------------------------------------------------- |
+| **扩展装载**       | `extensions/sdd-extension/` | P0     | omp extension factory，单文件聚合 8 个 slash command 注册                                          |
+| 扩展装载           | hook in-process 改造        | P0     | `hooks/index.ts` 的 `runSddValidate` 从 spawn subprocess 改为 in-process 调用 `api.validateDocs()` |
+| **程序化 API**     | `src/cli/api.ts`            | P0     | 8 个纯函数导出，无 IO 副作用对外部不可见（文件操作封装在内部）                                     |
+| 程序化 API         | `src/cli/api-runner.ts`     | P1     | CI 逃生通道，薄壳 bash + bun eval                                                                  |
+| **Slash Commands** | `/sdd-validate`             | P0     | 核心校验，输出 10 项检查结果到 omp 会话                                                            |
+| Slash Commands     | `/sdd-propose`              | P0     | 创建新 PRD / delta 变更                                                                            |
+| Slash Commands     | `/sdd-archive`              | P0     | 归档 PRD，含 merge-delta                                                                           |
+| Slash Commands     | `/sdd-migrate`              | P0     | 状态行堆叠清理                                                                                     |
+| Slash Commands     | `/sdd-status`               | P1     | 所有 PRD/Phase 状态总览                                                                            |
+| Slash Commands     | `/sdd-list`                 | P2     | 带过滤的文档列表                                                                                   |
+| Slash Commands     | `/sdd-why`                  | P2     | 查询 lore 决策上下文                                                                               |
+| Slash Commands     | `/sdd-apply`                | P2     | 打印实施 checklist（不操作文件）                                                                   |
 
 ### 3.3 详细功能描述
 
@@ -254,12 +258,14 @@ plugins/sdd-pack/
 **输入**：`pi: ExtensionAPI`（omp 注入）
 
 **处理逻辑**：
+
 1. 导入 `src/cli/lib/*` 核心库
 2. 导入 `src/cli/api.ts` 程序化入口
 3. 对每个 slash command 调用 `pi.registerCommand(name, { description, handler })`
 4. handler 内部：解析 `args: string[]`（omp 提供的入参）→ 调 `api.xxxFunction(opts)` → 用 `pi.sendMessage(msg)` 或 `ctx.ui.notify(level, msg)` 输出
 
 **斜杠命令命名规范**（沿用 omp 习惯）：
+
 - 命令以 `/` 前缀触发，用户输入 `/sdd-validate`
 - 命令名 kebab-case：`/sdd-validate` 而非 `/sddValidate`
 - description 必须人类可读（omp autocomplete 用）
@@ -274,10 +280,9 @@ export default function (pi: ExtensionAPI): void {
   pi.registerCommand("sdd-validate", {
     description: "校验 docs/ 文档结构 + 状态机 + 交叉引用一致性",
     handler: async (args, ctx) => {
-      const opts = parseValidateArgs(args);  // 简单 arg 解析
+      const opts = parseValidateArgs(args); // 简单 arg 解析
       const result = await validateDocs(opts);
-      ctx.ui.notify(result.status === "pass" ? "info" : "warn",
-        formatResult(result));
+      ctx.ui.notify(result.status === "pass" ? "info" : "warn", formatResult(result));
       if (result.status === "block") {
         return { blocked: true, reason: result.errors.join("\n") };
       }
@@ -302,6 +307,7 @@ export default function (pi: ExtensionAPI): void {
 **职责**：程序化入口，导出 8 个纯函数供 slash command / hook / CI 三方调用。
 
 **设计原则**：
+
 - 函数签名返回结构化对象（`{ status, errors, warnings, payload }`），不直接打印
 - 不依赖 omp / ExtensionAPI（可在 hook 和 CI 中复用）
 - 文件 IO 封装在内部（`Bun.write()` / `Bun.read()`），但**不依赖 bun runtime 的 API 表面**——核心 IO 用 `node:fs`，仅在 `api-runner.ts` 用 bun
@@ -311,10 +317,10 @@ export default function (pi: ExtensionAPI): void {
 ```typescript
 // src/cli/api.ts
 export interface ValidateOptions {
-  path?: string;             // 校验范围
-  staged?: boolean;          // 仅 staged 变更
+  path?: string; // 校验范围
+  staged?: boolean; // 仅 staged 变更
   severity?: "warn" | "error" | "block";
-  json?: boolean;            // 仅内部使用
+  json?: boolean; // 仅内部使用
 }
 
 export interface ValidateResult {
@@ -345,7 +351,7 @@ export async function getApplyChecklist(prdPath: string): Promise<ApplyResult>;
 // CI 专用: bun run src/cli/api-runner.ts <command> [args]
 // 不是 sdd CLI 的替代品，是 api.ts 的薄壳入口
 import { parseArgs } from "node:util";
-import { validateDocs, proposePrd, /* ... */ } from "./api";
+import { validateDocs, proposePrd /* ... */ } from "./api";
 
 const { positionals, values } = parseArgs({
   args: process.argv.slice(2),
@@ -372,6 +378,7 @@ switch (command) {
 ```
 
 **为什么需要 `api-runner.ts`**：
+
 - slash command 是人机交互，不能 CI 化
 - hook 是 commit gate，不能 CI 化
 - CI 需要 stdout + exit code + JSON 输出，这是 `api-runner.ts` 的职责
@@ -403,22 +410,22 @@ async function runSddValidate(pi: HookAPI, files: string[]): Promise<void> {
 
 #### 3.3.5 模块边界硬约束（arch-reviewer P1 三条修正）
 
->**本节是对 arch-reviewer 在 [commit `b0a3f9d`] 评审中提出的 3 个 P1 finding 的硬性回应,所有后续实施必须遵守。**
+> **本节是对 arch-reviewer 在 [commit `b0a3f9d`] 评审中提出的 3 个 P1 finding 的硬性回应,所有后续实施必须遵守。**
 
 **F3.1 api.ts 不变成 God 模块**：
 
 `src/cli/api.ts` 的 8 个函数必须满足下列硬约束（不可豁免）：
 
-| 约束 | 限制 |
-|---|---|
-| 函数单行数 | 每个 export 函数 ≤ 80 行（不含类型声明与 import） |
-| 新增逻辑 ≤ 0 | api.ts 仅做 lib/* 调用 + 结果组装；path 解析 / git staged 检测 / option validation / severity gating / 跨函数共享逻辑 **必须先抽到 `src/cli/lib/orchestration/`** |
-| orchestration/ 新目录 | v1.4.0 实施时新增 `src/cli/lib/orchestration/{path,git,options,severity,gates}.ts`（可选,按需拆） |
-| 文件总行数 | api.ts ≤ 300 行；超过即触发 P1 警报,需 PR 重构 |
+| 约束                  | 限制                                                                                                                                                               |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 函数单行数            | 每个 export 函数 ≤ 80 行（不含类型声明与 import）                                                                                                                  |
+| 新增逻辑 ≤ 0          | api.ts 仅做 lib/\* 调用 + 结果组装；path 解析 / git staged 检测 / option validation / severity gating / 跨函数共享逻辑 **必须先抽到 `src/cli/lib/orchestration/`** |
+| orchestration/ 新目录 | v1.4.0 实施时新增 `src/cli/lib/orchestration/{path,git,options,severity,gates}.ts`（可选,按需拆）                                                                  |
+| 文件总行数            | api.ts ≤ 300 行；超过即触发 P1 警报,需 PR 重构                                                                                                                     |
 
 **F3.2 extension/index.ts 单文件聚合的工程理由**：
 
->C7 约束单文件聚合的"与 hooks 保持同构"理由不充分,arch-reviewer 评分有效。本节给出**真正的工程理由**:
+> C7 约束单文件聚合的"与 hooks 保持同构"理由不充分,arch-reviewer 评分有效。本节给出**真正的工程理由**:
 
 - **理由 A（omp loader 单文件最稳）**：v16.2.x 后虽支持目录形式（PR #2714），但 `omp.extensions: ["./path/to/entry.ts"]` 单文件形式对所有 omp 版本都是契约安全的；目录形式依赖 v16.2.x 之后。**单文件 = 最大兼容性**
 - **理由 B（统一 arg parser 入口）**：8 个 slash command 共享一个 `parseArgs(args: string): <Options>` 集中入口(避免每个 handler 重复 split)——单文件聚合保证唯一入口,避免分散到多文件后引入两份不同的 split 逻辑
@@ -428,18 +435,19 @@ async function runSddValidate(pi: HookAPI, files: string[]): Promise<void> {
 
 **F3.3 api-runner.ts 存在性的设计权衡**：
 
->arch-reviewer 指出 api-runner.ts 重蹈"CLI 入口"覆辙。本节给出**有意识的设计选择**而非 path-of-least-resistance:
+> arch-reviewer 指出 api-runner.ts 重蹈"CLI 入口"覆辙。本节给出**有意识的设计选择**而非 path-of-least-resistance:
 
-| 方面 | slash command (extension handler) | api-runner.ts (CI) |
-|---|---|---|
-| 调用方 | omp 会话 + 用户 | CI runner 进程（无 omp 会话） |
-| 输入 | `args: string`（omp 注入） | `process.argv` 数组 |
-| 输出 | `ctx.ui.notify` / `setWidget` | stdout JSON + exit code |
-| 路由 | 一个 handler 一个 API 函数 | 一个 switch 8 case（仅 process.argv 分发） |
-| error 报告 | `ctx.ui.notify(level, msg)` | `process.exit(1 \| 2)` |
-| arg 解析 | 内联 `parseArgs(args)` | 借用 `node:util.parseArgs` |
+| 方面       | slash command (extension handler) | api-runner.ts (CI)                         |
+| ---------- | --------------------------------- | ------------------------------------------ |
+| 调用方     | omp 会话 + 用户                   | CI runner 进程（无 omp 会话）              |
+| 输入       | `args: string`（omp 注入）        | `process.argv` 数组                        |
+| 输出       | `ctx.ui.notify` / `setWidget`     | stdout JSON + exit code                    |
+| 路由       | 一个 handler 一个 API 函数        | 一个 switch 8 case（仅 process.argv 分发） |
+| error 报告 | `ctx.ui.notify(level, msg)`       | `process.exit(1 \| 2)`                     |
+| arg 解析   | 内联 `parseArgs(args)`            | 借用 `node:util.parseArgs`                 |
 
 共享边界（避免重复建设）：
+
 - arg 解析: `extensions/` 与 `api-runner.ts` 都调用 `src/cli/lib/orchestration/parseArgs.ts`（**单一实现**）
 - 格式化输出: handler 用 `notifyBySeverity`;api-runner 用 `formatHuman(result)` + `console.log(JSON.stringify(result))`;两者都从 `src/cli/lib/orchestration/format.ts` 调用
 - 维护成本声明: 接受双轨,即"CI 这条逃生通道保留",用"两个调用方共享 lib/orchestration"换取"不接受完整 CLI 二进制回潮"
@@ -448,9 +456,10 @@ async function runSddValidate(pi: HookAPI, files: string[]): Promise<void> {
 
 #### 3.3.6 `package.json` omp.extensions manifest 设计前置
 
->+arch-reviewer P2 指出 manifest 缺失不应仅作 checklist,应升为设计前置。本节固化:
+> +arch-reviewer P2 指出 manifest 缺失不应仅作 checklist,应升为设计前置。本节固化:
 
 **v1.4.0 启动条件**（在动 extensions 代码之前必须先动 package.json）：
+
 ```json
 {
   "name": "sdd-pack",
@@ -461,8 +470,8 @@ async function runSddValidate(pi: HookAPI, files: string[]): Promise<void> {
   }
 }
 ```
-不增这一行,marketplace 路径(第三方用户安装)直接失败——这不是 checklist,这是 hard requirement,与 §10.1 R1 直接挂钩
 
+不增这一行,marketplace 路径(第三方用户安装)直接失败——这不是 checklist,这是 hard requirement,与 §10.1 R1 直接挂钩
 
 ---
 
@@ -471,6 +480,7 @@ async function runSddValidate(pi: HookAPI, files: string[]): Promise<void> {
 ### 4.1 性能要求
 
 [沿用旧 PRD §4.1](../prd/2026-06-29-sdd-cli.md#41-性能要求)：
+
 - `/sdd-validate` 在 sdd-pack 仓库规模（~30 docs 文件）下 < 100ms
 - `/sdd-propose` 创建文件 < 500ms
 - `/sdd-archive` 完整归档流程（含 lore commit）< 2s
@@ -478,6 +488,7 @@ async function runSddValidate(pi: HookAPI, files: string[]): Promise<void> {
 ### 4.2 安全要求
 
 [沿用旧 PRD §4.2](../prd/2026-06-29-sdd-cli.md#42-安全要求)：
+
 - 不修改 git 历史（不执行 `git reset` / `git rebase`）
 - 不向网络发送数据（纯本地文件操作）
 - 输出不包含敏感信息（lore commit trailer 不含 token / credential）
@@ -485,6 +496,7 @@ async function runSddValidate(pi: HookAPI, files: string[]): Promise<void> {
 ### 4.3 可用性要求
 
 [沿用旧 PRD §4.3](../prd/2026-06-29-sdd-cli.md#43-可用性要求)：
+
 - 每个 slash command 有 `description`（omp autocomplete 用）
 - 错误信息人类可读
 - `validateDocs(opts.dryRun)` 模式可预览所有破坏性操作
@@ -507,16 +519,16 @@ async function runSddValidate(pi: HookAPI, files: string[]): Promise<void> {
 
 不涉及数据迁移。但涉及**代码迁移**：
 
-| 旧位置 | 新位置 | 操作 |
-|---|---|---|
-| `bin/sdd` | （删除） | 文件移除 |
-| `src/cli/index.ts` | （删除） | 文件移除 |
-| `src/cli/lib/arg-parser.ts` | `extensions/sdd-extension/index.ts` 内联 | 文件移除，arg 解析移植到 handler 内 |
-| `src/cli/commands/{validate,propose,archive,migrate,status,list,why,apply}.ts` | `src/cli/api.ts` 内的 export 函数 | 文件移除，逻辑迁入 api.ts |
-| `src/cli/lib/*`（核心库） | `src/cli/lib/*` | 文件保留，零业务修改 |
-| `hooks/index.ts` | `hooks/index.ts` | 增量修改：runSddValidate 改 in-process 调用 |
-| `package.json#bin` | （删除） | 字段移除 |
-| `package.json#files` | 修改 | 移除 `"bin"`，保留 `"extensions", "hooks", "src", "skills", "rules", "agents"` |
+| 旧位置                                                                         | 新位置                                   | 操作                                                                           |
+| ------------------------------------------------------------------------------ | ---------------------------------------- | ------------------------------------------------------------------------------ |
+| `bin/sdd`                                                                      | （删除）                                 | 文件移除                                                                       |
+| `src/cli/index.ts`                                                             | （删除）                                 | 文件移除                                                                       |
+| `src/cli/lib/arg-parser.ts`                                                    | `extensions/sdd-extension/index.ts` 内联 | 文件移除，arg 解析移植到 handler 内                                            |
+| `src/cli/commands/{validate,propose,archive,migrate,status,list,why,apply}.ts` | `src/cli/api.ts` 内的 export 函数        | 文件移除，逻辑迁入 api.ts                                                      |
+| `src/cli/lib/*`（核心库）                                                      | `src/cli/lib/*`                          | 文件保留，零业务修改                                                           |
+| `hooks/index.ts`                                                               | `hooks/index.ts`                         | 增量修改：runSddValidate 改 in-process 调用                                    |
+| `package.json#bin`                                                             | （删除）                                 | 字段移除                                                                       |
+| `package.json#files`                                                           | 修改                                     | 移除 `"bin"`，保留 `"extensions", "hooks", "src", "skills", "rules", "agents"` |
 
 ---
 
@@ -531,6 +543,7 @@ async function runSddValidate(pi: HookAPI, files: string[]): Promise<void> {
 ```
 
 示例：
+
 ```
 /sdd-validate
 /sdd-validate --staged --severity error
@@ -560,6 +573,7 @@ bun run src/cli/api-runner.ts validate --staged --json
 ### 6.2 输出格式
 
 **slash command 输出**：通过 `pi.sendMessage()` 或 `ctx.ui.notify(level, message)` 进入 omp 会话：
+
 - `info`（蓝色/绿色）：pass / 创建成功
 - `warn`（黄色）：有 warning，但建议继续
 - `error`（红色）：有 error，必须修复
@@ -580,16 +594,16 @@ bun run src/cli/api-runner.ts validate --staged --json
 
 ### 7.1 内部系统集成
 
-| 系统名称 | 集成方式 | 数据流向 | 说明 |
-|---------|---------|---------|------|
-| `pi.registerCommand` | in-process（extension factory 内） | 双向（hook ↔ handler） | 新增 8 个 slash command 注册 |
-| `pi.sendMessage` / `ctx.ui.notify` | in-process | 单向（handler → omp session） | 输出 |
-| `lore` CLI | spawn subprocess（保留） | 双向 | `lore-wrapper.ts` 封装 lore commit / lore why |
-| omp hook runtime | 子进程 + in-process 混合 | 双向 | hook 拦截中调 `api.validateDocs()`（in-process，不 spawn） |
-| `prd-change-management` rule | 程序化（TS 实现） | 单向（rule → api） | 状态机逻辑从 rule §3 翻译为 `prd-state-machine.ts` |
-| `docs-check.sh` | 内部调用或保留 shell | 单向 | 4 项检查保留；api.ts 是超集 |
-| `lore-protocol` rule | 调用 `lore commit`（封装） | 单向 | 遵守 lore trailer JSON schema |
-| **CI（GitHub Actions / drone）** | `bun run src/cli/api-runner.ts` | 单向 | 逃生通道 |
+| 系统名称                           | 集成方式                           | 数据流向                      | 说明                                                       |
+| ---------------------------------- | ---------------------------------- | ----------------------------- | ---------------------------------------------------------- |
+| `pi.registerCommand`               | in-process（extension factory 内） | 双向（hook ↔ handler）        | 新增 8 个 slash command 注册                               |
+| `pi.sendMessage` / `ctx.ui.notify` | in-process                         | 单向（handler → omp session） | 输出                                                       |
+| `lore` CLI                         | spawn subprocess（保留）           | 双向                          | `lore-wrapper.ts` 封装 lore commit / lore why              |
+| omp hook runtime                   | 子进程 + in-process 混合           | 双向                          | hook 拦截中调 `api.validateDocs()`（in-process，不 spawn） |
+| `prd-change-management` rule       | 程序化（TS 实现）                  | 单向（rule → api）            | 状态机逻辑从 rule §3 翻译为 `prd-state-machine.ts`         |
+| `docs-check.sh`                    | 内部调用或保留 shell               | 单向                          | 4 项检查保留；api.ts 是超集                                |
+| `lore-protocol` rule               | 调用 `lore commit`（封装）         | 单向                          | 遵守 lore trailer JSON schema                              |
+| **CI（GitHub Actions / drone）**   | `bun run src/cli/api-runner.ts`    | 单向                          | 逃生通道                                                   |
 
 ### 7.2 外部系统集成
 
@@ -597,14 +611,14 @@ bun run src/cli/api-runner.ts validate --staged --json
 
 ### 7.3 omp 生态集成（新增）
 
-| omp 能力 | sdd-extension 使用方式 | 说明 |
-|---------|-----------------------|------|
-| `pi.registerCommand` | 注册 8 个 slash command | extension 核心 |
-| `pi.sendMessage` | 输出校验结果到会话 | 用户看到反馈 |
-| `ctx.ui.notify` | 通知层级（info/warn/error/block） | 视觉化 |
-| `ctx.exec` | 执行 lore commit 等 shell 命令 | 间接通过 lore-wrapper |
-| `ctx.newSession` | 不使用 | 扩展不主动开新 session |
-| `pi.appendEntry` | 不使用 | 状态机状态变化通过文件持久化 |
+| omp 能力             | sdd-extension 使用方式            | 说明                         |
+| -------------------- | --------------------------------- | ---------------------------- |
+| `pi.registerCommand` | 注册 8 个 slash command           | extension 核心               |
+| `pi.sendMessage`     | 输出校验结果到会话                | 用户看到反馈                 |
+| `ctx.ui.notify`      | 通知层级（info/warn/error/block） | 视觉化                       |
+| `ctx.exec`           | 执行 lore commit 等 shell 命令    | 间接通过 lore-wrapper        |
+| `ctx.newSession`     | 不使用                            | 扩展不主动开新 session       |
+| `pi.appendEntry`     | 不使用                            | 状态机状态变化通过文件持久化 |
 
 ---
 
@@ -635,6 +649,7 @@ bun run src/cli/api-runner.ts validate --staged --json
 ### 8.2 非功能验收
 
 [沿用旧 PRD §8.2](../prd/2026-06-29-sdd-cli.md#82-非功能验收)：
+
 - 状态机 100% 与 `prd-change-management` rule §3 一致
 - docs-check.sh 不删除
 - 通过 sdd-reviewer 一致性评审
@@ -645,12 +660,12 @@ bun run src/cli/api-runner.ts validate --staged --json
 
 ### 9.1 上线时间
 
-| 阶段 | 时间 | 内容 |
-|---|---|---|
-| **v1.4.0-alpha** | T+0 | sdd-extension + api.ts 完成；npm 测试环境跑通；hook 仍走原 spawn 路径（灰度） |
-| **v1.4.0-beta** | T+1 周 | hook 切换到 in-process api.validateDocs()；同仓库 dogfood；severity=warn |
-| **v1.4.0 正式** | T+2 周 | severity=error；CHANGELOG 标注 ADR-009 + ADR-008 superseded |
-| ADR 配套 | 同步 | ADR-009 Accepted + ADR-008 → Superseded by ADR-009 |
+| 阶段             | 时间   | 内容                                                                          |
+| ---------------- | ------ | ----------------------------------------------------------------------------- |
+| **v1.4.0-alpha** | T+0    | sdd-extension + api.ts 完成；npm 测试环境跑通；hook 仍走原 spawn 路径（灰度） |
+| **v1.4.0-beta**  | T+1 周 | hook 切换到 in-process api.validateDocs()；同仓库 dogfood；severity=warn      |
+| **v1.4.0 正式**  | T+2 周 | severity=error；CHANGELOG 标注 ADR-009 + ADR-008 superseded                   |
+| ADR 配套         | 同步   | ADR-009 Accepted + ADR-008 → Superseded by ADR-009                            |
 
 ### 9.2 上线前准备
 
@@ -672,11 +687,12 @@ bun run src/cli/api-runner.ts validate --staged --json
 
 ### 10.1 已知风险
 
-| 风险 | 影响 | 概率 | 应对措施 |
-|------|------|------|---------|
-| **R1** omp extension 在本机实测不工作（参考 ADR-006 状态更新 §"结论"）—— 全新 omp 进程读 `skill://sdd-core` 报 Unknown | 高 | 中 | v1.4.0-alpha 阶段首日验证 extension factory 能否被装载；不行则保留 hook 路径，slash command 注册延后 |
+| 风险                                                                                                                   | 影响 | 概率 | 应对措施                                                                                             |
+| ---------------------------------------------------------------------------------------------------------------------- | ---- | ---- | ---------------------------------------------------------------------------------------------------- |
+| **R1** omp extension 在本机实测不工作（参考 ADR-006 状态更新 §"结论"）—— 全新 omp 进程读 `skill://sdd-core` 报 Unknown | 高   | 中   | v1.4.0-alpha 阶段首日验证 extension factory 能否被装载；不行则保留 hook 路径，slash command 注册延后 |
 
 **R1 实测证据（2026-06-30，omp v16.2.6）**：
+
 - `omp --extension ./plugins/sdd-pack/extensions/sdd-extension/index.ts` 装载**成功**——stub factory 被调用,控制台打印 `sdd-extension: stub only`
 - marketplace 路径当前不可验证：已安装 cache 为 `sdd-pack___sdd-pack___1.2.3`（不带 `extensions/` 目录,无 `omp.extensions` manifest）,需 v1.4.0 正式发布后才能跑通 marketplace 自动装载
 - `package.json#omp.extensions` 是 marketplace 自动装载的**硬条件**,v1.4 实施时**必须新增**: `"omp": { "extensions": ["./extensions/sdd-extension/index.ts"] }`
@@ -705,24 +721,24 @@ bun run src/cli/api-runner.ts validate --staged --json
 
 ### 11.1 术语表
 
-| 术语 | 定义 |
-|------|------|
-| **omp extension** | omp 的 TypeScript 扩展形态，由 `omp.extensions` manifest 字段声明入口；运行时由 omp 注入 ExtensionAPI；可注册 slash command / tool / hook / 快捷键 |
-| **slash command** | omp 用户在会话中以 `/` 前缀触发的命令，例 `/sdd-validate` |
-| **in-process API** | 程序化入口，同进程调用，无 spawn subprocess，无 PATH 依赖 |
-| **CI 逃生通道（api-runner）** | 给 CI 用的薄壳入口，bash 5 行 + bun eval，避免为 CI 维护完整 CLI |
-| **supersede** | 替代关系；新 PRD 替代旧 PRD 时建立双向引用，旧 PRD 状态 → 已替换 |
+| 术语                          | 定义                                                                                                                                               |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **omp extension**             | omp 的 TypeScript 扩展形态，由 `omp.extensions` manifest 字段声明入口；运行时由 omp 注入 ExtensionAPI；可注册 slash command / tool / hook / 快捷键 |
+| **slash command**             | omp 用户在会话中以 `/` 前缀触发的命令，例 `/sdd-validate`                                                                                          |
+| **in-process API**            | 程序化入口，同进程调用，无 spawn subprocess，无 PATH 依赖                                                                                          |
+| **CI 逃生通道（api-runner）** | 给 CI 用的薄壳入口，bash 5 行 + bun eval，避免为 CI 维护完整 CLI                                                                                   |
+| **supersede**                 | 替代关系；新 PRD 替代旧 PRD 时建立双向引用，旧 PRD 状态 → 已替换                                                                                   |
 
 ### 11.2 参考资料
 
 **主要参考文档（已整理为 reference 文档，本仓库一手知识库）**：
 
-| 文档 | 位置 | 适用关系 |
-|---|---|---|
+| 文档                                                            | 位置                                                     | 适用关系                                                                                                   |
+| --------------------------------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | **[omp Extension API 参考](../reference/omp-extension-api.md)** | `docs/reference/omp-extension-api.md`（2026-06-30 整理） | 本 PRD 实施期的**一手 omp 官方文档摘要**——extension 形态 / manifest / API / UI / 装载路径 / 已知风险全覆盖 |
-| [omp Task Agent 机制参考](../reference/omp-task-agent.md) | `docs/reference/omp-task-agent.md`（2026-06-25 整理） | agent 机制及三层守门 agent 运行时依据 |
-| [OpenSpec 官方文档](https://openspec.dev/) | 外部资料 | 文档驱动约束思想的成熟实践（沿用旧 PRD） |
-| [sdd CLI 设计文档](../architecture/sdd-cli-design.md) §11 | 本仓库架构文档 | 设计与借鉴对象详细分析 |
+| [omp Task Agent 机制参考](../reference/omp-task-agent.md)       | `docs/reference/omp-task-agent.md`（2026-06-25 整理）    | agent 机制及三层守门 agent 运行时依据                                                                      |
+| [OpenSpec 官方文档](https://openspec.dev/)                      | 外部资料                                                 | 文档驱动约束思想的成熟实践（沿用旧 PRD）                                                                   |
+| [sdd CLI 设计文档](../architecture/sdd-cli-design.md) §11       | 本仓库架构文档                                           | 设计与借鉴对象详细分析                                                                                     |
 
 **omp Extension API 参考文档 涵盖内容**（详见 `omp-extension-api.md`）：
 
@@ -751,12 +767,12 @@ bun run src/cli/api-runner.ts validate --staged --json
 
 **调研结论**：
 
-| omp 生态中已有的「命令」形态 | 例子 | 限制 |
-|---|---|---|
-| slash command（`/xxx`） | `/handoff`、`/notes`、`/commit` | 必须在 omp 会话内 |
-| omp 自身子命令（`omp plugin ...`） | `omp plugin install/upgrade` | omp core 提供，非 plugin 可声明 |
-| `omp install -g pkg` 全局 CLI | `@oh-my-pi/cli` | npm 路径，不走 marketplace |
-| plugin `package.json#bin` 字段 | 无 omp 端装载机制 | omp marketplace 不识别 |
+| omp 生态中已有的「命令」形态       | 例子                            | 限制                            |
+| ---------------------------------- | ------------------------------- | ------------------------------- |
+| slash command（`/xxx`）            | `/handoff`、`/notes`、`/commit` | 必须在 omp 会话内               |
+| omp 自身子命令（`omp plugin ...`） | `omp plugin install/upgrade`    | omp core 提供，非 plugin 可声明 |
+| `omp install -g pkg` 全局 CLI      | `@oh-my-pi/cli`                 | npm 路径，不走 marketplace      |
+| plugin `package.json#bin` 字段     | 无 omp 端装载机制               | omp marketplace 不识别          |
 
 **结论**：**omp marketplace 没有 plugin 分发独立 CLI 二进制的官方机制**。已有路径只有两条：slash command（在 omp 会话内）或 npm 全局包（脱离 marketplace）。
 
@@ -764,18 +780,18 @@ bun run src/cli/api-runner.ts validate --staged --json
 
 ### 11.4 迁移对照表（v1.3 → v1.4）
 
-| v1.3（独立 CLI） | v1.4（slash command + API） | 备注 |
-|---|---|---|
-| `alias sdd='bun .../bin/sdd'` | （无） | 不再需要 |
-| `sdd validate` | `/sdd-validate` | 命令前缀 `/`，命令名 kebab-case |
-| `sdd validate --staged --json` | `/sdd-validate --staged --json` | flag 形式不变 |
-| `sdd propose --title X` | `/sdd-propose --title X` | 同上 |
-| `sdd archive <path> --reason completed` | `/sdd-archive <path> --reason completed` | 同上 |
-| 终端 stdout 输出 | omp 会话 `pi.sendMessage` | 输出形式变更 |
-| CI 调 `sdd validate --json` | CI 调 `bun run src/cli/api-runner.ts validate --json` | API 路径一致 |
-| `package.json#bin` 字段 | （删除） | omp 不识别 |
-| `bin/sdd` bash wrapper | （删除） | escape velocity |
-| `src/cli/index.ts` | `src/cli/api.ts` + `extensions/sdd-extension/index.ts` | 入口分裂 |
-| `src/cli/lib/arg-parser.ts` | （删除；arg 解析移植到 extension handler 内） | slim |
-| `src/cli/commands/*.ts` | （逻辑迁入 `api.ts`） | slim |
-| hook `runSddValidate` 走 `spawnSync bun ...` | hook `runSddValidate` 走 `in-process api.validateDocs()` | 消除 subprocess |
+| v1.3（独立 CLI）                             | v1.4（slash command + API）                              | 备注                            |
+| -------------------------------------------- | -------------------------------------------------------- | ------------------------------- |
+| `alias sdd='bun .../bin/sdd'`                | （无）                                                   | 不再需要                        |
+| `sdd validate`                               | `/sdd-validate`                                          | 命令前缀 `/`，命令名 kebab-case |
+| `sdd validate --staged --json`               | `/sdd-validate --staged --json`                          | flag 形式不变                   |
+| `sdd propose --title X`                      | `/sdd-propose --title X`                                 | 同上                            |
+| `sdd archive <path> --reason completed`      | `/sdd-archive <path> --reason completed`                 | 同上                            |
+| 终端 stdout 输出                             | omp 会话 `pi.sendMessage`                                | 输出形式变更                    |
+| CI 调 `sdd validate --json`                  | CI 调 `bun run src/cli/api-runner.ts validate --json`    | API 路径一致                    |
+| `package.json#bin` 字段                      | （删除）                                                 | omp 不识别                      |
+| `bin/sdd` bash wrapper                       | （删除）                                                 | escape velocity                 |
+| `src/cli/index.ts`                           | `src/cli/api.ts` + `extensions/sdd-extension/index.ts`   | 入口分裂                        |
+| `src/cli/lib/arg-parser.ts`                  | （删除；arg 解析移植到 extension handler 内）            | slim                            |
+| `src/cli/commands/*.ts`                      | （逻辑迁入 `api.ts`）                                    | slim                            |
+| hook `runSddValidate` 走 `spawnSync bun ...` | hook `runSddValidate` 走 `in-process api.validateDocs()` | 消除 subprocess                 |

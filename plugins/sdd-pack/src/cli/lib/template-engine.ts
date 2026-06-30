@@ -288,9 +288,8 @@ function generateDeltaTemplate(options: TemplateOptions): string {
  * 生成模板
  */
 export function generateTemplate(options: TemplateOptions): TemplateResult {
-  const content = options.type === "delta"
-    ? generateDeltaTemplate(options)
-    : generateFullTemplate(options);
+  const content =
+    options.type === "delta" ? generateDeltaTemplate(options) : generateFullTemplate(options);
 
   const fileName = titleToFileName(options.date, options.title);
 

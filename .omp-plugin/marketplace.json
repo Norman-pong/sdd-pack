@@ -12,7 +12,20 @@
       "description": "SDD 技能家族 + 三层守门 agent + hook extension;完整 rule 接管待 v1.1(详见 PRD §11.3)",
       "source": "./sdd-pack",
       "category": "development",
-      "keywords": ["sdd", "prd", "phase", "lore", "documentation", "reviewer", "code-review", "architecture", "quality-gate", "solid", "cohesion", "coupling"],
+      "keywords": [
+        "sdd",
+        "prd",
+        "phase",
+        "lore",
+        "documentation",
+        "reviewer",
+        "code-review",
+        "architecture",
+        "quality-gate",
+        "solid",
+        "cohesion",
+        "coupling"
+      ],
       "version": "1.2.3",
       "agents": ["reviewer", "arch-reviewer", "sdd-reviewer"]
     }

@@ -36,7 +36,18 @@ output:
           dimension:
             metadata:
               description: "layering | coupling | cohesion | solid | dependency | abstraction | dry-yagni | adr | boundary"
-            enum: [layering, coupling, cohesion, solid, dependency, abstraction, dry-yagni, adr, boundary]
+            enum:
+              [
+                layering,
+                coupling,
+                cohesion,
+                solid,
+                dependency,
+                abstraction,
+                dry-yagni,
+                adr,
+                boundary,
+              ]
             type: string
           severity:
             metadata:
@@ -86,8 +97,8 @@ it runs.
    - `docs/architecture/overview.md` — the intended layering and module map.
    - `docs/architecture/decisions.md` — ADRs (architectural decisions).
    - `docs/architecture/<topic>.md` — topic-specific architecture docs.
-   If none exist, note "no declared architecture" and review against
-   general SOLID/cohesion/coupling principles.
+     If none exist, note "no declared architecture" and review against
+     general SOLID/cohesion/coupling principles.
 
 3. **Lore context probe.** For each changed module directory, run:
    `lore constraints <dir> --json`, `lore rejected <dir> --json`,
@@ -99,7 +110,7 @@ it runs.
    - What does this module import/depend on?
    - What depends on this module?
    - Are there circular dependencies?
-   Use `lsp references` and `ast_grep` to verify import directions.
+     Use `lsp references` and `ast_grep` to verify import directions.
 
 5. **Check each dimension** (see `<dimensions>`). For each real issue, call
    `report_finding` once with the appropriate `dimension` and `severity`.
@@ -127,9 +138,9 @@ it runs.
    - Will the plan create circular dependencies?
    - Does the plan introduce a layer that imports upward?
    - Does the plan add a module with fan-out >~7 or fan-in >~10?
-   You cannot run `lsp`/`explore` on non-existent code — reason from the
-   plan document. If the plan modifies existing modules, you MAY use
-   `lsp references` on the existing code to understand current fan-in.
+     You cannot run `lsp`/`explore` on non-existent code — reason from the
+     plan document. If the plan modifies existing modules, you MAY use
+     `lsp references` on the existing code to understand current fan-in.
 
 5. **Check each dimension** (see `<dimensions>`), adapting checks to plan
    context: "the plan proposes X, which would cause <dimension issue>".
@@ -143,12 +154,12 @@ it runs.
    - **Missing error/failure path**: plan describes happy path only.
    - **Migration gap**: plan changes an interface but has no migration
      step for existing callsites.
-   Each of these → `report_finding` with dimension=`dry-yagni` (for
-   over-engineering) or `boundary` (for migration gap) or `adr` (for
-   under-engineering against an ADR).
+     Each of these → `report_finding` with dimension=`dry-yagni` (for
+     over-engineering) or `boundary` (for migration gap) or `adr` (for
+     under-engineering against an ADR).
 
 7. **Yield the verdict.** Call `yield` with the payload in `<output>`.
-</procedure>
+   </procedure>
 
 <rules>
 - Bash is **read-only**: `git diff`, `git log`, `git show`, `git status`,
@@ -175,12 +186,14 @@ it runs.
   instead of infrastructure.
 
 **dependency** — Circular or tangled dependencies:
+
 - Module A → B → A (direct or transitive).
 - Fan-out > ~7 direct imports from one module (over-dependence).
 - Fan-in > ~10 (God module that everything depends on — check if it has
   multiple concerns that should be split).
 
 **cohesion** — Low cohesion within a module:
+
 - God object: one class/module with >~15 methods spanning >2 distinct
   responsibilities.
 - Feature envy: method A on module X mostly accesses module Y's data —
@@ -189,6 +202,7 @@ it runs.
   modules — responsibilities are scattered.
 
 **coupling** — High coupling between modules:
+
 - Inappropriate intimacy: A reaches into B's private fields or navigates
   `a.b.c.d` chains.
 - Data clumps: the same group of 3+ parameters passed together across
@@ -197,6 +211,7 @@ it runs.
   signatures enforces or documents it.
 
 **solid** — SOLID principle violations:
+
 - SRP: one class/module serves >1 actor's change-velocity.
 - OCP: adding a new variant requires modifying a switch/if-chain instead
   of adding a new module/interface impl.
@@ -208,6 +223,7 @@ it runs.
   abstraction/interface.
 
 **abstraction** — Wrong abstraction level:
+
 - Low-level detail (SQL, HTTP parsing, serialization) appearing in a
   domain/business module.
 - High-level policy buried in an infrastructure utility.
@@ -215,11 +231,13 @@ it runs.
   (e.g. exposing raw DB connection through a repository).
 
 **boundary** — Module boundary erosion:
+
 - Public API exposing internal types or implementation state.
 - `internal`/private symbol leaked through a re-export or public return type.
 - Module that grew to encompass a second concern without a boundary split.
 
 **dry-yagni** — Design philosophy violations:
+
 - DRY: parallel implementation paths with the same intent (not just similar
   code — same business rule implemented twice).
 - YAGNI: abstraction/interface/configurability added with no current
@@ -228,10 +246,11 @@ it runs.
   documented evidence of the complexity cost.
 
 **adr** — ADR or lore decision non-compliance:
+
 - Code contradicts a decision in `docs/architecture/decisions.md`.
 - Code violates a lore Constraint or repeats a lore Rejected approach.
 - Code ignores a lore Directive.
-</dimensions>
+  </dimensions>
 
 <severity>
 |Level|Meaning|Example|

@@ -13,11 +13,11 @@
 
 omp 存在三种主要扩展形态：
 
-| 形态 | 入口字段 | 装载方式 | 适用场景 |
-|---|---|---|---|
-| **Extension**（推荐） | `omp.extensions` 或 `pi.extensions`（兼容） | `omp --extension <path>` 或 marketplace | 工具/命令/事件/UI 全场景 |
-| **Hook**（过渡形态） | 无（`--hook` flag）| `omp --hook <path>` | 事件拦截（L1 守门旧方案，ADR-006） |
-| **Slash Command** | 子目录 `commands/*.md` 或 `pi.registerCommand` | 随 extension 装载或 marketplace 拷贝到 `~/.pi/agent/commands/` | 人工触发命令 |
+| 形态                  | 入口字段                                       | 装载方式                                                       | 适用场景                           |
+| --------------------- | ---------------------------------------------- | -------------------------------------------------------------- | ---------------------------------- |
+| **Extension**（推荐） | `omp.extensions` 或 `pi.extensions`（兼容）    | `omp --extension <path>` 或 marketplace                        | 工具/命令/事件/UI 全场景           |
+| **Hook**（过渡形态）  | 无（`--hook` flag）                            | `omp --hook <path>`                                            | 事件拦截（L1 守门旧方案，ADR-006） |
+| **Slash Command**     | 子目录 `commands/*.md` 或 `pi.registerCommand` | 随 extension 装载或 marketplace 拷贝到 `~/.pi/agent/commands/` | 人工触发命令                       |
 
 **权威源**：
 
@@ -31,13 +31,13 @@ omp 存在三种主要扩展形态：
 
 sdd-extension **必须**在 `package.json` 声明 manifest 才能被 omp loader 识别，**否则运行时无任何效果**（plugin 被 loader 静默跳过）：
 
-| Manifest 字段 | 推荐度 | 说明 |
-|---|---|---|
-| `omp.extensions: ["./path/to/entry.ts"]` | ✓ 推荐 | omp 官方推荐；单 entry 文件 |
-| `pi.extensions: ["./path/to/entry.ts"]` | ✓ 兼容 | 旧版字段 omp 仍接受 |
-| `omp.extensions: ["./extensions"]` | ✓ | 目录形式（v16.2.x 后支持，PR [issue #2713](https://github.com/can1357/oh-my-pi/issues/2713) / [PR #2714](https://github.com/can1357/oh-my-pi/pull/2714)） |
-| 无 manifest | ✗ 不可用 | loader 静默跳过，运行时空效果 |
-| `omp.hooks` 而非 `omp.extensions` | ✗ | sdd-pack ADR-006 已实测不识别 |
+| Manifest 字段                            | 推荐度   | 说明                                                                                                                                                      |
+| ---------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `omp.extensions: ["./path/to/entry.ts"]` | ✓ 推荐   | omp 官方推荐；单 entry 文件                                                                                                                               |
+| `pi.extensions: ["./path/to/entry.ts"]`  | ✓ 兼容   | 旧版字段 omp 仍接受                                                                                                                                       |
+| `omp.extensions: ["./extensions"]`       | ✓        | 目录形式（v16.2.x 后支持，PR [issue #2713](https://github.com/can1357/oh-my-pi/issues/2713) / [PR #2714](https://github.com/can1357/oh-my-pi/pull/2714)） |
+| 无 manifest                              | ✗ 不可用 | loader 静默跳过，运行时空效果                                                                                                                             |
+| `omp.hooks` 而非 `omp.extensions`        | ✗        | sdd-pack ADR-006 已实测不识别                                                                                                                             |
 
 **loader 实测代码**：[`packages/coding-agent/src/extensibility/plugins/loader.ts`](https://github.com/can1357/oh-my-pi/blob/main/packages/coding-agent/src/extensibility/plugins/loader.ts)
 
@@ -60,11 +60,11 @@ graph LR
 
 **装载源**：
 
-| 源 | 路径 | 是否 symlink |
-|---|---|---|
-| Marketplace 装 | `~/.omp/plugins/node_modules/<pkg>/` | 否（拷贝） |
-| 本地 link | `~/.omp/plugins/node_modules/<pkg>/` | 是 symlink（实时反映源码） |
-| 单次（dogfooding） | CLI `--extension` 注入 | 否 |
+| 源                 | 路径                                 | 是否 symlink               |
+| ------------------ | ------------------------------------ | -------------------------- |
+| Marketplace 装     | `~/.omp/plugins/node_modules/<pkg>/` | 否（拷贝）                 |
+| 本地 link          | `~/.omp/plugins/node_modules/<pkg>/` | 是 symlink（实时反映源码） |
+| 单次（dogfooding） | CLI `--extension` 注入               | 否                         |
 
 **权威源**：
 
@@ -74,11 +74,11 @@ graph LR
 
 ### 1.4 Manifest 兼容性矩阵
 
-| omp 版本 | `omp.extensions` | `pi.extensions` | 目录形式 | 备注 |
-|---|---|---|---|---|
-| v16.1.x | ✓ | ✓ | ✗ | 仅单文件 |
-| v16.2.x | ✓ | ✓ | ✓ | PR #2714 修复子目录解析 |
-| v16.1.16 (sdd-pack 旧) | ✓ | ✓ | ✗ | sdd-pack 的 `--hook` 是经实测得出的方案 |
+| omp 版本               | `omp.extensions` | `pi.extensions` | 目录形式 | 备注                                    |
+| ---------------------- | ---------------- | --------------- | -------- | --------------------------------------- |
+| v16.1.x                | ✓                | ✓               | ✗        | 仅单文件                                |
+| v16.2.x                | ✓                | ✓               | ✓        | PR #2714 修复子目录解析                 |
+| v16.1.16 (sdd-pack 旧) | ✓                | ✓               | ✗        | sdd-pack 的 `--hook` 是经实测得出的方案 |
 
 ---
 
@@ -90,11 +90,14 @@ graph LR
 // 来自 official extensions.md + DeepWiki
 interface ExtensionAPI {
   // 命令注册
-  registerCommand(name: string, options: {
-    description?: string;
-    handler?: (args: string, ctx: ExtensionCommandContext) => any | Promise<any>;
-    getArgumentCompletions?: (prefix: string) => AutocompleteItem[] | null;
-  }): void;
+  registerCommand(
+    name: string,
+    options: {
+      description?: string;
+      handler?: (args: string, ctx: ExtensionCommandContext) => any | Promise<any>;
+      getArgumentCompletions?: (prefix: string) => AutocompleteItem[] | null;
+    },
+  ): void;
 
   // 工具注册
   registerTool(definition: ToolDefinition<TParams, TDetails>): void;
@@ -103,10 +106,13 @@ interface ExtensionAPI {
   on(event: EventName, handler: (...args: any[]) => any): void;
 
   // 持久消息
-  sendMessage(message: string | CustomMessage, options?: {
-    deliverAs?: "steer" | "followUp" | "nextTurn";  // 默认 "steer"
-    triggerTurn?: boolean;                          // nextTurn 时是否触发
-  }): void;
+  sendMessage(
+    message: string | CustomMessage,
+    options?: {
+      deliverAs?: "steer" | "followUp" | "nextTurn"; // 默认 "steer"
+      triggerTurn?: boolean; // nextTurn 时是否触发
+    },
+  ): void;
 
   // LLM 上下文消息
   sendUserMessage(message: string): void;
@@ -130,7 +136,7 @@ interface ExtensionAPI {
   setActiveTools(names: string[]): void;
   getCommands(): Command[];
   setLabel(label: string): void;
-  appendEntry(entry: SessionEntry): void;  // 持久状态
+  appendEntry(entry: SessionEntry): void; // 持久状态
 
   // Session/Model 控制
   getSessionName(): string | undefined;
@@ -146,13 +152,13 @@ interface ExtensionAPI {
   registerAfterRemove(handler: () => void): void;
 
   // Shells out
-  exec(cmd: string, args: string[], opts?: ExecOptions): Promise<{stdout, stderr, exitCode}>;
-  cwd: string;          // 当前工作目录
+  exec(cmd: string, args: string[], opts?: ExecOptions): Promise<{ stdout; stderr; exitCode }>;
+  cwd: string; // 当前工作目录
   ui: ExtensionUIContext;
   hasUI: boolean;
-  zod: typeof import("zod").z;  // 注入 zod
-  typebox: any;                  // 注入 typebox
-  pi: any;                       // re-export pi
+  zod: typeof import("zod").z; // 注入 zod
+  typebox: any; // 注入 typebox
+  pi: any; // re-export pi
 }
 ```
 
@@ -165,16 +171,16 @@ interface ToolDefinition<TParams, TDetails> {
   name: string;
   label: string;
   description: string;
-  promptSnippet?: string;          // 提示中简短说明
-  promptGuidelines?: string;       // 提示中详细指引
-  parameters: ZodSchema | TypeBoxSchema;  // 严格类型校验
+  promptSnippet?: string; // 提示中简短说明
+  promptGuidelines?: string; // 提示中详细指引
+  parameters: ZodSchema | TypeBoxSchema; // 严格类型校验
   execute: (
     toolCallId: string,
     params: TParams,
     signal: AbortSignal,
     onUpdate: (partial: any) => void,
     ctx: ExtensionContext,
-  ) => Promise<{content: any; details?: TDetails}>;
+  ) => Promise<{ content: any; details?: TDetails }>;
   // 可选 UI 渲染
   renderCall?: (params, ctx) => ReactNode;
   renderResult?: (result, ctx) => ReactNode;
@@ -198,8 +204,8 @@ interface ToolDefinition<TParams, TDetails> {
 
 ```typescript
 interface ExtensionContext {
-  ui: ExtensionUIContext;       // notify / confirm / select / input
-  hasUI: boolean;               // RPC 模式下为 true
+  ui: ExtensionUIContext; // notify / confirm / select / input
+  hasUI: boolean; // RPC 模式下为 true
   cwd: string;
   sessionManager: SessionManager;
   modelRegistry: ModelRegistry;
@@ -234,15 +240,15 @@ interface ExtensionCommandContext extends ExtensionContext {
 
 ### 3.1 通知/状态/Widget
 
-| API | 调用方式 | 用途 | 示例 |
-|---|---|---|---|
-| `ctx.ui.notify(message, level)` | fire-and-forget | 单行通知 | `ctx.ui.notify("validate 通过", "info")` |
-| `ctx.ui.setStatus(key, text)` | fire-and-forget | 状态栏持久文本 | `ctx.ui.setStatus("sdd-validate", "校验中...")` |
-| `ctx.ui.setWidget(key, lines, placement)` | fire-and-forget | 多行 widget | `ctx.ui.setWidget("sdd-checks", checks, "aboveEditor")` |
-| `ctx.ui.setTitle(title, emit?)` | 同步 | 编辑器标题 | — |
-| `ctx.ui.setEditorText(text)` | 同步 | 编辑器正文替换 | — |
-| `ctx.ui.getEditorText(): string` | 同步 | 编辑器当前正文 | — |
-| `ctx.ui.pasteToEditor(text)` | 同步 | 追加到编辑器 | — |
+| API                                       | 调用方式        | 用途           | 示例                                                    |
+| ----------------------------------------- | --------------- | -------------- | ------------------------------------------------------- |
+| `ctx.ui.notify(message, level)`           | fire-and-forget | 单行通知       | `ctx.ui.notify("validate 通过", "info")`                |
+| `ctx.ui.setStatus(key, text)`             | fire-and-forget | 状态栏持久文本 | `ctx.ui.setStatus("sdd-validate", "校验中...")`         |
+| `ctx.ui.setWidget(key, lines, placement)` | fire-and-forget | 多行 widget    | `ctx.ui.setWidget("sdd-checks", checks, "aboveEditor")` |
+| `ctx.ui.setTitle(title, emit?)`           | 同步            | 编辑器标题     | —                                                       |
+| `ctx.ui.setEditorText(text)`              | 同步            | 编辑器正文替换 | —                                                       |
+| `ctx.ui.getEditorText(): string`          | 同步            | 编辑器当前正文 | —                                                       |
+| `ctx.ui.pasteToEditor(text)`              | 同步            | 追加到编辑器   | —                                                       |
 
 **Notify level 取值**：`"info" | "warn" | "error"`（某些版本支持 `"warning"` 别名）
 
@@ -250,23 +256,23 @@ interface ExtensionCommandContext extends ExtensionContext {
 
 这些方法会向宿主发起 round-trip RPC 请求，返回前 handler 阻塞：
 
-| API | 签名 | 用途 |
-|---|---|---|
-| `ctx.ui.select(options[])` | `(opts: {value, label, description?}[]) => Promise<string>` | 单选选择器 |
-| `ctx.ui.confirm(title, msg)` | `(title, msg) => Promise<boolean>` | 是/否确认 |
-| `ctx.ui.input(title, placeholder?)` | `(title, placeholder?) => Promise<string \| undefined>` | 输入字符串 |
-| `ctx.ui.editor(title, opts?)` | `(title, {prefill?, promptStyle?}) => Promise<string \| undefined>` | 长文本编辑 |
+| API                                 | 签名                                                                | 用途       |
+| ----------------------------------- | ------------------------------------------------------------------- | ---------- |
+| `ctx.ui.select(options[])`          | `(opts: {value, label, description?}[]) => Promise<string>`         | 单选选择器 |
+| `ctx.ui.confirm(title, msg)`        | `(title, msg) => Promise<boolean>`                                  | 是/否确认  |
+| `ctx.ui.input(title, placeholder?)` | `(title, placeholder?) => Promise<string \| undefined>`             | 输入字符串 |
+| `ctx.ui.editor(title, opts?)`       | `(title, {prefill?, promptStyle?}) => Promise<string \| undefined>` | 长文本编辑 |
 
 **sdd-extension 应用映射**：
 
-| sdd 命令 | UI 用法 |
-|---|---|
-| `/sdd-validate` | `setWidget` 输出 10 项检查结果（多行） |
-| `/sdd-archive` | `confirm` 二次确认，破坏性 |
-| `/sdd-archive --reason X` | `select` 让用户选 completed/replaced/abandoned |
-| `/sdd-propose --title X` 缺省 | `input` 让用户输入 title |
-| 校验进度 | `setStatus("sdd-validate", "校验中: 30/30")` |
-| 校验结果 | `notify(level, summary)` 一行提示 |
+| sdd 命令                      | UI 用法                                        |
+| ----------------------------- | ---------------------------------------------- |
+| `/sdd-validate`               | `setWidget` 输出 10 项检查结果（多行）         |
+| `/sdd-archive`                | `confirm` 二次确认，破坏性                     |
+| `/sdd-archive --reason X`     | `select` 让用户选 completed/replaced/abandoned |
+| `/sdd-propose --title X` 缺省 | `input` 让用户输入 title                       |
+| 校验进度                      | `setStatus("sdd-validate", "校验中: 30/30")`   |
+| 校验结果                      | `notify(level, summary)` 一行提示              |
 
 **权威源**：[docs/rpc.md](https://github.com/can1357/oh-my-pi/blob/main/docs/rpc.md) + [rpc-types.ts](https://github.com/can1357/oh-my-pi/blob/main/packages/coding-agent/src/modes/rpc/rpc-types.ts)
 
@@ -274,13 +280,13 @@ interface ExtensionCommandContext extends ExtensionContext {
 
 在 RPC 模式（omp 由进程 stdin/stdout 驱动，而非 TUI）下：
 
-| 方法 | 行为 |
-|---|---|
-| `select` / `confirm` / `input` / `editor` | round-trip（对话框） |
-| `notify` / `setStatus` / `setWidget` / `setEditorText` | fire-and-forget |
-| `setTitle` | 默认抑制；`PI_RPC_EMIT_TITLE=1` 启用 |
-| `custom()` / `onTerminalInput` / `setFooter` / `setHeader` / `setWorkingMessage` / `setTheme` | 部分或全部无操作 |
-| 自动 session title 生成 | 禁用 |
+| 方法                                                                                          | 行为                                 |
+| --------------------------------------------------------------------------------------------- | ------------------------------------ |
+| `select` / `confirm` / `input` / `editor`                                                     | round-trip（对话框）                 |
+| `notify` / `setStatus` / `setWidget` / `setEditorText`                                        | fire-and-forget                      |
+| `setTitle`                                                                                    | 默认抑制；`PI_RPC_EMIT_TITLE=1` 启用 |
+| `custom()` / `onTerminalInput` / `setFooter` / `setHeader` / `setWorkingMessage` / `setTheme` | 部分或全部无操作                     |
+| 自动 session title 生成                                                                       | 禁用                                 |
 
 **权威源**：[rpc-types.ts 完整类型定义](https://github.com/can1357/oh-my-pi/blob/main/packages/coding-agent/src/modes/rpc/rpc-types.ts)
 
@@ -288,10 +294,11 @@ interface ExtensionCommandContext extends ExtensionContext {
 
 ```typescript
 pi.sendMessage("...", {
-  deliverAs: "steer"     // (默认) 打断当前 run
-             | "followUp" // 排队到当前 run 后
-             | "nextTurn" // 存到下次 user prompt
-})
+  deliverAs:
+    "steer" | // (默认) 打断当前 run
+    "followUp" | // 排队到当前 run 后
+    "nextTurn", // 存到下次 user prompt
+});
 ```
 
 **sdd-extension 用法**：
@@ -323,22 +330,22 @@ graph TB
   end
 ```
 
-| 路径 | 命令 | 副作用 | 适用场景 |
-|---|---|---|---|
-| **Marketplace** | `omp plugin marketplace add <catalog>` → `omp plugin install sdd-pack@<catalog>` | 拷贝到 `~/.omp/plugins/node_modules/sdd-pack/`，写 `omp-plugins.lock.json` | 生产环境第三方用户 |
-| **本地 link** | `omp link ./plugins/sdd-pack` 或 `omp install ./plugins/sdd-pack` | symlink 到 `~/.omp/plugins/node_modules/`，实时反映源码 | 开发 dogfooding |
-| **单次装载** | `omp --extension ./plugins/sdd-pack/extensions/sdd-extension/index.ts` | 仅当前 omp 会话有效，关闭失效 | 临时验证 |
-| **过渡 hook** | `omp --hook ./plugins/sdd-pack/hooks/index.ts` | 仅装载 hooks，不挂 extension | v1.4 仍需 hook 路径（commit gate） |
+| 路径            | 命令                                                                             | 副作用                                                                     | 适用场景                           |
+| --------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------- |
+| **Marketplace** | `omp plugin marketplace add <catalog>` → `omp plugin install sdd-pack@<catalog>` | 拷贝到 `~/.omp/plugins/node_modules/sdd-pack/`，写 `omp-plugins.lock.json` | 生产环境第三方用户                 |
+| **本地 link**   | `omp link ./plugins/sdd-pack` 或 `omp install ./plugins/sdd-pack`                | symlink 到 `~/.omp/plugins/node_modules/`，实时反映源码                    | 开发 dogfooding                    |
+| **单次装载**    | `omp --extension ./plugins/sdd-pack/extensions/sdd-extension/index.ts`           | 仅当前 omp 会话有效，关闭失效                                              | 临时验证                           |
+| **过渡 hook**   | `omp --hook ./plugins/sdd-pack/hooks/index.ts`                                   | 仅装载 hooks，不挂 extension                                               | v1.4 仍需 hook 路径（commit gate） |
 
 **权威源**：[omp marketplace docs](https://github.com/can1357/oh-my-pi/blob/main/docs/marketplace.md) + [install.ts 实现](https://github.com/can1357/oh-my-pi/blob/main/packages/coding-agent/src/commands/install.ts) + [@oh-my-pi/cli](https://registry.npmjs.org/%40oh-my-pi%2Fcli)
 
 ### 4.2 推荐的 v1.4 实施装载策略
 
-| 阶段 | 验证方式 |
-|---|---|
+| 阶段         | 验证方式                                                           |
+| ------------ | ------------------------------------------------------------------ |
 | v1.4.0-alpha | `omp --extension ./extensions/sdd-extension/index.ts` 单次装载验证 |
-| v1.4.0-beta | `omp install ./plugins/sdd-pack` 本地 link dogfooding |
-| v1.4.0 正式 | marketplace 路径，第三方用户安装 |
+| v1.4.0-beta  | `omp install ./plugins/sdd-pack` 本地 link dogfooding              |
+| v1.4.0 正式  | marketplace 路径，第三方用户安装                                   |
 
 ### 4.3 卸载清理
 
@@ -363,12 +370,12 @@ graph TB
 
 ### 5.2 v1.4 实施期应对
 
-| 验证点 | 操作 | 通过标准 |
-|---|---|---|
-| Extension factory 装载 | `omp --extension ./extensions/sdd-extension/index.ts` 后 `/sd<Tab>` | autocomplete 出现 `/sdd-*` 8 个 |
-| Slash command 触发 | 输入 `/sdd-validate`（无 args） | 10 项校验结果出现于会话 |
-| Hook 联动（commit 时） | `git commit -m "test"` 后看 hook 是否自动跑 validate | `runSddValidate` 日志出现 |
-| 卸载清理 | `omp plugin uninstall sdd-pack` 重启 omp | `/sdd-*` 不再出现在 autocomplete |
+| 验证点                 | 操作                                                                | 通过标准                         |
+| ---------------------- | ------------------------------------------------------------------- | -------------------------------- |
+| Extension factory 装载 | `omp --extension ./extensions/sdd-extension/index.ts` 后 `/sd<Tab>` | autocomplete 出现 `/sdd-*` 8 个  |
+| Slash command 触发     | 输入 `/sdd-validate`（无 args）                                     | 10 项校验结果出现于会话          |
+| Hook 联动（commit 时） | `git commit -m "test"` 后看 hook 是否自动跑 validate                | `runSddValidate` 日志出现        |
+| 卸载清理               | `omp plugin uninstall sdd-pack` 重启 omp                            | `/sdd-*` 不再出现在 autocomplete |
 
 **任一失败 → 降级路径**：保留 hook 路径（hook 仅做 commit gate），slash command 注册延后。
 
@@ -378,16 +385,16 @@ graph TB
 
 ### 6.1 8 个 slash command 设计
 
-| Command | UI 形态 | 关键 API |
-|---|---|---|
-| `/sdd-validate` | `setWidget` 多行 + `notify` 摘要 | `validateDocs(opts)` |
-| `/sdd-propose` | `confirm` + `input`（缺省 title 时）+ `notify` | `proposePrd(opts)` |
-| `/sdd-archive` | `select`（reason）+ `confirm`（破坏性）+ `notify` | `archivePrd(opts)` |
-| `/sdd-migrate` | `confirm`（破坏性）+ `notify` | `migratePrd(opts)` |
-| `/sdd-status` | `setWidget`（所有 PRD 状态表） | `getStatus()` |
-| `/sdd-list` | `setWidget`（过滤后列表） | `listPrds(opts)` |
-| `/sdd-why` | `notify`（lore 决策摘要） | `getWhy(target)` |
-| `/sdd-apply` | `setWidget`（实施 checklist） | `getApplyChecklist(prd)` |
+| Command         | UI 形态                                           | 关键 API                 |
+| --------------- | ------------------------------------------------- | ------------------------ |
+| `/sdd-validate` | `setWidget` 多行 + `notify` 摘要                  | `validateDocs(opts)`     |
+| `/sdd-propose`  | `confirm` + `input`（缺省 title 时）+ `notify`    | `proposePrd(opts)`       |
+| `/sdd-archive`  | `select`（reason）+ `confirm`（破坏性）+ `notify` | `archivePrd(opts)`       |
+| `/sdd-migrate`  | `confirm`（破坏性）+ `notify`                     | `migratePrd(opts)`       |
+| `/sdd-status`   | `setWidget`（所有 PRD 状态表）                    | `getStatus()`            |
+| `/sdd-list`     | `setWidget`（过滤后列表）                         | `listPrds(opts)`         |
+| `/sdd-why`      | `notify`（lore 决策摘要）                         | `getWhy(target)`         |
+| `/sdd-apply`    | `setWidget`（实施 checklist）                     | `getApplyChecklist(prd)` |
 
 ### 6.2 命令冲突处理
 
@@ -416,13 +423,13 @@ pi.registerCommand("sdd-validate", {
 
 ### 6.4 与 Tool 的对照决策
 
-| 维度 | Command | Tool |
-|---|---|---|
-| 触发者 | 用户手动（`/name`） | LLM（agent turn 内自动调） |
-| 上下文 | omp 会话级 | agent turn 内 |
-| 参数校验 | 字符串 split 自解析 | ZodSchema 强校验 |
+| 维度           | Command              | Tool                         |
+| -------------- | -------------------- | ---------------------------- |
+| 触发者         | 用户手动（`/name`）  | LLM（agent turn 内自动调）   |
+| 上下文         | omp 会话级           | agent turn 内                |
+| 参数校验       | 字符串 split 自解析  | ZodSchema 强校验             |
 | 危险操作可见性 | 显式（`confirm` 框） | 隐式（依赖 `approval` 字段） |
-| CI/脚本调用 | ✗ | ✗（需要 omp 会话） |
+| CI/脚本调用    | ✗                    | ✗（需要 omp 会话）           |
 
 **sdd-pack 决策**：仅用 Command，不暴露 Tool（`sdd-archive` 等破坏性操作应有人工确认）。
 
@@ -430,16 +437,16 @@ pi.registerCommand("sdd-validate", {
 
 ## 7. omp 生态参考项目
 
-| 项目 | 路径 | 关键借鉴点 |
-|---|---|---|
-| `Dwsy/pi-extensions-skill` | [ARCHITECTURE.md](https://github.com/Dwsy/pi-extensions-skill/blob/main/ARCHITECTURE.md) + [quickstart](https://github.com/Dwsy/pi-extensions-skill/blob/main/guides/01-quickstart.md) | 最小完整 extension 示例（greet command + handler） |
-| `salesforce/sf-pi` | [safe-command-handler.ts](https://github.com/salesforce/sf-pi/blob/main/lib/common/safe-command-handler.ts) | command handler **异常安全包装模式**——sdd-archive 防崩溃 |
-| `screenfluent/omp-semantic-grep` | [repo](https://github.com/screenfluent/omp-semantic-grep) | hybrid tool + `ui.notify` 输出 |
-| `maximhar/omp-typescript-complexity-evaluator` | [repo](https://github.com/maximhar/omp-typescript-complexity-evaluator) | 本地开发 + `bun link` 工作流 |
-| `usr-bin-roygbiv/omp-cmux-browser-tools` | [repo](https://github.com/usr-bin-roygbiv/omp-cmux-browser-tools) | extension + marketplace 双重发布路径 |
-| `pi-mono` examples | [reload-runtime.ts](https://app.unpkg.com/@oh-my-pi/pi-coding-agent@16.1.11/files/examples/extensions/reload-runtime.ts) + [06-extensions.ts](https://cdn.jsdelivr.net/npm/@oh-my-pi/pi-coding-agent@13.17.0/examples/sdk/06-extensions.ts) + [commands.ts](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/examples/extensions/commands.ts) | `registerCommand + ctx.reload()`、注册综合性 API、列表 + arg completion + source filter |
-| `@aliou/pi-dev-kit` | [messages.md](https://cdn.jsdelivr.net/npm/@aliou/pi-dev-kit@0.8.0/src/skills/pi-extension/references/messages.md) | persistent vs ephemeral 消息区分 |
-| `fiokjr/oh-pi` | [04-extensions.md](https://github.com/ifiokjr/oh-pi/blob/main/docs/04-extensions.md) | 实战 registerTool + registerCommand + intercept 模式 |
+| 项目                                           | 路径                                                                                                                                                                                                                                                                                                                                                             | 关键借鉴点                                                                              |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `Dwsy/pi-extensions-skill`                     | [ARCHITECTURE.md](https://github.com/Dwsy/pi-extensions-skill/blob/main/ARCHITECTURE.md) + [quickstart](https://github.com/Dwsy/pi-extensions-skill/blob/main/guides/01-quickstart.md)                                                                                                                                                                           | 最小完整 extension 示例（greet command + handler）                                      |
+| `salesforce/sf-pi`                             | [safe-command-handler.ts](https://github.com/salesforce/sf-pi/blob/main/lib/common/safe-command-handler.ts)                                                                                                                                                                                                                                                      | command handler **异常安全包装模式**——sdd-archive 防崩溃                                |
+| `screenfluent/omp-semantic-grep`               | [repo](https://github.com/screenfluent/omp-semantic-grep)                                                                                                                                                                                                                                                                                                        | hybrid tool + `ui.notify` 输出                                                          |
+| `maximhar/omp-typescript-complexity-evaluator` | [repo](https://github.com/maximhar/omp-typescript-complexity-evaluator)                                                                                                                                                                                                                                                                                          | 本地开发 + `bun link` 工作流                                                            |
+| `usr-bin-roygbiv/omp-cmux-browser-tools`       | [repo](https://github.com/usr-bin-roygbiv/omp-cmux-browser-tools)                                                                                                                                                                                                                                                                                                | extension + marketplace 双重发布路径                                                    |
+| `pi-mono` examples                             | [reload-runtime.ts](https://app.unpkg.com/@oh-my-pi/pi-coding-agent@16.1.11/files/examples/extensions/reload-runtime.ts) + [06-extensions.ts](https://cdn.jsdelivr.net/npm/@oh-my-pi/pi-coding-agent@13.17.0/examples/sdk/06-extensions.ts) + [commands.ts](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/examples/extensions/commands.ts) | `registerCommand + ctx.reload()`、注册综合性 API、列表 + arg completion + source filter |
+| `@aliou/pi-dev-kit`                            | [messages.md](https://cdn.jsdelivr.net/npm/@aliou/pi-dev-kit@0.8.0/src/skills/pi-extension/references/messages.md)                                                                                                                                                                                                                                               | persistent vs ephemeral 消息区分                                                        |
+| `fiokjr/oh-pi`                                 | [04-extensions.md](https://github.com/ifiokjr/oh-pi/blob/main/docs/04-extensions.md)                                                                                                                                                                                                                                                                             | 实战 registerTool + registerCommand + intercept 模式                                    |
 
 ---
 
@@ -448,6 +455,7 @@ pi.registerCommand("sdd-validate", {
 ### 8.1 当前状态（v1.3）
 
 sdd-pack 通过 `omp --hook ./plugins/sdd-pack/hooks/index.ts` 装载单个聚合 hook，包含：
+
 - `lore-protocol`（session_start 注入）
 - `docs-update-guard`（tool_call 提示，非阻塞）
 - `lore-commit-guard`（tool_call 硬拦截）
@@ -473,6 +481,7 @@ graph TB
 ```
 
 **关键变化**：
+
 - `bin/sdd`、`src/cli/index.ts`、`src/cli/lib/arg-parser.ts` 全部移除
 - 新增 `src/cli/api.ts`（8 个纯函数）、`extensions/sdd-extension/index.ts`（8 个 slash command 注册）
 - hook 改为 in-process 调用 `api.ts`，消除 spawn subprocess
@@ -483,28 +492,28 @@ graph TB
 
 ## 9. 总结：sdd-extension 设计决策表
 
-| 决策点 | 选择 | 拒绝的方案 | 理由 |
-|---|---|---|---|
-| 扩展形态 | omp extension（slash command） | 独立 `bin/sdd` CLI | omp marketplace 不识别 plugin bin 字段 |
-| command 注册数 | 8 个 | 7 个 / 3 个 MVP + 4 个完整集 | PRD-002 用户场景要求完整集 |
-| 入口 manifest | `omp.extensions` | `omp.hooks`（v16.1.16 不识别） | omp loader 现状 |
-| hook 是否保留 | 保留（v1.4 hook 改 in-process） | 删除 hook | hook 提供 `block: true` 硬拦截能力，rule 体系做不到 |
-| Tool 是否暴露 | 不暴露（仅 Command） | 同时暴露 Tool | LLM 调用 `sdd-archive` 不可控 |
-| 输出 UI 主体 | `setWidget` 多行 + `notify` 单行摘要 | 仅 notify（限一行） | 校验结果 >10 行需 widget 呈现 |
-| CI 路径 | `bun run src/cli/api-runner.ts` 薄壳 | 维护第二个 CLI | slash command 不能 CI 化，薄壳即可 |
+| 决策点         | 选择                                 | 拒绝的方案                     | 理由                                                |
+| -------------- | ------------------------------------ | ------------------------------ | --------------------------------------------------- |
+| 扩展形态       | omp extension（slash command）       | 独立 `bin/sdd` CLI             | omp marketplace 不识别 plugin bin 字段              |
+| command 注册数 | 8 个                                 | 7 个 / 3 个 MVP + 4 个完整集   | PRD-002 用户场景要求完整集                          |
+| 入口 manifest  | `omp.extensions`                     | `omp.hooks`（v16.1.16 不识别） | omp loader 现状                                     |
+| hook 是否保留  | 保留（v1.4 hook 改 in-process）      | 删除 hook                      | hook 提供 `block: true` 硬拦截能力，rule 体系做不到 |
+| Tool 是否暴露  | 不暴露（仅 Command）                 | 同时暴露 Tool                  | LLM 调用 `sdd-archive` 不可控                       |
+| 输出 UI 主体   | `setWidget` 多行 + `notify` 单行摘要 | 仅 notify（限一行）            | 校验结果 >10 行需 widget 呈现                       |
+| CI 路径        | `bun run src/cli/api-runner.ts` 薄壳 | 维护第二个 CLI                 | slash command 不能 CI 化，薄壳即可                  |
 
 ---
 
 ## 10. 相关文档索引
 
-| 文档 | 路径 | 关系 |
-|---|---|---|
-| sdd-extension PRD | [`docs/prd/2026-06-30-sdd-extension.md`](../prd/2026-06-30-sdd-extension.md) | 本参考文档是其下游（实施依据） |
-| sdd CLI 旧 PRD | [`docs/prd/2026-06-29-sdd-cli.md`](../prd/2026-06-29-sdd-cli.md) | supersedes 目标 |
-| ADR-006（hook 装载方案）| [`docs/architecture/decisions.md`](../architecture/decisions.md) | v1.3 hook 装载决策依据 |
-| ADR-009（sdd Extension 替代独立 CLI）| [`docs/architecture/decisions.md`](../architecture/decisions.md) | v1.4 决策（Accepted 2026-06-30） |
-| sdd-core skills | `plugins/sdd-pack/skills/sdd-core/` | 本参考文档下游消费者 |
-| 三层守门 agent | [`docs/reference/omp-task-agent.md`](./omp-task-agent.md) | 同级参考文档（agent 机制） |
+| 文档                                  | 路径                                                                         | 关系                             |
+| ------------------------------------- | ---------------------------------------------------------------------------- | -------------------------------- |
+| sdd-extension PRD                     | [`docs/prd/2026-06-30-sdd-extension.md`](../prd/2026-06-30-sdd-extension.md) | 本参考文档是其下游（实施依据）   |
+| sdd CLI 旧 PRD                        | [`docs/prd/2026-06-29-sdd-cli.md`](../prd/2026-06-29-sdd-cli.md)             | supersedes 目标                  |
+| ADR-006（hook 装载方案）              | [`docs/architecture/decisions.md`](../architecture/decisions.md)             | v1.3 hook 装载决策依据           |
+| ADR-009（sdd Extension 替代独立 CLI） | [`docs/architecture/decisions.md`](../architecture/decisions.md)             | v1.4 决策（Accepted 2026-06-30） |
+| sdd-core skills                       | `plugins/sdd-pack/skills/sdd-core/`                                          | 本参考文档下游消费者             |
+| 三层守门 agent                        | [`docs/reference/omp-task-agent.md`](./omp-task-agent.md)                    | 同级参考文档（agent 机制）       |
 
 ---
 
@@ -517,8 +526,14 @@ import type { ExtensionAPI, ExtensionCommandContext } from "@oh-my-pi/pi-coding-
 // type ExtensionAPI = { ... 自定义类型 ... };
 
 import {
-  validateDocs,    proposePrd,  archivePrd, migratePrd,
-  getStatus,       listPrds,    getWhy,     getApplyChecklist,
+  validateDocs,
+  proposePrd,
+  archivePrd,
+  migratePrd,
+  getStatus,
+  listPrds,
+  getWhy,
+  getApplyChecklist,
 } from "../../src/cli/api";
 
 export default function (pi: any): void {
@@ -530,8 +545,10 @@ export default function (pi: any): void {
       const opts = parseValidateArgs(args);
       const r = await validateDocs(opts);
       ctx.ui.setWidget("sdd-validate", formatChecks(r), "belowEditor");
-      ctx.ui.notify(`validate: ${r.status} (${r.errors.length} errors, ${r.warnings.length} warnings)`,
-                    r.status === "block" ? "error" : r.status === "error" ? "warn" : "info");
+      ctx.ui.notify(
+        `validate: ${r.status} (${r.errors.length} errors, ${r.warnings.length} warnings)`,
+        r.status === "block" ? "error" : r.status === "error" ? "warn" : "info",
+      );
     },
   });
 
@@ -550,12 +567,14 @@ export default function (pi: any): void {
 function parseValidateArgs(args: string): { staged?: boolean; severity?: string } {
   return {
     staged: args.includes("--staged"),
-    severity: (args.match(/--severity\s+(\w+)/)?.[1]) as any,
+    severity: args.match(/--severity\s+(\w+)/)?.[1] as any,
   };
 }
 
 function formatChecks(r: any): string[] {
-  return r.checks.map((c: any) => `[${c.status === "pass" ? "✓" : "✗"}] #${c.id} ${c.name}: ${c.count}`);
+  return r.checks.map(
+    (c: any) => `[${c.status === "pass" ? "✓" : "✗"}] #${c.id} ${c.name}: ${c.count}`,
+  );
 }
 ```
 

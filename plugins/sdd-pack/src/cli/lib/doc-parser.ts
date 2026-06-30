@@ -76,12 +76,12 @@ export function parseStatusLine(line: string): StatusLine | null {
   const trimmed = line.replace(/^>\s*/, "").trim();
 
   // 匹配规范格式: 状态：XXX | 发布日期：XXXX | 版本：XXX
-  const statusMatch = trimmed.match(/状态[：:]\s*([^\|]+)/);
+  const statusMatch = trimmed.match(/状态[：:]\s*([^|]+)/);
   if (!statusMatch) return null;
 
   const status = statusMatch[1].trim();
   const publishDateMatch = trimmed.match(/发布日期[：:]\s*(\d{4}-\d{2}-\d{2})/);
-  const versionMatch = trimmed.match(/版本[：:]\s*([^\|]+)/);
+  const versionMatch = trimmed.match(/版本[：:]\s*([^|]+)/);
   const changelogMatch = trimmed.match(/变更历史[：:]\s*见\s*\[([^\]]+)\]\(([^)]+)\)/);
 
   return {
@@ -103,14 +103,17 @@ export function parseStackedStatusLine(line: string): StackedStatusEntry[] | nul
   const stackedMatch = trimmed.match(/^状态[：:]\s*(.+)/);
   if (!stackedMatch) return null;
 
-  const parts = stackedMatch[1].split(";").map((p) => p.trim()).filter(Boolean);
+  const parts = stackedMatch[1]
+    .split(";")
+    .map((p) => p.trim())
+    .filter(Boolean);
   if (parts.length <= 1) return null; // 单版本不算堆叠
 
   const entries: StackedStatusEntry[] = [];
   for (const part of parts) {
     // 匹配: 1.2.3 已发布(2026-06-25) 或 v1.2.0 新增...
     const structured = part.match(
-      /^v?(\d[\d.]*(?:-rc[\d.]*)?)\s+(.+?)(?:\s*\((\d{4}-\d{2}-\d{2})\))?$/
+      /^v?(\d[\d.]*(?:-rc[\d.]*)?)\s+(.+?)(?:\s*\((\d{4}-\d{2}-\d{2})\))?$/,
     );
     if (structured) {
       entries.push({
@@ -224,8 +227,10 @@ export function parseDocument(filePath: string): DocMetadata | null {
  * 检测是否为模板文件
  */
 export function isTemplateFile(filename: string): boolean {
-  return /^_template/.test(filename) ||
-    ["README.md", "index.md", "CONTRIBUTING.md", "overview.md"].includes(filename);
+  return (
+    filename.startsWith("_template") ||
+    ["README.md", "index.md", "CONTRIBUTING.md", "overview.md"].includes(filename)
+  );
 }
 
 /**

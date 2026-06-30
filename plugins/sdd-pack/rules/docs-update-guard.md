@@ -10,13 +10,13 @@ Before you `git commit` or `lore commit`, scan the staged change set and ask: do
 
 Run `git diff --cached --stat` and look at the file list. Does the change touch, or have implications for, any of the following:
 
-| Trigger | Doc to update |
-| --- | --- |
-| New product requirement, scope change, feature add/remove | `docs/prd/YYYY-MM-DD-<name>.md` + matching `docs/phase/...` |
-| New phase kicked off, milestone hit, phase plan revised | `docs/phase/YYYY-MM-DD-<phase>.md` |
+| Trigger                                                           | Doc to update                                                           |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| New product requirement, scope change, feature add/remove         | `docs/prd/YYYY-MM-DD-<name>.md` + matching `docs/phase/...`             |
+| New phase kicked off, milestone hit, phase plan revised           | `docs/phase/YYYY-MM-DD-<phase>.md`                                      |
 | New module, system-design change, deprecated API, tech-stack swap | `docs/architecture/<topic>.md` (and `overview.md` if structure changes) |
-| New external dependency, third-party API, updated spec | `docs/reference/<external-doc>.md` |
-| New doc file, moved file, renamed file | `docs/index.md` and any relevant `README.md` |
+| New external dependency, third-party API, updated spec            | `docs/reference/<external-doc>.md`                                      |
+| New doc file, moved file, renamed file                            | `docs/index.md` and any relevant `README.md`                            |
 
 If **none** of the above applies — purely internal refactor, test-only change, build/CI tweak, comment-only edit — **skip doc work** and proceed to the commit guard.
 
