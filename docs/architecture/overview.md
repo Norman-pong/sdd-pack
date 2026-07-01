@@ -2,18 +2,26 @@
 
 > 修改记录：执行 `lore log docs/architecture/overview.md`
 
-本文档描述 sdd-pack 仓库的架构定位、目录布局与分发机制。sdd-pack 是一个 omp marketplace 插件仓库，本身的"产品"是一个插件（`plugins/sdd-pack/`），其内容是 4 个 SDD skills + 5 个 rules + docs-check.sh + 三层守门 agent（reviewer/arch-reviewer/sdd-reviewer）。
+本文档描述 sdd-pack 仓库（`zhimingcool/sdd-pack`）当前架构。`sdd-pack` 是一个 omp marketplace 插件，其产品形态是 **OpenSpec OMP Harness**：把 OpenSpec CLI 的能力以「omp 扩展 slash command + 运行时 hook gate + CI 逃生通道」三种入口暴露给用户。
 
 ## 1. 系统定位
 
-sdd-pack 的核心定位：**SDD 技能家族 + lore 提交规则 + 三层代码质量守门 agent 的版本化分发容器**。通过 omp marketplace 机制，让其他用户用 `omp plugin install sdd-pack@sdd-pack` 一条命令获得完整的 SDD 工具链与代码评审能力。
+**OpenSpec 规范生命周期的 OMP 运行时入口集合**。通过 omp marketplace 机制，让用户用 `omp plugin install sdd-pack@sdd-pack` 一条命令获得：
+
+- 7 个 `/openspec-*` slash command（OMP 会话内）
+- 1 个运行时 hook gate（工具调用时拦截）
+- 1 个 CI 逃生通道（自动化场景）
+
+三方入口共享同一份 `src/cli/api.ts` 程序化层，对 OpenSpec CLI 做薄壳封装。
 
 ## 2. 架构原则
 
-- **静态优先**：plugin 内容以静态文件为主（SKILL.md + rule markdown + bash 脚本），同时支持 TypeScript 运行时模块（**v1.4.0 起**：`src/cli/api.ts` 程序化入口 + `extensions/sdd-extension/index.ts` omp extension 工厂 + `hooks/index.ts` 已存在的 TypeScript 聚合）。
-- **零副作用**：plugin 不声明 MCP servers / LSP servers / custom tools。**v1.4.0 起**新增一个 omp extension (`pi.registerCommand` 注册 8 个 slash command + `pi.sendMessage` / `ctx.ui.notify` 输出），不引入 MCP/LSP 副作用。
-- **路径透明**：所有 skills/rules 路径遵循 omp 标准布局，便于 provider 发现。extension 入口遵循 `omp.extensions` manifest 约定（[omp-extension-api.md §1.2](../reference/omp-extension-api.md)）。
-- **迁移可逆**：原位置 `~/.agents/skills/` 与 `~/.omp/agent/rules/` 保留为开发态，sdd-pack 仓库为分发态，互不干扰。
+- **静态优先 + 程序化薄壳**：plugin 主体由 `extensions/`（声明式 omp 扩展）+ `hooks/`（声明式 omp 钩子）组成；运行时逻辑集中在 `src/cli/api.ts` 薄壳层，对 OpenSpec CLI 做 `spawnSync` 转发。
+- **零副作用**（除 OpenSpec CLI 进程）：plugin 不声明 MCP servers / LSP servers / custom tools；唯一进程级副作用是 `spawnSync` 调用 `openspec` CLI。
+- **路径透明**：所有路径遵循 omp 标准布局（`extensions/`、`hooks/`、`src/`），extension 入口遵循 `omp.extensions` manifest 约定。
+- **双范式入口**（in-session / programmatic）：
+  - **交互范式**：OMP 会话内通过 `/openspec-*` slash command 触发，handler 调 `api.ts` 函数
+  - **自动化范式**：CI / hook / 脚本通过 `src/cli/api-runner.ts` 调 `api.ts` 函数；与交互范式共享同一份纯函数实现与同一份 `parseArgs` 解析
 
 ## 3. 系统架构
 
@@ -21,77 +29,123 @@ sdd-pack 的核心定位：**SDD 技能家族 + lore 提交规则 + 三层代码
 
 ```mermaid
 graph TB
-    Repo["sdd-pack repo (norman/sdd-pack)"] --> Catalog[".omp-plugin/marketplace.json<br/>catalog"]
+    Repo["sdd-pack repo<br/>(zhimingcool/sdd-pack)"] --> Catalog[".omp-plugin/marketplace.json<br/>catalog"]
     Repo --> Plugin["plugins/sdd-pack/<br/>plugin 内容"]
     Repo --> Docs["docs/<br/>本仓库开发文档"]
-    Plugin --> Skills["skills/<br/>sdd-core/input/prd/phase"]
-    Plugin --> Rules["rules/<br/>lore-protocol + 3 guards + prd-change-management"]
-    Plugin --> Agents["agents/<br/>reviewer/arch-reviewer/sdd-reviewer"]
-    Plugin --> Script["skills/sdd-core/references/<br/>docs-check.sh"]
+    Repo --> CI[".github/workflows/openspec-gate.yml<br/>CI gate"]
+
+    Plugin --> Ext["extensions/sdd-extension/<br/>index.ts"]
+    Plugin --> Hooks["hooks/<br/>index.ts (runtime gate)"]
+    Plugin --> Src["src/<br/>cli/api.ts + api-runner.ts + lib/"]
     Plugin --> Readme["README.md<br/>package.json"]
+
     Catalog -.声明.-> Plugin
-    OMP["omp CLI"] -->|plugin install| Catalog
-    OMP -->|加载| Plugin
-    OMP --> Provider["omp-plugins provider<br/>(priority 90)"]
-    Provider -->|发现<br/>(v1.1 hook 接管)| Rules
-    Provider -->|发现| Agents
+
+    OMP["omp CLI"] -->|plugin install/enable| Plugin
+
+    subgraph "交互范式 (in-session)"
+        Ext -->|pi.registerCommand| SlashCmds["7 个 /openspec-*<br/>slash command"]
+    end
+
+    subgraph "自动化范式 (programmatic)"
+        Hooks -->|tool_call 拦截| ApiCall1["api.ts 7 个函数"]
+        Src -->|api-runner.ts| ApiCall2["api.ts 7 个函数"]
+        CI -->|bun run api-runner| ApiCall2
+    end
+
+    SlashCmds --> ApiCall1
+    ApiCall1 --> OpenSpecCLI["openspec CLI<br/>(spawnSync)"]
+    ApiCall2 --> OpenSpecCLI
+    OpenSpecCLI --> OpenSpecProject["openspec/<br/>specs/ + changes/"]
 ```
 
-### 3.2 角色与流程
+### 3.2 入口与角色
 
-| 角色                 | 路径                       | 操作                                        |
-| -------------------- | -------------------------- | ------------------------------------------- |
-| 开发者（norman）     | 仓库根目录                 | `omp plugin link ./plugins/sdd-pack` 调试   |
-| omp-plugins provider | `~/.omp/plugins/cache/...` | 加载 plugin 内的 skills/ + rules/ + agents/ |
+| 入口类型         | 形态                              | 入口点                                      | 触发方式                                |
+| ---------------- | --------------------------------- | ------------------------------------------- | --------------------------------------- |
+| 交互范式         | OMP slash command                 | `extensions/sdd-extension/index.ts`         | 用户在 OMP 会话中敲 `/openspec-*`        |
+| 自动化范式 — 运行时 | omp extension hook（拦截）         | `hooks/index.ts`                            | OMP 工具调用 `bash`/`write`/`edit` 触发 |
+| 自动化范式 — CI   | bun CLI（薄壳）                   | `src/cli/api-runner.ts`                     | `bun run src/cli/api-runner.ts <cmd>`   |
+| 自动化范式 — CI   | GitHub Actions                    | `.github/workflows/openspec-gate.yml`      | PR / push 触发                          |
 
-### 3.3 技术栈
+### 3.3 启用条件
 
-| 层级        | 技术选型                    | 说明                                                              |
-| ----------- | --------------------------- | ----------------------------------------------------------------- |
-| 分发容器    | omp marketplace             | GitHub 仓库 + `.omp-plugin/marketplace.json`                      |
-| Skills 描述 | Markdown + YAML frontmatter | 遵循 omp `skill://` 规范                                          |
-| Rules 描述  | Markdown + YAML frontmatter | 遵循 omp `rule://` 规范                                           |
-| Agent 描述  | Markdown + YAML frontmatter | 遵循 omp task-agent 契约（见 `docs/reference/omp-task-agent.md`） |
-| 校验脚本    | bash 3.2                    | `docs-check.sh` 兼容 macOS 默认 bash                              |
-| 版本管理    | git tag = plugin version    | 语义化版本（SemVer）                                              |
+OpenSpec gate 启用需同时满足：
+
+- 当前目录是 Git 仓库（存在 `.git/`）
+- 已完成 OpenSpec init（存在 `openspec/specs/` 与 `openspec/changes/`）
+
+未启用时，hook 给出 advisory 提示，不进入强阻断；slash command 返回 `status: "warn"` 并附带 `reason`。
+
+### 3.4 技术栈
+
+| 层级         | 技术选型                  | 说明                                                  |
+| ------------ | ------------------------- | ----------------------------------------------------- |
+| 分发容器     | omp marketplace           | GitHub 仓库 + `.omp-plugin/marketplace.json`          |
+| 扩展声明     | TypeScript + omp API      | `pi.registerCommand` / `pi.on("tool_call", ...)`      |
+| 运行时       | TypeScript + bun          | `bun --version` 验证；`bun test` 跑单测               |
+| 引擎后端     | OpenSpec CLI（外部依赖）   | `spawnSync("openspec", [...args])`                    |
+| 进程入口     | `bun run api-runner.ts`   | CI 场景进程入口；非 bash wrapper，bun 一行即用         |
+| 版本管理     | git tag = plugin version  | 语义化版本（SemVer）                                  |
 
 ## 4. 核心模块
 
 ### 4.1 模块清单
 
-| 模块名称            | 职责                                                      | 路径                                           |
-| ------------------- | --------------------------------------------------------- | ---------------------------------------------- |
-| marketplace catalog | 声明 sdd-pack plugin                                      | `.omp-plugin/marketplace.json`                 |
-| skills 内容         | 4 个 SDD 技能 + references + templates + evals            | `plugins/sdd-pack/skills/`                     |
-| docs-check.sh       | SDD 文档结构校验脚本                                      | `plugins/sdd-pack/skills/sdd-core/references/` |
-| agents 内容         | 3 个三层守门 agent（reviewer/arch-reviewer/sdd-reviewer） | `plugins/sdd-pack/agents/`                     |
-| README.md           | 用户面向的安装/使用/开发说明                              | `plugins/sdd-pack/README.md`                   |
-| package.json        | 满足 `omp plugin link` 要求的最小 manifest                | `plugins/sdd-pack/package.json`                |
+| 模块名称                | 职责                                                | 路径                                                |
+| ----------------------- | --------------------------------------------------- | --------------------------------------------------- |
+| marketplace catalog     | 声明 sdd-pack plugin                               | `.omp-plugin/marketplace.json`                      |
+| sdd-extension（交互范式） | 注册 7 个 `/openspec-*` slash command              | `plugins/sdd-pack/extensions/sdd-extension/index.ts` |
+| hooks（自动化范式-运行时）| 拦截 `bash` / `write` / `edit` 工具调用，强制走 OpenSpec | `plugins/sdd-pack/hooks/index.ts`                |
+| api.ts（共享程序化层）   | 7 个纯函数，供 extension / hook / api-runner 共享  | `plugins/sdd-pack/src/cli/api.ts`                   |
+| api-runner（自动化范式-CI） | `bun run` 入口，路由到 `api.ts` 7 个函数        | `plugins/sdd-pack/src/cli/api-runner.ts`            |
+| lib/（核心库）           | 类型 + OpenSpec CLI 包装 + 项目检测 + arg 解析     | `plugins/sdd-pack/src/cli/lib/`                     |
+| CI workflow             | PR/push 触发 init-check + validate + status        | `.github/workflows/openspec-gate.yml`               |
+| 单元测试                | extension handler + api.ts 行为                    | `plugins/sdd-pack/extensions/sdd-extension/index.test.ts` + `plugins/sdd-pack/src/cli/__tests__/` |
+| README.md               | 用户面向的安装/使用/验证说明                        | `plugins/sdd-pack/README.md`                        |
+| package.json            | 满足 `omp plugin link` + `omp.extensions` manifest | `plugins/sdd-pack/package.json`                     |
 
 ### 4.2 模块关系
 
-- **marketplace catalog** 引用 **plugin 目录**（通过 `source` 字段）。
-- **plugin 目录**内 skills/、rules/、agents/ 三者平级，omp-plugins provider 分别发现。
-- **docs-check.sh** 是 sdd-core 技能 references 的一部分，随 sdd-core 一起分发。
-- **agents/** 平级于 skills/ 与 rules/，由 omp task-agent discovery 机制从 plugin `agents/` 子目录发现（优先级 3，project/user `.omp` 同名覆盖）。`reviewer` 覆盖 bundled `reviewer`，`arch-reviewer`/`sdd-reviewer` 为新增无冲突名。
+- **`extensions/sdd-extension/index.ts`** 调 `api.ts` 7 个函数（交互范式唯一入口）
+- **`hooks/index.ts`** 调 `api.ts` 的 `getInitState` / `validateProject` / `getStatus`（运行时 gate 入口）
+- **`src/cli/api-runner.ts`** 调 `api.ts` 7 个函数（CI 入口）
+- **`src/cli/api.ts`** → `src/cli/lib/orchestration/openspec-cli.ts`（spawnSync 包装 OpenSpec CLI）
+- **`src/cli/api.ts`** → `src/cli/lib/orchestration/openspec-project.ts`（Git + OpenSpec init 产物检测）
+- **`src/cli/lib/orchestration/parseArgs.ts`** 被 `extensions/sdd-extension/index.ts` 与 `src/cli/api-runner.ts` 共享（统一 arg 解析）
+
+依赖方向（自上而下，禁止反向上行）：
+
+```
+extensions/sdd-extension/index.ts
+hooks/index.ts
+src/cli/api-runner.ts
+        ↓
+src/cli/api.ts
+        ↓
+src/cli/lib/orchestration/{openspec-cli, openspec-project, parseArgs}.ts
+src/cli/lib/api-types.ts
+```
 
 ## 5. 数据架构
 
-### 5.1 插件元数据
+### 5.1 Plugin catalog
 
 ```json
 // .omp-plugin/marketplace.json
 {
   "name": "sdd-pack",
+  "owner": { "name": "norman" },
   "metadata": {
-    "version": "1.4.0-alpha",
+    "version": "1.5.0-alpha",
     "pluginRoot": "plugins"
   },
   "plugins": [
     {
       "name": "sdd-pack",
+      "description": "OpenSpec OMP harness: extension slash commands + runtime hook gate + CI runner",
       "source": "./sdd-pack",
-      "version": "1.2.3"
+      "category": "development"
     }
   ]
 }
@@ -100,42 +154,109 @@ graph TB
 ### 5.2 Plugin manifest
 
 ```json
-// plugins/sdd-pack/package.json（满足 omp plugin link 要求 + v1.4.0 起新增 omp extension manifest）
+// plugins/sdd-pack/package.json
 {
   "name": "sdd-pack",
-  "version": "1.4.0-alpha",
-  "files": ["skills", "rules", "hooks", "agents", "extensions", "src", "README.md"],
+  "version": "1.5.0-alpha",
+  "description": "OpenSpec OMP harness: extension slash commands + runtime hook gate + CI runner",
+  "files": ["hooks", "extensions", "src", "README.md"],
   "omp": {
-    "extensions": ["./extensions/sdd-extension/index.ts"]
+    "extensions": [
+      "./extensions/sdd-extension/index.ts",
+      "./hooks/index.ts"
+    ]
   }
 }
 ```
 
-### 5.3 数据存储
+### 5.3 `api.ts` 对外契约
 
-| 数据类型                   | 存储方案                                    | 说明                        |
-| -------------------------- | ------------------------------------------- | --------------------------- |
-| Plugin 源码                | GitHub repo                                 | 唯一权威源                  |
-| 已安装 plugin 缓存         | `~/.omp/plugins/cache/...`                  | omp 自动管理                |
-| 用户态 skills/rules 原位置 | `~/.agents/skills/` + `~/.omp/agent/rules/` | 开发态保留，README 说明迁移 |
+```ts
+// src/cli/lib/api-types.ts
+export type GateStatus = "pass" | "warn" | "error" | "block";
+
+export interface OpenSpecProjectState {
+  enabled: boolean;        // isGitRepo && hasOpenSpecDirs
+  isGitRepo: boolean;
+  hasOpenSpecDirs: boolean;
+  reason?: string;         // 未启用时的解释
+}
+
+export interface OpenSpecCommandResult<T = unknown> {
+  status: GateStatus;      // exitCode 0→pass, 2→block, 其他→error; 未启用→warn
+  summary: string;         // stdout/stderr 第一行
+  command: string;         // 实际执行的 OpenSpec CLI 命令
+  raw: T;                  // JSON 解析结果或纯文本
+  stderr?: string;
+}
+
+// 7 个导出函数
+export function getInitState(cwd?: string): Promise<OpenSpecProjectState>;
+export function validateProject(opts?: ValidateOptions): Promise<OpenSpecCommandResult<unknown>>;
+export function getStatus(): Promise<OpenSpecCommandResult<unknown>>;
+export function listChanges(opts?: ListOptions): Promise<OpenSpecCommandResult<unknown>>;
+export function showItem(opts: ShowOptions): Promise<OpenSpecCommandResult<unknown>>;
+export function getInstructions(opts?: InstructionOptions): Promise<OpenSpecCommandResult<unknown>>;
+export function archiveChange(opts: ArchiveOptions): Promise<OpenSpecCommandResult<unknown>>;
+```
+
+### 5.4 数据存储
+
+| 数据类型                | 存储方案                              | 说明                              |
+| ----------------------- | ------------------------------------- | --------------------------------- |
+| Plugin 源码             | GitHub repo                           | 唯一权威源                        |
+| 已安装 plugin 缓存      | `~/.omp/plugins/cache/...`            | omp 自动管理                      |
+| OpenSpec 规范产物       | `openspec/specs/` + `openspec/changes/` | 由 OpenSpec CLI 管理；hook 拦截直接写入 |
+| 启用状态检测            | 检测 `.git/` + `openspec/{specs,changes}/` 存在性 | 无状态文件，纯文件系统检测 |
 
 ## 6. 集成架构
 
 ### 6.1 与 omp 插件系统集成
 
-| 集成点              | 方式                                                      | 优先级                                                   |
-| ------------------- | --------------------------------------------------------- | -------------------------------------------------------- |
-| marketplace catalog | `.omp-plugin/marketplace.json`                            | omp 优先读取此路径                                       |
-| skills 发现         | omp-plugins provider                                      | priority 90（低于 native provider 的 100）               |
-| rules 发现          | omp-plugins provider（v1.1 起由 hook extension 接管装载） | priority 90；`omp --hook` CLI flag 加载 `hooks/index.ts` |
-| plugin 生命周期     | `omp plugin install/enable/disable/upgrade`               | 标准 plugin 流程                                         |
-| 开发模式            | `omp plugin link`                                         | 符号链接本地目录                                         |
+| 集成点             | 方式                                                | 形态         |
+| ------------------ | --------------------------------------------------- | ------------ |
+| marketplace catalog | `.omp-plugin/marketplace.json`                      | omp 优先读取 |
+| 扩展装载          | `package.json#omp.extensions`                       | omp loader 直接 require TS 入口   |
+| 扩展发现          | omp extension API（`pi.registerCommand`）           | 7 个 command 在 factory 同步注册  |
+| 钩子装载          | `package.json#omp.extensions`（hooks/index.ts 作为扩展） | 运行时拦截 `tool_call` 事件 |
+| Plugin 生命周期   | `omp plugin install/enable/disable/upgrade`         | 标准 plugin 流程 |
+| 开发模式          | `omp plugin link ./plugins/sdd-pack`                | 符号链接本地目录 |
 
-### 6.2 与现有 rules 的共存
+### 6.2 与 OpenSpec CLI 集成
 
-native provider（priority 100，读取 `~/.omp/agent/rules/`）优先于 omp-plugins provider（priority 90）。dedup 策略为 first-wins。
+| 集成点          | 方式                          | 触发位置                                          |
+| --------------- | ----------------------------- | ------------------------------------------------- |
+| CLI 进程调用    | `spawnSync("openspec", [...args])` | `src/cli/lib/orchestration/openspec-cli.ts` |
+| exit code 映射  | `0→pass`, `2→block`, 其他→`error` | `src/cli/api.ts#mapExitCode`               |
+| 启用条件检测    | `isGitRepo && hasOpenSpecDirs` | `src/cli/lib/orchestration/openspec-project.ts` |
+| 未启用降级      | 返回 `status: "warn"` + `reason` | `src/cli/api.ts`（每个函数的 early return）    |
 
-**建议**：安装 sdd-pack 后，从 `~/.omp/agent/rules/` 移除同名 rules（`lore-protocol.md`、`docs-update-guard.md`、`lore-commit-guard.md`、`sdd-doc-edit-guard.md`），避免重复加载。
+### 6.3 7 个 slash command ↔ API 映射
+
+| Slash command            | API 函数              | 用途                                  |
+| ------------------------ | --------------------- | ------------------------------------- |
+| `/openspec-init-check`   | `getInitState()`      | 检查当前仓库是否启用 OpenSpec gate    |
+| `/openspec-status`       | `getStatus()`         | 查看 OpenSpec 项目状态                |
+| `/openspec-validate`     | `validateProject({ target? })` | 校验 OpenSpec 项目（可选 target） |
+| `/openspec-list`         | `listChanges()`       | 列出 OpenSpec 变更                    |
+| `/openspec-show <target>`| `showItem({ target })`| 查看指定 change 或 spec               |
+| `/openspec-instructions [target]` | `getInstructions({ target? })` | 获取 OpenSpec 下一步指引       |
+| `/openspec-archive <change-id>` | `archiveChange({ changeId })` | 归档指定 change                |
+
+### 6.4 CI 集成
+
+`.github/workflows/openspec-gate.yml` 在 PR 与 push 到 main 时执行：
+
+```bash
+bun --version
+bun test plugins/sdd-pack/extensions/sdd-extension/index.test.ts \
+        plugins/sdd-pack/src/cli/__tests__/api.test.ts
+bun run plugins/sdd-pack/src/cli/api-runner.ts init-check
+bun run plugins/sdd-pack/src/cli/api-runner.ts validate
+bun run plugins/sdd-pack/src/cli/api-runner.ts status
+```
+
+`api-runner.ts` 退出码映射：`status=block`→`exit 2`，`status=error`→`exit 1`，其他→`exit 0`，作为 CI 裁决依据。
 
 ## 7. 部署架构
 
@@ -143,63 +264,45 @@ native provider（priority 100，读取 `~/.omp/agent/rules/`）优先于 omp-pl
 
 ```mermaid
 graph LR
-    Dev["开发态<br/>~/.agents/skills/ + ~/.omp/agent/rules/"] -->|git push| Repo["GitHub<br/>norman/sdd-pack"]
-    Repo -->|omp plugin install| UserCache["用户态<br/>~/.omp/plugins/cache/..."]
-    UserCache -->|omp-plugins provider| Runtime["运行时<br/>skills/ + rules/"]
+    Repo["GitHub<br/>zhimingcool/sdd-pack"] -->|omp plugin install| Cache["用户态<br/>~/.omp/plugins/cache/..."]
+    Cache -->|omp extensions manifest| Runtime["运行时<br/>7 slash cmd + 1 hook"]
+    Repo -->|git push| CI[".github/workflows/openspec-gate.yml<br/>CI 裁决"]
+    CI -->|api-runner.ts| OpenSpec["openspec CLI<br/>(spawnSync)"]
+    Runtime -->|api.ts| OpenSpec
+    OpenSpec -->|读写| Project["openspec/<br/>specs/ + changes/"]
 ```
 
-### 7.2 环境规划
+### 7.2 环境
 
-| 环境   | 用途                         | 入口                                        |
-| ------ | ---------------------------- | ------------------------------------------- |
-| 开发态 | norman 本地修改 skills/rules | `~/.agents/skills/` + `~/.omp/agent/rules/` |
-| 仓库态 | GitHub norman/sdd-pack       | git push + tag                              |
-| 用户态 | 其他用户安装                 | `omp plugin install sdd-pack@sdd-pack`      |
-| 链接态 | 本地开发调试                 | `omp plugin link ./plugins/sdd-pack`        |
+| 环境   | 用途                          | 入口                                            |
+| ------ | ----------------------------- | ----------------------------------------------- |
+| 仓库态 | GitHub `zhimingcool/sdd-pack` | git push + tag                                  |
+| 链接态 | 本地开发调试                  | `omp plugin link ./plugins/sdd-pack`            |
+| 用户态 | 其他用户安装                  | `omp plugin install sdd-pack@sdd-pack`          |
+| CI 态  | PR / push 自动化裁决          | `.github/workflows/openspec-gate.yml`           |
 
 ## 8. 安全架构
 
-### 8.1 静态文件约束
+### 8.1 进程级副作用约束
 
-- rules 是纯 markdown + frontmatter，无可执行代码
-- agents 是纯 markdown + frontmatter（system prompt + output schema），无可执行代码
-- docs-check.sh 是只读校验脚本，不修改文件
-- plugin 不声明 MCP/LSP servers，无运行时副作用
+- plugin 不声明 MCP servers / LSP servers / custom tools
+- 唯一进程级副作用是 `spawnSync("openspec", [...args])`（`src/cli/lib/orchestration/openspec-cli.ts`）
+- `api-runner.ts` 仅转发到 `api.ts` 纯函数；不引入新进程边界
 
-### 8.2 安装来源
+### 8.2 写入路径约束
 
-仅信任 GitHub `norman/sdd-pack` 仓库。README 明确说明安装命令与校验方式。
+`hooks/index.ts#describeWriteGuard` 强制 `openspec/specs/`、`openspec/changes/`、`AGENTS.md` 的写入只能通过 `/openspec-*` slash command 或 `openspec` CLI 完成：
 
-## 9. 架构决策记录
+- **未启用 OpenSpec**：advisory 提示（不阻断，提示用户先 init）
+- **已启用 OpenSpec**：硬阻断（`throw new Error`），强制走 `openspec` CLI
 
-| 决策项  | 决策内容                                                                              | 原因                                                                                                                                             | 影响                                                                                                                                                                                                                                                                                                                                                             |
-| ------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ADR-001 | plugin 内 4 个 skills 保持 `skills/<name>/SKILL.md` 一层深度布局                      | omp skills 规范强制一层深度；嵌套不被发现                                                                                                        | skills 资源（references/templates）放在 skill 同级目录                                                                                                                                                                                                                                                                                                           |
-| ADR-002 | rules 路径用 `rules/*.md`（不用 `rules/<name>/`）                                     | omp rulebook-matching-pipeline 明确支持 `rules/*.{md,mdc}` 平铺                                                                                  | rule name = 文件名（不含扩展名）                                                                                                                                                                                                                                                                                                                                 |
-| ADR-003 | 不引入 extension modules                                                              | 简化分发、零 npm 依赖、避免 marketplace install 模式的扩展加载问题                                                                               | plugin 内容 100% 静态                                                                                                                                                                                                                                                                                                                                            |
-| ADR-004 | 保留原位置 `~/.agents/skills/` 与 `~/.omp/agent/rules/` 作为开发态                    | 不破坏用户现有开发环境，分发态与开发态解耦                                                                                                       | 需要双份维护，依赖 git push 同步                                                                                                                                                                                                                                                                                                                                 |
-| ADR-005 | `.omp-plugin/marketplace.json` 优先于 `.claude-plugin/marketplace.json`               | omp 原生路径，PR #1173 合并后优先读取                                                                                                            | 若未来 omp 不支持，回退到 `.claude-plugin/`                                                                                                                                                                                                                                                                                                                      |
-| ADR-006 | hook extension 替代 static rules，走 `omp --hook` CLI flag 装载（非 plugin manifest） | omp v16.1.16 plugin 装载器不识别 `omp.hooks` 字段；`--hook` flag 可直接加载 hook runtime                                                         | 4 个 rule 通过 `plugins/sdd-pack/hooks/index.ts` 单文件聚合激活（session_start reminder + 3 TTSR 拦截）；详见 `docs/architecture/decisions.md`                                                                                                                                                                                                                   |
-| ADR-007 | 代码评审拆为三层守门 agent（reviewer/arch-reviewer/sdd-reviewer）而非单体 reviewer    | 三层认知模式/工具/触发时机/severity/output schema 差异大，合并会稀释 LLM 单人设表现力、拖慢 commit gate；详见 `skill://omp-three-layer-reviewer` | agents/ 新增 3 文件；reviewer 覆盖 bundled 同名；arch/sdd-reviewer 为手动 task() 触发                                                                                                                                                                                                                                                                            |
-| ADR-008 | sdd CLI 工作流（独立 bash + bun + TS CLI）                                            | sdd-pack v1.2.3 PRD 状态行堆叠问题暴露文档生命周期操作缺乏自动化工具                                                                             | 900+ 行 TS CLI + bash wrapper + docs-check 集成；**v1.4.0 起被 ADR-009 Superseded**                                                                                                                                                                                                                                                                              |
-| ADR-009 | sdd Extension 替代独立 CLI（omp slash command + 程序化 API + CI 逃生通道）            | ADR-008 形态下第三方用户安装体验问题（手工 alias 不可持续）+ omp marketplace 不识别 `package.json#bin`                                           | 删除 `bin/sdd`、`src/cli/index.ts`、`src/cli/lib/arg-parser.ts`、`src/cli/commands/*.ts`；新增 `src/cli/api.ts`、`src/cli/api-runner.ts`、`extensions/sdd-extension/index.ts`；`hooks/index.ts` 改 in-process；详见 [PRD 2026-06-30-sdd-extension.md](../prd/2026-06-30-sdd-extension.md) 与 [reference/omp-extension-api.md](../reference/omp-extension-api.md) |
+### 8.3 Commit gate 约束
 
-## 10. 架构演进
+`hooks/index.ts#runOpenSpecValidationGate` 在 `git commit` 触发时调 `validateProject()` + `getStatus()`，任一返回 `error`/`block` 即 throw 阻断：
 
-### 10.1 当前版本
+- **未启用 OpenSpec**：不进入 gate（不误伤未初始化的项目）
+- **已启用 OpenSpec**：`status=block`/`error` 时 throw，强制 OpenSpec 校验通过才能 commit
 
-- 版本号：1.4.0-alpha（v1.3.0-rc.1 含独立 CLI 实现已 commit `6309540`，但被 ADR-009 Superseded,v1.4.0-alpha 起替换为 extension + api 形态）
-- 发布日期：2026-06-30
-- 内容：4 skills + 5 rules + docs-check.sh + 3 守门 agent + hook extension（in-process 调用 api.ts）+ **sdd-extension**（8 个 slash command）+ **src/cli/api.ts**（程序化入口）+ **src/cli/api-runner.ts**（CI 逃生通道）
-- 历史：v1.3.0-rc.1 实现了独立 CLI 形态(commit `6309540`)，但发现第三方安装体验问题，2026-06-30 经 ADR-009 决策替换为 extension 形态。CLI 形态代码保留用于 v1.3→v1.4 过渡期可读性。
+### 8.4 安装来源
 
-### 10.2 演进路线
-
-- [x] 阶段 1 验证：rules 通过 omp-plugins provider 被发现 — **v1.1.0 结论：marketplace/link 模式不自动发现，改由 hook extension（`omp --hook`）接管，ADR-006**
-- [x] fallback 为 hook extension 模式 — **v1.1.0 已实施（CLI flag 路径，非 npm install）**
-- [x] v1.2.0-v1.3.0-rc.1: 独立 CLI 形态 — ADR-008, 已 commit `6309540`, 验证发现第三方安装体验问题
-- [x] v1.4.0-alpha: **ADR-009 决策 + extension 形态实现** — 当前阶段
-- [ ] v1.4.0-beta: hook 切换到 in-process `api.validateDocs()`, severity=warn 灰度
-- [ ] v1.4.0 正式: severity=error, marketplace 发布, ADR-008 完整退役
-- [ ] 增加 evals/ 评估集到每个 skill（PRD §3.1 已有目录占位）
-- [ ] 跨平台测试：Linux / WSL / macOS bash 3.2/4.x 兼容性
+仅信任 GitHub `zhimingcool/sdd-pack` 仓库。README 明确说明安装命令、CI 验证步骤与 hooks/`api-runner` 入口。
