@@ -130,7 +130,7 @@ export async function proposePrd(opts: ProposeOptions): Promise<ProposeResult> {
   };
   try {
     const { filePath, content } = tryDo();
-    if (opts.dryRun)
+    if (opts.dryRun) {
       return {
         status: "pass",
         path: filePath,
@@ -139,19 +139,23 @@ export async function proposePrd(opts: ProposeOptions): Promise<ProposeResult> {
         warnings: [],
         next: "dry-run,未写入",
       };
+    }
     if (!existsSync(filePath)) mkdirSync(dirname(filePath), { recursive: true });
-    if (existsSync(filePath))
+    if (existsSync(filePath)) {
       return { status: "error", errors: [`目标文件已存在: ${filePath}`], warnings: [] };
+    }
     writeFileSync(filePath, content, "utf-8");
     const warnings: string[] = [];
     const vr = await validateDocs({ path: filePath, severity: "error" });
-    if (vr.status === "error" || vr.status === "block")
+    if (vr.status === "error" || vr.status === "block") {
       warnings.push(`创建后 validate 报错(草稿允许): ${vr.errors.join("; ")}`);
+    }
     return { status: "pass", path: filePath, errors: [], warnings, next: "下一步: /sdd-validate" };
   } catch (e) {
     return { status: "error", errors: [errMsg(e)], warnings: [] };
   }
 }
+
 // ===== 3. archivePrd =====
 export async function archivePrd(opts: ArchiveOptions): Promise<ArchiveResult> {
   const reason = opts.reason ?? "completed";
