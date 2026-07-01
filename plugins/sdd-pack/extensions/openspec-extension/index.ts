@@ -16,7 +16,7 @@
  * 约束:
  * - 单文件 ≤ 400 行
  * - 7 个 slash command 注册
- * - 不用 @oh-my-pi/pi-coding-agent 类型(unknown 兜底,跟 hooks/index.ts 同构)
+ * - 不用 @oh-my-pi/pi-coding-agent 类型(unknown 兜底,跟 hooks/openspec/index.ts 同构)
  */
 
 import {
@@ -38,7 +38,7 @@ import {
   type StatusCounts,
 } from "../../src/cli/openspec-api";
 
-// ===== 类型兜底(unknown,跟 hooks/index.ts 同构) =====
+// ===== 类型兜底(unknown,跟 hooks/openspec/index.ts 同构) =====
 interface ExtensionAPI {
   reg(
     name: string,

@@ -7,7 +7,7 @@
  * 约束:
  * - 单文件 ≤ 400 行(phase doc T002 硬上限)
  * - 8 个 pi.registerCommand
- * - 不用 @oh-my-pi/pi-coding-agent 类型(unknown 兜底,跟 hooks/index.ts 同构)
+ * - 不用 @oh-my-pi/pi-coding-agent 类型(unknown 兜底,跟 hooks/sdd/index.ts 同构)
  * - 统一 arg parser(parseArgs from lib/orchestration/parseArgs)
  * - 统一 UI adapter(notifyBySeverity)
  */
@@ -44,7 +44,7 @@ import {
 import { formatHuman, formatSummary } from "../../src/cli/lib/orchestration/format";
 import type { CheckSeverity } from "../../src/cli/lib/validator";
 
-// ===== 类型兜底(unknown,跟 hooks/index.ts 同构) =====
+// ===== 类型兜底(unknown,跟 hooks/sdd/index.ts 同构) =====
 interface ExtensionAPI {
   registerCommand(
     name: string,

@@ -5,7 +5,8 @@
   "files": [
     "skills",
     "rules",
-    "hooks",
+    "hooks/sdd",
+    "hooks/openspec",
     "agents",
     "extensions",
     "src",

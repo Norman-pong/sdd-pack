@@ -1,11 +1,11 @@
-// sdd-pack hooks/index.ts — hook 聚合
-// 装载: omp --hook plugins/sdd-pack/hooks/index.ts
-// 决策: docs/architecture/decisions.md ADR-006(CLI flag 路径)
+// sdd-pack hooks/sdd/index.ts — SDD 范式守卫 hook
+// 装载: omp --hook plugins/sdd-pack/hooks/sdd/index.ts
+// 决策: docs/architecture/decisions.md ADR-011(双范式架构 — SDD / OpenSpec 二选一 hook 装载)
 //
 // 设计原则:
 // - 不写 omp.hooks manifest 字段(omp 16.1.16 不识别)
 // - 不依赖 @oh-my-pi/pi-coding-agent 类型(bun runtime 直加载 .ts,缺类型用 unknown 兜底)
-// - 单文件聚合 4 个 hook,避免分文件造成装载顺序隐式依赖
+// - 单文件聚合 4 个 hook + sdd-validate-guard 内部门控,避免分文件造成装载顺序隐式依赖
 // - 严格 type-only: 无 any,无 as any;event payload 用 unknown + 类型守卫
 //
 // B1.6 实测发现两条 omp v16.1.16 hook API 限制:
@@ -54,7 +54,7 @@ const LORE_PROTOCOL_REMINDER = [
   "2. 提交用 `lore commit`(禁止裸 `git commit`): 带 intent + Constraint/Rejected/Directive 等 JSON trailer",
   "3. 文档同步: `sdd validate --staged` 自动校验(已集成到 commit guard)",
   "4. 完整 schema: `rule://lore-protocol`(alwaysApply)",
-  "5. 本提醒来自 sdd-pack v1.3.0 plugin hook(`omp --hook plugins/sdd-pack/hooks/index.ts`)",
+  "5. 本提醒来自 sdd-pack SDD 范式 hook(`omp --hook plugins/sdd-pack/hooks/sdd/index.ts`,ADR-011)",
 ].join("\n");
 
 const DOCS_UPDATE_HINT =
@@ -76,9 +76,9 @@ const DOC_EDIT_GUIDANCE = [
 
 // ===== sdd-validate-guard: in-process 调 api.validateDocs()(v1.4.0-alpha 起,ADR-009) =====
 
-import { validateDocs } from "../src/cli/api";
-import { stagedFiles } from "../src/cli/lib/orchestration/git";
-import type { CheckSeverity } from "../src/cli/lib/validator";
+import { validateDocs } from "../../src/cli/api";
+import { stagedFiles } from "../../src/cli/lib/orchestration/git";
+import type { CheckSeverity } from "../../src/cli/lib/validator";
 
 // 提取 effective severity(环境变量 SDD_VALIDATE_SEVERITY)
 function getValidateSeverity(): CheckSeverity {

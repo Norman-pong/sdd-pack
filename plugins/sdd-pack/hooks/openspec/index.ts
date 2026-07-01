@@ -2,7 +2,7 @@
 // 装载: omp --hook plugins/sdd-pack/hooks/openspec/index.ts
 // 决策: docs/architecture/decisions.md ADR-011 (OpenSpec 作为 hook 默认实现 + 可选入口)
 //
-// 设计原则(对称 hooks/index.ts SDD 版本):
+// 设计原则(对称 hooks/sdd/index.ts SDD 版本):
 // - 不写 omp.hooks manifest 字段(omp 16.1.16 不识别)
 // - 不依赖 @oh-my-pi/pi-coding-agent 类型(unknown 兜底)
 // - 单文件聚合 3 个 hook(session_start + tool_call 双分支)
