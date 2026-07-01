@@ -1,7 +1,7 @@
 {
   "name": "sdd-pack",
-  "version": "1.4.0-alpha",
-  "description": "SDD 技能家族(sdd-core/input/prd/phase) + hook extension(lore-protocol + 3 个 TTSR 拦截) + 三层代码质量守门 agent(reviewer/arch-reviewer/sdd-reviewer) + sdd Extension(omp slash command 集合)+ sdd API(程序化入口)",
+  "version": "1.5.0-alpha",
+  "description": "SDD 一体化开发管理工具(skills + rules + agents + api + extension) + OpenSpec 可选 hook 默认实现(7 命令 mirror + 守卫 hook)",
   "files": [
     "skills",
     "rules",
@@ -11,9 +11,13 @@
     "src",
     "README.md"
   ],
+  "scripts": {
+    "test": "bun test"
+  },
   "omp": {
     "extensions": [
-      "./extensions/sdd-extension/index.ts"
+      "./extensions/sdd-extension/index.ts",
+      "./extensions/openspec-extension/index.ts"
     ]
   }
 }
