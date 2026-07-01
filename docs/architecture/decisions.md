@@ -343,3 +343,157 @@ ADR-008 的 `sdd` bash wrapper + alias 用户在 v1.4 发布时需迁移：
 ### 状态更新
 
 无（v1.4.0 发布后回填）
+
+---
+
+## ADR-010: OpenSpec 作为 hook 默认实现 + 可选入口（修订）
+
+**状态**: Revised (2026-07-01, 原始决策 Accepted 2026-06-30)
+**决策人**: norman
+**触发**: OpenSpec CLI 已能提供跨 agent 的规范生命周期，而纯 prompt / skill 缺乏对研发流程和提交门禁的强约束能力。
+
+### 决策（修订后）
+
+采用 **OpenSpec 作为 hook 默认实现 + 可选入口**：sdd-pack 的运行时层（hook）默认走 OpenSpec runtime gate 实现，但保留 SDD 范式作为 sdd-pack 的正本能力载体。OpenSpec 入口（`/openspec-*` slash command + CI runner）作为可选范式并存,不替代 SDD。
+
+**原始决策（2026-06-30 Accepted，已修订）**：采用 OpenSpec 作为规范生命周期唯一权威入口,并以 `OMP extension + hook + CI gate` 提供运行时约束。
+
+### 启用条件
+
+- 当前目录为 Git 仓库
+- 已检测到 OpenSpec 初始化产物，至少包含 `openspec/specs/` 与 `openspec/changes/`
+- 用户显式装载 `hooks/openspec/`（默认 hook 实现）；未启用时回到 SDD 范式 hook
+
+### 影响（修订后）
+
+- `plugins/sdd-pack/skills/`、`rules/`、`agents/` 保留为 sdd-pack 核心能力载体（SDD 范式正本）
+- `plugins/sdd-pack/src/cli/api.ts` 保留 SDD 范式 8 函数;OpenSpec 能力由独立的 `src/cli/openspec-api.ts` 承载
+- `extensions/` 双范式并存：`extensions/sdd-extension/`(8 个 `/sdd-*` 命令) + `extensions/openspec-extension/`(7 个 `/openspec-*` 命令)
+- `hooks/` 双范式并存：`hooks/sdd/`(SDD 范式 hook) + `hooks/openspec/`(OpenSpec runtime gate 默认实现)
+- 共享 `src/cli/lib/` 核心库与 `orchestration/` 子模块
+- OpenSpec 已初始化前不应误拦截，因此需采用 "Git + init 产物" 双条件启用
+
+**已删除的原始影响项**（2026-07-01 修订）：
+
+- ~~现有 `plugins/sdd-pack/skills/`、`rules/`、`agents/` 退役~~ —— 修订后恢复为 sdd-pack 核心能力载体
+- ~~`plugins/sdd-pack/src/cli/api.ts` 改为 OpenSpec CLI 封装层~~ —— 修订后保留 SDD 范式 8 函数,OpenSpec 独立命名空间
+- ~~`extensions/` 改为 `/openspec-*` slash command 入口~~ —— 修订后双范式并存
+
+### 理由
+
+1. 纯 prompt 只能引导，不能约束
+2. OMP hook 是当前仓库里唯一可在工具调用时做实时拦截的运行时层
+3. CI gate 是最终裁决层，可防止会话内绕过
+4. OpenSpec 已初始化前不应误拦截，因此需采用 "Git + init 产物" 双条件启用
+
+### 修订原因（2026-07-01）
+
+- sdd-pack 是**双范式一体化工具**（SDD 正本 + OpenSpec 可选），见 [ADR-011](#adr-011-sdd-pack-双范式架构决策)
+- ADR-010 走过头了，把"hook 默认实现"升格为"规范生命周期唯一权威入口",抹除了 SDD 范式的正本地位
+- 修订日期：2026-07-01
+- 与 [ADR-009](#adr-009-sdd-extension替代独立-cli) 的"omp extension + slash command"形态兼容：双范式都是 extension 注册
+
+### 修订影响
+
+- `agents/` / `skills/` / `rules/` 恢复为 sdd-pack 核心能力载体（SDD 范式正本）
+- 保留 OpenSpec 作为可选 hook 默认实现（`hooks/openspec/`）—— 旧"hook runtime gate"定位有效
+- 双范式并存（参见 [ADR-011](#adr-011-sdd-pack-双范式架构决策)）：SDD 范式 + OpenSpec 范式共享 `src/cli/lib/` 与 orchestration 子模块
+
+### 状态更新
+
+- 2026-07-01：修订为"hook 默认实现 + 可选入口",明确 SDD 范式仍为正本；新增 [ADR-011](#adr-011-sdd-pack-双范式架构决策) 描述双范式协同
+
+---
+
+## ADR-011: sdd-pack 双范式架构决策
+
+**状态**: Accepted (2026-07-01)
+**决策人**: norman
+**触发**: [ADR-010](#adr-010-openspec-作为-hook-默认实现--可选入口修订) 走过头，sdd-pack 不应只支持 OpenSpec
+
+### 背景
+
+sdd-pack v1.1.0 起以 SDD 范式（`sdd-core`/`sdd-input`/`sdd-prd`/`sdd-phase` 4 skills + `lore-protocol`/`docs-update-guard`/`lore-commit-guard`/`sdd-doc-edit-guard`/`prd-change-management` 5 rules + `reviewer`/`arch-reviewer`/`sdd-reviewer` 3 agents + `lore commit` 提交协议）作为文档生命周期的正本能力载体。v1.4.0-alpha 引入 OpenSpec 范式作为 hook runtime gate 的可选实现，并在 2026-06-30 的 [ADR-010](#adr-010-openspec-作为-hook-默认实现--可选入口修订)（原始版本）中被升格为"规范生命周期唯一权威入口"，导致 SDD 范式正本地位被抹除。
+
+v1.5.0-alpha 起对这一走过头进行纠偏：明确 sdd-pack 是 **SDD 范式 + OpenSpec 范式并存**的双范式一体化工具，SDD 为正本，OpenSpec 为可选 hook 默认实现 + 可选命令入口。
+
+### 决策
+
+**sdd-pack 是双范式一体化工具**：
+
+- **SDD 范式为正本**：
+  - 4 skills：`sdd-core` / `sdd-input` / `sdd-prd` / `sdd-phase`
+  - 5 rules：`lore-protocol` / `docs-update-guard` / `lore-commit-guard` / `sdd-doc-edit-guard` / `prd-change-management`
+  - 3 agents：`reviewer` / `arch-reviewer` / `sdd-reviewer`（三层守门）
+  - 8 个 `/sdd-*` slash command：`/sdd-validate` / `/sdd-propose` / `/sdd-archive` / `/sdd-migrate` / `/sdd-status` / `/sdd-list` / `/sdd-why` / `/sdd-apply`
+  - `plugins/sdd-pack/src/cli/api.ts` 暴露 8 个程序化函数：`validateDocs` / `proposePrd` / `archivePrd` / `migratePrd` / `getStatus` / `listPrds` / `getWhy` / `getApplyChecklist`
+  - `plugins/sdd-pack/extensions/sdd-extension/index.ts` 注册 8 个 slash command
+
+- **OpenSpec 范式为 hook 默认实现 + 可选入口**：
+  - `plugins/sdd-pack/hooks/openspec/index.ts`：OpenSpec runtime gate hook（默认 hook 实现）
+  - 7 个 `/openspec-*` slash command：`/openspec-init-check` / `/openspec-status` / `/openspec-validate` / `/openspec-list` / `/openspec-show` / `/openspec-instructions` / `/openspec-archive`
+  - `plugins/sdd-pack/src/cli/openspec-api.ts` 暴露 7 个程序化函数
+  - `plugins/sdd-pack/extensions/openspec-extension/index.ts` 注册 7 个 slash command
+
+- **共享层**：
+  - `plugins/sdd-pack/src/cli/lib/` 核心库：prd-state-machine / doc-parser / validator / template-engine / index-sync / lore-wrapper / api-types
+  - `plugins/sdd-pack/src/cli/lib/orchestration/` 子模块：parseArgs / format / path / gates / scan / git / archive-ops / openspec-cli / openspec-project
+
+### 方案
+
+详见 plan v2 §2 目标架构（双范式模块拓扑、共享边界、装载选择、CI 双 runner）。
+
+#### 双范式装载选择
+
+```bash
+# SDD 范式(默认推荐)：SDD hook + SDD extension
+omp --hook <plugin-root>/hooks/sdd/index.ts \
+    --extension <plugin-root>/extensions/sdd-extension/index.ts
+
+# OpenSpec 范式(可选):OpenSpec hook + OpenSpec extension
+omp --hook <plugin-root>/hooks/openspec/index.ts \
+    --extension <plugin-root>/extensions/openspec-extension/index.ts
+
+# 混合装载（实验性）：SDD extension + OpenSpec hook
+omp --hook <plugin-root>/hooks/openspec/index.ts \
+    --extension <plugin-root>/extensions/sdd-extension/index.ts
+```
+
+#### 共享边界
+
+- `src/cli/lib/` 与 `src/cli/lib/orchestration/` 为**双范式共用**；SDD 范式与 OpenSpec 范式都可 import
+- `src/cli/api.ts`（SDD）与 `src/cli/openspec-api.ts`（OpenSpec）**互不依赖**；同一份 `api-types.ts` 定义跨范式类型契约
+- `extensions/sdd-extension/index.ts` 与 `extensions/openspec-extension/index.ts` **独立注册**，无交叉 import
+- `hooks/sdd/index.ts` 与 `hooks/openspec/index.ts` **独立装载**,用户显式选择
+
+#### 提交协议
+
+- `lore commit` 协议（`lore-protocol` rule + `lore-commit-guard` hook）由 SDD 范式承载
+- OpenSpec 范式 hook 复用 `lore-commit-guard` 的硬拦截能力（`block: true`）,不重新实现
+
+### 替代方案（已拒绝）
+
+1. **完全切 OpenSpec**（[ADR-010](#adr-010-openspec-作为-hook-默认实现--可选入口修订) 走过头版本）
+   - 把 SDD 范式全部退役,只留 OpenSpec
+   - **拒绝原因**: 抹除 sdd-pack 4 skills / 5 rules / 3 agents 的核心能力载体；用户已投入 SDD 工作流的迁移成本不可接受
+2. **完全切回 SDD**（保留 v1.4 之前的纯 SDD 形态）
+   - 删去 OpenSpec 范式入口,保留 SDD 范式
+   - **拒绝原因**: 用户明确表示 OpenSpec hook 是合理实现——`pi.on("tool_call", ...)` 拦截能力是 omp rule 体系做不到的（rule 仅控制 steering 队列,不拦截工具调用,见 [ADR-006](#adr-006-hook-extension-替代-static-rulescli-flag-装载) 状态更新）
+
+### 实施迁移路径
+
+- **v1.5.0-alpha**（T+0）：内部 dogfooding
+  - `src/cli/api.ts` 恢复 SDD 范式 8 函数
+  - `src/cli/openspec-api.ts` 新增,OpenSpec 范式 7 函数
+  - `extensions/sdd-extension/` + `extensions/openspec-extension/` 双目录
+  - `hooks/sdd/` + `hooks/openspec/` 双目录
+  - `package.json#omp.extensions` 数组含两个 entry
+- **v1.5.0-beta**（T+1 周）：用户双范式 dogfooding
+- **v1.5.0 正式**（T+2 周）：marketplace 发布,CHANGELOG 标注 [ADR-010](#adr-010-openspec-作为-hook-默认实现--可选入口修订) 修订 + [ADR-011](#adr-011-sdd-pack-双范式架构决策) 新增
+
+### 后续
+
+- **v1.5.0-beta**：用户双范式 dogfooding 收集反馈,决定 v1.6 是否引入"范式自动探测"（按仓库 `openspec/` 存在性自动选 hook）
+- **v1.5.0 正式**：marketplace 发布,CHANGELOG 标注 [ADR-010](#adr-010-openspec-作为-hook-默认实现--可选入口修订) 修订 + [ADR-011](#adr-011-sdd-pack-双范式架构决策) 新增
+- **跟踪**:`sdd-pack` 双范式装载是否在 omp 生态有更优形态（如 omp manifest 支持"必选 hook + 可选 extension"声明）
+- **维护边界**:任一范式 bugfix 不影响另一范式；`src/cli/lib/` 跨范式共享代码变更需经 arch-reviewer 评审
