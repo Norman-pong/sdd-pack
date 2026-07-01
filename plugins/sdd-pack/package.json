@@ -1,7 +1,7 @@
 {
   "name": "sdd-pack",
   "version": "1.5.0-alpha",
-  "description": "SDD 一体化开发管理工具(skills + rules + agents + api + extension) + OpenSpec 可选 hook 默认实现(7 命令 mirror + 守卫 hook)",
+  "description": "SDD 一体化开发管理工具 + OpenSpec 可选 hook 默认实现",
   "files": [
     "skills",
     "rules",

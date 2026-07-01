@@ -1,9 +1,11 @@
 # sdd Extension（Omp Slash Commands）PRD
 
-> 状态：已评审 | 创建日期：2026-06-30 | 评审日期：2026-06-30 | 发布日期：2026-06-30 | 系替代：[sdd CLI PRD](../prd/2026-06-29-sdd-cli.md)
+> 状态：已替换 | 创建日期：2026-06-30 | 评审日期：2026-06-30 | 发布日期：2026-06-30 | 系替代：[sdd CLI PRD](../prd/2026-06-29-sdd-cli.md) | 替代：[2026-07-01-sdd-dual-paradigm.md](2026-07-01-sdd-dual-paradigm.md)
 > 修改记录：执行 `lore log docs/prd/2026-06-30-sdd-extension.md`
-> 对应阶段：[sdd Extension 阶段文档](../phase/2026-06-30-sdd-extension.md)
-> 关键决策：[ADR-009 sdd Extension 替代独立 CLI](../architecture/decisions.md)（Accepted）· [omp Extension API 参考](../reference/omp-extension-api.md)
+> 对应阶段：[sdd Extension 阶段文档](../phase/2026-06-30-sdd-extension.md)（已替换）
+> 关键决策：[ADR-009 sdd Extension 替代独立 CLI](../architecture/decisions.md)（Accepted）· [ADR-010 hook 默认实现 + 资产回归正本](../architecture/decisions.md)（Revised）· [ADR-011 双范式架构](../architecture/decisions.md)（Accepted）· [omp Extension API 参考](../reference/omp-extension-api.md)
+
+> [!NOTE] **本文已替换（2026-07-01）** — 本 PRD 描述的「单范式(SDD 资产退役) + 单 hook 聚合 + 单 extension」形态已被 [2026-07-01-sdd-dual-paradigm.md](2026-07-01-sdd-dual-paradigm.md) 整体替代:双范式(SDD 正本 + OpenSpec 可选 hook 默认实现)+ 双 hook 装载 + 双 extension 注册。本文件保留作为 v1.4.0-alpha 历史档案,所有活跃变更请走新 PRD。
 
 > [!IMPORTANT] PRD 生命周期状态机（遵循 `rule://prd-change-management`）
 > 草稿 → 评审中 → 已评审 → 已发布 → 已归档/已替换；已废弃为任意阶段的终态分支。

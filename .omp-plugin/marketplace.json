@@ -2,14 +2,14 @@
   "name": "sdd-pack",
   "owner": { "name": "norman" },
   "metadata": {
-    "description": "SDD 技能家族(sdd-core/input/prd/phase) + 三层代码质量守门 agent(reviewer/arch-reviewer/sdd-reviewer) + hook extension",
-    "version": "1.2.3",
+    "description": "sdd-pack 一体化开发管理工具：SDD 技能家族(sdd-core/input/prd/phase) + 三层守门 agent(reviewer/arch-reviewer/sdd-reviewer) + 双范式 hook(SDD/OpenSpec) + 双范式 extension(/sdd-* + /openspec-*) + 双范式 CI runner",
+    "version": "1.5.0-alpha",
     "pluginRoot": "plugins"
   },
   "plugins": [
     {
       "name": "sdd-pack",
-      "description": "SDD 技能家族 + 三层守门 agent + hook extension;完整 rule 接管待 v1.1(详见 PRD §11.3)",
+      "description": "SDD 一体化工具(正本) + OpenSpec hook 默认实现(可选)",
       "source": "./sdd-pack",
       "category": "development",
       "keywords": [
@@ -17,6 +17,11 @@
         "prd",
         "phase",
         "lore",
+        "openspec",
+        "spec",
+        "change",
+        "harness",
+        "gate",
         "documentation",
         "reviewer",
         "code-review",
@@ -26,7 +31,7 @@
         "cohesion",
         "coupling"
       ],
-      "version": "1.2.3",
+      "version": "1.5.0-alpha",
       "agents": ["reviewer", "arch-reviewer", "sdd-reviewer"]
     }
   ]

@@ -57,6 +57,7 @@ import {
   syncIndex,
   mergeDelta,
 } from "./lib/orchestration/archive-ops";
+import { findRepoRoot } from "./lib/path";
 
 function errMsg(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
@@ -68,14 +69,14 @@ function todayStr(): string {
 
 /** 把 ValidateOptions 转成 ValidationConfig(由 validateDocs 使用) */
 function toValidationConfig(opts: ValidateOptions): ValidationConfig {
-  let docsDir = resolve("docs");
+  let docsDir = resolve(findRepoRoot(), "docs");
   let files = opts.files;
   if (opts.path) {
-    const p = resolve(opts.path);
+    const p = resolve(findRepoRoot(), opts.path);
     if (!existsSync(p)) throw new Error(`路径不存在: ${opts.path}`);
     if (statSync(p).isDirectory()) docsDir = p;
     else {
-      docsDir = resolve("docs");
+      docsDir = resolve(findRepoRoot(), "docs");
       files = [p];
     }
   }
@@ -104,10 +105,10 @@ export async function proposePrd(opts: ProposeOptions): Promise<ProposeResult> {
   const tryDo = (): { filePath: string; content: string } => {
     const title = requireString(opts.title, "--title");
     const today = todayStr();
-    const prdDir = resolve("docs/prd");
+    const prdDir = resolve(findRepoRoot(), "docs/prd");
     let supersedesTitle: string | undefined;
     if (opts.supersedes) {
-      const oldPath = requireFile(opts.supersedes);
+      const oldPath = requireFile(resolve(findRepoRoot(), opts.supersedes));
       const status = currentStatusOf(oldPath);
       if (status !== "已发布")
         throw new Error(`--supersedes 目标必须为"已发布",实际: ${status ?? "(无法解析)"}`);
@@ -169,10 +170,10 @@ export async function archivePrd(opts: ArchiveOptions): Promise<ArchiveResult> {
     warnings: [],
   };
   try {
-    const prdPath = requireFile(opts.prdPath);
+    const prdPath = requireFile(resolve(findRepoRoot(), opts.prdPath));
     if (reason === "replaced" && !opts.newPrdPath)
       throw new Error("--reason replaced 需要 --new-prd");
-    if (opts.newPrdPath) requireFile(opts.newPrdPath);
+    if (opts.newPrdPath) requireFile(resolve(findRepoRoot(), opts.newPrdPath));
     const vr = await validateDocs({ path: prdPath, severity: "error" });
     if (vr.status === "error" || vr.status === "block") {
       r.status = "error";
@@ -196,7 +197,7 @@ export async function archivePrd(opts: ArchiveOptions): Promise<ArchiveResult> {
     if (reason === "completed") r.movedTo = moveToArchive(prdPath);
     const indexTarget = r.movedTo ?? prdPath;
     r.indexSynced = syncIndex(
-      resolve("docs/index.md"),
+      resolve(findRepoRoot(), "docs/index.md"),
       indexTarget,
       reason,
       prdPath.split("/").pop()?.replace(/\.md$/, "") ?? "",
@@ -227,7 +228,7 @@ export async function archivePrd(opts: ArchiveOptions): Promise<ArchiveResult> {
 export async function migratePrd(opts: MigrateOptions): Promise<MigrateResult> {
   const r: MigrateResult = { status: "pass", parsedEntries: 0, errors: [], warnings: [] };
   try {
-    const prdPath = requireFile(opts.prdPath);
+    const prdPath = requireFile(resolve(findRepoRoot(), opts.prdPath));
     const content = readFileSync(prdPath, "utf-8");
     const statusLine = extractStatusLine(content);
     if (!statusLine) {
@@ -273,7 +274,7 @@ export async function migratePrd(opts: MigrateOptions): Promise<MigrateResult> {
 // ===== 5. getStatus =====
 export async function getStatus(): Promise<StatusResult> {
   const items: StatusItem[] = [];
-  for (const p of listMdFiles(resolve("docs/prd"))) {
+  for (const p of listMdFiles(resolve(findRepoRoot(), "docs/prd"))) {
     if (p.includes("/archive/")) continue;
     const doc = parseDocument(p);
     if (!doc) continue;
@@ -288,7 +289,7 @@ export async function getStatus(): Promise<StatusResult> {
       references: doc.references.backRefs,
     });
   }
-  for (const p of listMdFiles(resolve("docs/phase"))) {
+  for (const p of listMdFiles(resolve(findRepoRoot(), "docs/phase"))) {
     const doc = parseDocument(p);
     if (!doc) continue;
     const sl = doc.statusLine ? parseStatusLine(doc.statusLine) : null;
@@ -308,7 +309,7 @@ export async function getStatus(): Promise<StatusResult> {
 }
 // ===== 6. listPrds =====
 export async function listPrds(opts: ListOptions): Promise<ListResult> {
-  const docsDir = resolve("docs");
+  const docsDir = resolve(findRepoRoot(), "docs");
   const items: ListItem[] = [];
   const scan = (dir: string, type: string) => {
     for (const p of listMdFiles(dir)) {
@@ -358,7 +359,7 @@ export async function getWhy(target: string): Promise<WhyResult> {
 }
 // ===== 8. getApplyChecklist =====
 export async function getApplyChecklist(prdPath: string): Promise<ApplyResult> {
-  const fullPath = requireFile(prdPath);
+  const fullPath = requireFile(resolve(findRepoRoot(), prdPath));
   const content = readFileSync(fullPath, "utf-8");
   const items: ApplyChecklistItem[] = [];
   let section = "unknown";

@@ -1,8 +1,11 @@
 # sdd Extension 阶段文档
 
-> 状态：已完成 | 创建日期：2026-06-30 | 发布日期：2026-07-02 | 收尾日期：2026-06-30
+> 状态：已替换 | 创建日期：2026-06-30 | 发布日期：2026-07-02 | 收尾日期：2026-06-30 | 替换日期：2026-07-01
 > 修改记录：执行 `lore log docs/phase/2026-06-30-sdd-extension.md`
-> 对应 PRD：[sdd Extension PRD](../prd/2026-06-30-sdd-extension.md)
+> 对应 PRD：[sdd Extension PRD](../prd/2026-06-30-sdd-extension.md)（已替换）
+> 替代：[双范式架构实施 phase](2026-07-01-sdd-dual-paradigm.md)
+
+> [!NOTE] **本文已替换（2026-07-01）** — 本 phase 描述的 v1.4.0-alpha「单范式 + 单 hook 聚合 + 单 extension」落地已被 [双范式架构实施 phase](2026-07-01-sdd-dual-paradigm.md) 整体替代:双范式(SDD 正本 + OpenSpec 可选 hook 默认实现)+ 双 hook 装载 + 双 extension 注册。本文件保留作为 v1.4.0-alpha 历史档案。
 
 ## 1. 指标与完成情况
 
