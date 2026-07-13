@@ -1,6 +1,6 @@
 # sdd-pack (omp marketplace plugin)
 
-> **状态：v1.5.0** — 双范式一体化开发管理工具：**SDD 正本**(sdd-core/input/prd/phase 4 技能 + 5 规则 + 3 守门 agent + 13 个 `/sdd-*` slash command 含 5 个 `/sdd-gate-*` 门禁) + **OpenSpec 可选 hook 默认实现**(7 个 `/openspec-*` slash command + 守卫 hook)。
+> **状态：v1.5.1** - 双范式一体化开发管理工具：**SDD 正本**(sdd-core/input/prd/phase 4 技能 + 5 规则 + 3 守门 agent + 13 个 `/sdd-*` slash command 含 5 个 `/sdd-gate-*` 门禁) + **OpenSpec 可选 hook 默认实现**(7 个 `/openspec-*` slash command + 守卫 hook)。
 > 通过 `omp --hook` 二选一装载 SDD 或 OpenSpec 守卫 hook;不装载时仅 extension 工作。
 > 关键决策：[ADR-009 sdd Extension 替代独立 CLI](../architecture/decisions.md) · [ADR-010 hook 改默认实现](../architecture/decisions.md) · [ADR-011 双范式架构](../architecture/decisions.md)
 
