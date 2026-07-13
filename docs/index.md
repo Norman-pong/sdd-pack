@@ -38,8 +38,9 @@
 
 | 文档名称                                                       | 主题                                    | 最后更新   | 说明                                                                                                          |
 | -------------------------------------------------------------- | --------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------- |
-| [架构决策记录](architecture/decisions.md)                      | ADR-001 至 ADR-011                      | 2026-07-01 | hook extension、三层守门 agent、sdd CLI 工作流（v1.3/v1.4 Superseded）、sdd Extension（v1.4+ 替代方案）、双范式架构 |
-| [架构总览](architecture/overview.md)                           | marketplace 仓库结构                    | 2026-07-01 | omp marketplace 仓库 + plugin 目录布局 + v1.5.0-alpha 双范式 extension/hook/api-runner 集成                   |
+| [架构决策记录](architecture/decisions.md)                      | ADR-001 至 ADR-012                      | 2026-07-13 | hook extension、三层守门 agent、sdd CLI 工作流（v1.3/v1.4 Superseded）、sdd Extension（v1.4+ 替代方案）、双范式架构、sdd-gate 门禁流水线 |
+| [架构总览](architecture/overview.md)                           | marketplace 仓库结构                    | 2026-07-13 | omp marketplace 仓库 + plugin 目录布局 + v1.5.0-alpha 双范式 extension/hook/api-runner + sdd-gate 门禁子系统   |
+| [sdd-gate 门禁流水线架构](architecture/sdd-gate.md)            | 门禁流水线子系统                        | 2026-07-13 | 5 阶段 slash command（lint/test/review/precommit/commit）+ 动态 lint 注入 + review 产物契约 + hook 集成      |
 
 ## 参考资料（Reference）
 

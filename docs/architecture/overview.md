@@ -5,7 +5,8 @@
 本文档描述 sdd-pack 仓库（`zhimingcool/sdd-pack`）当前架构。`sdd-pack` 是一个 omp marketplace 插件，由**双范式资产**组成：
 
 - **静态范式**：4 个 SDD skill + 5 个 rule + 3 个守门 agent
-- **动态范式**：1 个 omp extension（8 个 slash command）+ 1 个 hook 聚合（4 个 handler）+ 1 个程序化 API 层（`api.ts`）+ 1 个 CI 入口（`api-runner.ts`）
+- **动态范式**：2 个 omp extension（13 个 /sdd-* slash command + 7 个 /openspec-* slash command）+ 2 个 hook（SDD / OpenSpec 二选一）+ 程序化 API 层（`api.ts` + `openspec-api.ts`）+ CI 入口（`api-runner.ts` + `openspec-api-runner.ts`）
+- **门禁子系统**（v1.5.0-alpha 新增）：5 个 `/sdd-gate-*` slash command + gate-config + gate-runner，把 lint -> test -> review -> precommit -> commit 变为进程退出码 / slash command 结果阻断。详见 [sdd-gate 架构](sdd-gate.md)。
 
 两范式共享同一份 `src/cli/lib/*` 核心库。
 
@@ -32,9 +33,8 @@ graph TB
 
     Plugin --> Skills["skills/<br/>sdd-core / sdd-input / sdd-prd / sdd-phase"]
     Plugin --> Rules["rules/<br/>lore-protocol + 4 guards"]
-    Plugin --> Agents["agents/<br/>reviewer / arch-reviewer / sdd-reviewer"]
-    Plugin --> Ext["extensions/sdd-extension/<br/>8 个 /sdd-* slash command"]
-    Plugin --> Hooks["hooks/index.ts<br/>4 个 handler(session_start + tool_call)"]
+    Plugin --> Ext["extensions/sdd-extension/<br/>13 个 /sdd-* slash command（含 5 个 /sdd-gate-*）"]
+    Plugin --> Hooks["hooks/sdd/ + hooks/openspec/<br/>二选一 hook 装载"]
     Plugin --> Src["src/<br/>cli/api.ts + api-runner.ts + lib/"]
     Plugin --> Manifest["package.json + README.md"]
 
@@ -77,12 +77,13 @@ graph TB
 | rules               | 5 个 rule（lore 协议 + 4 个守门）            | `plugins/sdd-pack/rules/*.md`                                 |
 | 三层守门 agent      | reviewer / arch-reviewer / sdd-reviewer    | `plugins/sdd-pack/agents/{reviewer,arch-reviewer,sdd-reviewer}.md` |
 | docs-check.sh       | 文档结构校验脚本（sdd-core 引用）            | `plugins/sdd-pack/skills/sdd-core/references/docs-check.sh`   |
-| sdd-extension       | 8 个 `/sdd-*` slash command                | `plugins/sdd-pack/extensions/sdd-extension/index.ts`          |
-| hooks 聚合          | 4 个 handler（session_start × 1 + tool_call × 3） | `plugins/sdd-pack/hooks/index.ts`                       |
+| sdd-extension       | 13 个 `/sdd-*` slash command（8 文档 + 5 门禁） | `plugins/sdd-pack/extensions/sdd-extension/index.ts`          |
+| hooks               | SDD / OpenSpec 二选一 hook 聚合            | `plugins/sdd-pack/hooks/sdd/index.ts` + `hooks/openspec/index.ts` |
 | sdd-api             | 8 个程序化纯函数                           | `plugins/sdd-pack/src/cli/api.ts`                             |
 | api-runner          | `bun run` CI 入口                          | `plugins/sdd-pack/src/cli/api-runner.ts`                      |
-| 核心库              | validator / prd-state-machine / doc-parser / template-engine / lore-wrapper / index-sync / orchestration/* | `plugins/sdd-pack/src/cli/lib/` |
-| README + manifest   | 安装/使用说明 + `omp.extensions` 声明     | `plugins/sdd-pack/README.md` + `package.json`                 |
+| **gate-config**     | gate.json 读取 + 项目类型自动检测          | `plugins/sdd-pack/src/cli/lib/gate-config.ts`                 |
+| **gate-runner**     | 5 阶段门禁执行器                           | `plugins/sdd-pack/src/cli/lib/gate-runner.ts`                 |
+| 核心库              | validator / prd-state-machine / doc-parser / template-engine / lore-wrapper / index-sync / orchestration/* / **gate-config / gate-runner** | `plugins/sdd-pack/src/cli/lib/` |
 
 ### 4.2 依赖方向
 

@@ -16,6 +16,24 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, statSync } from "no
 import { resolve, dirname } from "node:path";
 import { spawnSync } from "node:child_process";
 
+export type {
+  ValidateOptions,
+  ValidateResult as ValidationResult,
+  ProposeOptions,
+  ProposeResult,
+  ArchiveOptions,
+  ArchiveResult,
+  MigrateOptions,
+  MigrateResult,
+  StatusResult,
+  StatusItem,
+  ListOptions,
+  ListResult,
+  ListItem,
+  WhyResult,
+  ApplyResult,
+  ApplyChecklistItem,
+} from "./lib/api-types";
 import type {
   ValidateOptions,
   ValidateResult,

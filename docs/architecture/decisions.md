@@ -497,3 +497,43 @@ omp --hook <plugin-root>/hooks/openspec/index.ts \
 - **v1.5.0 正式**：marketplace 发布,CHANGELOG 标注 [ADR-010](#adr-010-openspec-作为-hook-默认实现--可选入口修订) 修订 + [ADR-011](#adr-011-sdd-pack-双范式架构决策) 新增
 - **跟踪**:`sdd-pack` 双范式装载是否在 omp 生态有更优形态（如 omp manifest 支持"必选 hook + 可选 extension"声明）
 - **维护边界**:任一范式 bugfix 不影响另一范式；`src/cli/lib/` 跨范式共享代码变更需经 arch-reviewer 评审
+
+## ADR-012: sdd-gate 门禁流水线（slash command 替代独立 CLI）
+
+**状态**: Accepted(2026-07-13)
+**决策人**: norman
+**触发**: 用户要求把门禁做成 CLI 标准化检测，不任由 LLM 自我约束；lint 命令动态注入，不指定则阻塞流程
+**影响**: 新增 `src/cli/lib/gate-config.ts` + `gate-runner.ts` + 5 个 `/sdd-gate-*` slash command；reviewer agent 新增 step 8 写 review 产物；hooks/sdd commit 拦截改为引导走流水线
+
+### 背景
+
+sdd-pack 原有门禁依赖三层防线（rule 文本 / omp hook sendMessage / api-runner CI），但在 omp session 内（LLM 编码场景）没有进程级阻断。omp hook 只能发 message，LLM 可无视消息直接提交。
+
+用户定义了完整流程：`编码 → lint → 功能验证 → reviewer → lint（再跑）→ lore commit`，要求：
+1. lint 全周期触发
+2. lint 命令动态注入，不指定则阻塞
+3. 第三方安装后零额外安装
+
+### 决策
+
+**采用 omp slash command 作为执行入口，而非独立 CLI（`bun run gate-runner.ts`）。**
+
+原因：独立 CLI 的路径（`plugins/sdd-pack/src/cli/gate-runner.ts`）在第三方用户项目里不存在——插件代码在 `~/.omp/plugins/node_modules/sdd-pack/` 下。slash command 通过 omp extension 机制在进程内直接 import lib 函数，`process.cwd()` 自动解析为用户项目根。
+
+### 方案
+
+1. **5 阶段 slash command**：`/sdd-gate-lint` → `/sdd-gate-test` → spawn reviewer → `/sdd-gate-review` → `/sdd-gate-precommit` → `/sdd-gate-commit`
+2. **动态 lint 注入**：`.sdd/gate.json` 显式配置 > 项目类型自动检测（vite-plus / rust / go / bun）> 阻塞（exit 2）
+3. **review 产物契约**：reviewer agent 执行后写 `.sdd/review/staged.json`，`/sdd-gate-review` 检查产物存在且 verdict 通过
+4. **hook 引导**：`hooks/sdd/index.ts` 拦截 `git/lore commit`，发消息引导走 `/sdd-gate-*` 流水线
+
+### 拒绝的方案
+
+- **独立 CLI 入口（`gate-runner.ts`）**: 第三方用户项目里无此路径，仅在 sdd-pack 自家仓库有效。已删除。
+- **git pre-commit hook**: 需要 git hooks 已启用，且 omp session 内的提交不经过 git hooks（omp 内部处理）。用户选择 omp hook + CI 入口。
+- **CLI 直接 spawn reviewer agent**: omp agent spawn 需要 omp session 上下文，CLI 无法提供。改用文件契约。
+
+### 后续
+
+- 详见 `docs/architecture/sdd-gate.md`
+- tsconfig.json + @types/node + @types/bun 在本次引入（之前项目无类型检查）

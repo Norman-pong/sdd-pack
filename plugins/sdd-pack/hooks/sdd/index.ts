@@ -61,9 +61,20 @@ const DOCS_UPDATE_HINT =
   "💡 docs-update-guard [hook]: 检测到 commit 命令。如果本次改动触及 docs/ 请确认 PRD↔Phase 双向引用已更新(skill://sdd-core)。";
 
 const LORE_COMMIT_BLOCK_REASON = [
-  "🚫 lore-commit-guard [hook]: 请用 `lore commit` 提交(自动满足 PRD/Phase 双向引用 + sdd validate)。",
-  '   `lore commit --intent "<why>" [--body "<narrative>"] [--constraint ...] [--directive ...]`',
-  "   裸 `git commit` 会绕过 lore 协议,破坏决策追溯链。",
+  "🚫 lore-commit-guard [hook]: 请走 sdd-gate 门禁流水线:",
+  "",
+  "   编码 -> /sdd-gate-lint -> /sdd-gate-test -> reviewer -> /sdd-gate-review -> /sdd-gate-precommit -> /sdd-gate-commit",
+  "",
+  "   依次执行:",
+  "   1. /sdd-gate-lint         # lint 门禁(block=exit 2, fail=exit 1)",
+  "   2. /sdd-gate-test         # 功能验证(可选,缺则 skip)",
+  "   3. spawn reviewer agent    # 审查 staged diff,写 .sdd/review/staged.json",
+  "   4. /sdd-gate-review       # 检查 review 产物(缺则 block)",
+  "   5. /sdd-gate-precommit    # 再跑 lint + lore 约束检查",
+  '   6. /sdd-gate-commit --message \'{"intent":"...","trailers":{}}\'',
+  "",
+  "   裸 `git commit` / 裸 `lore commit` 都会绕过门禁,禁止直接使用。",
+  "   lint 命令在 .sdd/gate.json 配置;无配置时自动检测项目类型(vp check / cargo clippy / go vet 等)。",
 ].join("\n");
 
 const DOC_EDIT_GUIDANCE = [

@@ -46,3 +46,37 @@ export function findRepoRoot(): string {
       `Run this command from inside an sdd-pack repository (where docs/prd/ exists).`,
   );
 }
+
+/**
+ * 定位当前 cwd 所属的项目根（含 .sdd/ 或 .git/ 的最近祖先）
+ *
+ * 与 findRepoRoot() 的区别：
+ * - findRepoRoot 锚定 docs/prd/（sdd-pack 自家仓库专用）
+ * - findProjectRoot 锚定 .sdd/ 或 .git/（任意第三方项目可用）
+ *
+ * 用于 gate 子系统：第三方用户项目可能没有 docs/prd/，
+ * 但只要有 .sdd/gate.json 或 .git/ 就能定位项目根。
+ *
+ * @returns 项目根绝对路径
+ * @throws 找不到时 throw
+ */
+export function findProjectRoot(): string {
+  const start = process.cwd();
+  let dir = start;
+  for (let depth = 0; depth < MAX_WALK_DEPTH; depth++) {
+    if (
+      (existsSync(resolve(dir, ".sdd")) && statSync(resolve(dir, ".sdd")).isDirectory()) ||
+      (existsSync(resolve(dir, ".git")) && statSync(resolve(dir, ".git")).isDirectory())
+    ) {
+      return dir;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  throw new Error(
+    `project root not found: walked up ${MAX_WALK_DEPTH} levels from cwd=${start}, ` +
+      `no ancestor contains '.sdd/' or '.git/' directory. ` +
+      `Run this command from inside a git repository or a project with .sdd/ directory.`,
+  );
+}

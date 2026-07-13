@@ -1,0 +1,11 @@
+# bun test 配置 — 强制 test runner 在 plugins/sdd-pack/ 子目录跑时,
+# 通过 test-preload.ts 自动 chdir 到仓库根。
+#
+# 背景:src/cli/api.ts 用 `resolve("docs/prd")` 相对 process.cwd() 解析路径。
+# 从 plugins/sdd-pack/ 子目录跑 bun test 时 cwd 是 package root,
+# docs/prd/ 不在那里,fixture test fail。从仓库根跑则正常。
+#
+# 修复:preload 脚本向上找包含 docs/prd/ 的最近父目录并 chdir,
+# prod 代码 0 改动,跨范式边界守住(OpenSpec 测试自身 chdir 隔离不受影响)。
+[test]
+preload = ["./test-preload.ts"]

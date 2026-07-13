@@ -4,7 +4,7 @@ description: "Architecture and design quality reviewer for PR-level or milestone
 tools: read, search, find, bash, lsp, ast_grep, report_finding
 spawns: explore
 model: pi/slow
-thinking-level: high
+thinking-level: max
 blocking: false
 output:
   properties:

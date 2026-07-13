@@ -35,6 +35,8 @@ export interface CrossReferences {
   supersedes?: string;
   /** > 已被: 链接 */
   supersededBy?: string;
+  /** 回指链接(用于 StatusItem.references 非空字段列表) */
+  backRefs: string[];
 }
 
 /** 文档元数据 */
@@ -156,19 +158,19 @@ export function extractStatusLine(content: string): string | null {
  * 解析交叉引用
  */
 export function parseReferences(content: string): CrossReferences {
-  const refs: CrossReferences = {};
+  const refs: CrossReferences = { backRefs: [] };
 
   const prdRefMatch = content.match(/^>?\s*对应 PRD[：:]\s*\[([^\]]*)\]\(([^)]+)\)/m);
-  if (prdRefMatch) refs.prdRef = prdRefMatch[2];
+  if (prdRefMatch) { refs.prdRef = prdRefMatch[2]; refs.backRefs.push(prdRefMatch[2]); }
 
   const phaseRefMatch = content.match(/^>?\s*对应阶段[：:]\s*\[([^\]]*)\]\(([^)]+)\)/m);
-  if (phaseRefMatch) refs.phaseRef = phaseRefMatch[2];
+  if (phaseRefMatch) { refs.phaseRef = phaseRefMatch[2]; refs.backRefs.push(phaseRefMatch[2]); }
 
   const supersedesMatch = content.match(/^>?\s*替代[：:]\s*\[([^\]]*)\]\(([^)]+)\)/m);
-  if (supersedesMatch) refs.supersedes = supersedesMatch[2];
+  if (supersedesMatch) { refs.supersedes = supersedesMatch[2]; refs.backRefs.push(supersedesMatch[2]); }
 
   const supersededByMatch = content.match(/^>?\s*已被[：:]\s*\[([^\]]*)\]\(([^)]+)\)/m);
-  if (supersededByMatch) refs.supersededBy = supersededByMatch[2];
+  if (supersededByMatch) { refs.supersededBy = supersededByMatch[2]; refs.backRefs.push(supersededByMatch[2]); }
 
   return refs;
 }

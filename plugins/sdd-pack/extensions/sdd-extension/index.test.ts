@@ -53,13 +53,18 @@ function getHandler(name: string): CapturedCommand["handler"] {
   return c.handler;
 }
 
-describe("sdd-extension — 8 slash command 注册", () => {
-  test("注册 8 个 command", () => {
-    expect(captured.length).toBe(8);
+describe("sdd-extension — 13 slash command 注册", () => {
+  test("注册 13 个 command", () => {
+    expect(captured.length).toBe(13);
     const names = captured.map((c) => c.name).sort();
     expect(names).toEqual([
       "sdd-apply",
       "sdd-archive",
+      "sdd-gate-commit",
+      "sdd-gate-lint",
+      "sdd-gate-precommit",
+      "sdd-gate-review",
+      "sdd-gate-test",
       "sdd-list",
       "sdd-migrate",
       "sdd-propose",

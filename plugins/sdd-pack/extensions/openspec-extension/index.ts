@@ -40,7 +40,7 @@ import {
 
 // ===== 类型兜底(unknown,跟 hooks/openspec/index.ts 同构) =====
 interface ExtensionAPI {
-  reg(
+  registerCommand(
     name: string,
     def: {
       description: string;

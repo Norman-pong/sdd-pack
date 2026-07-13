@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+
+# sdd-pack gate artifacts (review results, user-local config)
+.sdd/review/
+
+# OS
+.DS_Store
+
+# bun
+bun.lock
+
+# TypeScript build output
+*.tsbuildinfo

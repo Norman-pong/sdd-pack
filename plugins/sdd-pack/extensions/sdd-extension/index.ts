@@ -42,7 +42,16 @@ import {
   getEnumOption,
 } from "../../src/cli/lib/orchestration/parseArgs";
 import { formatHuman, formatSummary } from "../../src/cli/lib/orchestration/format";
-import type { CheckSeverity } from "../../src/cli/lib/validator";
+import type { CheckSeverity, CheckResult } from "../../src/cli/lib/validator";
+import {
+  runLint,
+  runTest,
+  runReview,
+  runPrecommit,
+  runCommit,
+} from "../../src/cli/lib/gate-runner";
+import type { GateResult } from "../../src/cli/lib/gate-config";
+import { findProjectRoot } from "../../src/cli/lib/path";
 
 // ===== 类型兜底(unknown,跟 hooks/sdd/index.ts 同构) =====
 interface ExtensionAPI {
@@ -64,7 +73,7 @@ interface CommandContext {
 
 // ===== 统一 UI adapter:把 ValidationResult 映射到 ctx.ui =====
 function notifyBySeverity(
-  result: { status: string; errors: string[]; warnings: string[] },
+  result: { status: "pass" | "warn" | "error" | "block"; errors: string[]; warnings: string[]; checks: CheckResult[] },
   ctx: CommandContext,
 ): void {
   const level =
@@ -256,7 +265,79 @@ async function handleApply(args: string, ctx: unknown): Promise<unknown> {
   }
 }
 
-// ===== Extension factory:8 个 slash command 注册 =====
+// ===== 5 个 gate command handlers =====
+
+function gateLevel(status: string): "info" | "warn" | "error" {
+  if (status === "fail" || status === "block") return "error";
+  if (status === "skip") return "warn";
+  return "info";
+}
+
+function gateNotify(result: GateResult, ctx: unknown): void {
+  const c = uiOf(ctx);
+  const lines: string[] = [
+    `┌─ sdd-gate: ${result.stage}`,
+    `├─ status: ${result.status}`,
+  ];
+  if (result.command) lines.push(`├─ command: ${result.command}`);
+  lines.push(`├─ exit code: ${result.exitCode}`);
+  if (result.message) {
+    for (const line of result.message.split("\n")) lines.push(`├─ ${line}`);
+  }
+  if (result.stdout) {
+    lines.push("├─ stdout:");
+    for (const line of result.stdout.trim().split("\n").slice(0, 30)) {
+      lines.push(`│  ${line}`);
+    }
+    const total = result.stdout.trim().split("\n").length;
+    if (total > 30) lines.push(`│  ... (${total - 30} more lines)`);
+  }
+  if (result.stderr) {
+    lines.push("├─ stderr:");
+    for (const line of result.stderr.trim().split("\n").slice(0, 20)) {
+      lines.push(`│  ${line}`);
+    }
+  }
+  lines.push("└─");
+  c.ui.setWidget(lines.join("\n"));
+  c.ui.notify(gateLevel(result.status), `sdd-gate ${result.stage}: ${result.status}`);
+}
+
+async function handleGateLint(_args: string, ctx: unknown): Promise<unknown> {
+  const result = runLint(findProjectRoot());
+  gateNotify(result, ctx);
+  return result;
+}
+
+async function handleGateTest(_args: string, ctx: unknown): Promise<unknown> {
+  const result = runTest(findProjectRoot());
+  gateNotify(result, ctx);
+  return result;
+}
+
+async function handleGateReview(args: string, ctx: unknown): Promise<unknown> {
+  const opts = parseArgs(splitArgs(args));
+  const sha = getStringOption(opts, "sha");
+  const result = runReview(findProjectRoot(), sha);
+  gateNotify(result, ctx);
+  return result;
+}
+
+async function handleGatePrecommit(_args: string, ctx: unknown): Promise<unknown> {
+  const result = runPrecommit(findProjectRoot());
+  gateNotify(result, ctx);
+  return result;
+}
+
+async function handleGateCommit(args: string, ctx: unknown): Promise<unknown> {
+  const opts = parseArgs(splitArgs(args));
+  const message = getStringOption(opts, "message");
+  const result = runCommit(findProjectRoot(), message);
+  gateNotify(result, ctx);
+  return result;
+}
+
+// ===== Extension factory: 13 个 slash command 注册 =====
 export default function (pi: ExtensionAPI): void {
   pi.registerCommand("sdd-validate", {
     description: "校验 docs/ 文档结构 + 状态机 + 交叉引用一致性",
@@ -271,7 +352,7 @@ export default function (pi: ExtensionAPI): void {
     handler: handleArchive,
   });
   pi.registerCommand("sdd-migrate", {
-    description: "状态行堆叠清理 → 单行 + CHANGELOG",
+    description: "状态行堆叠清理 -> 单行 + CHANGELOG",
     handler: handleMigrate,
   });
   pi.registerCommand("sdd-status", {
@@ -284,4 +365,9 @@ export default function (pi: ExtensionAPI): void {
     handler: handleWhy,
   });
   pi.registerCommand("sdd-apply", { description: "打印 PRD 实施 checklist", handler: handleApply });
+  pi.registerCommand("sdd-gate-lint", { description: "门禁阶段1: lint（失败阻断后续）", handler: handleGateLint });
+  pi.registerCommand("sdd-gate-test", { description: "门禁阶段2: 功能验证测试（缺则 skip）", handler: handleGateTest });
+  pi.registerCommand("sdd-gate-review", { description: "门禁阶段3: 检查 reviewer 产物存在且通过", handler: handleGateReview });
+  pi.registerCommand("sdd-gate-precommit", { description: "门禁阶段4: 再跑 lint + lore 约束检查", handler: handleGatePrecommit });
+  pi.registerCommand("sdd-gate-commit", { description: "门禁阶段5: lore commit（--message 传 JSON）", handler: handleGateCommit });
 }

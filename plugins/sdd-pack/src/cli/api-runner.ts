@@ -13,8 +13,8 @@ import {
   listPrds,
   getWhy,
   getApplyChecklist,
-  type CheckSeverity,
 } from "./api";
+import type { CheckSeverity } from "./lib/validator";
 import {
   parseArgs,
   getStringOption,
@@ -53,7 +53,7 @@ async function main(): Promise<void> {
         spec: getStringOption(opts, "spec"),
         supersedes: getStringOption(opts, "supersedes"),
         title: getStringOption(opts, "title"),
-        type: enumOpt("type", ["full", "delta"], "full"),
+        type: enumOpt("type", ["full", "delta"] as const, "full"),
         dryRun: getBoolOption(opts, "dry-run"),
       });
       break;
@@ -61,7 +61,7 @@ async function main(): Promise<void> {
       const pos = opts.positional[0] ?? (console.error("错误: 缺少 prd-path"), process.exit(1));
       result = await archivePrd({
         prdPath: pos,
-        reason: enumOpt("reason", ["completed", "replaced", "abandoned"], "completed"),
+        reason: enumOpt("reason", ["completed", "replaced", "abandoned"] as const, "completed"),
         mergeDelta: getBoolOption(opts, "merge-delta"),
         dryRun: getBoolOption(opts, "dry-run"),
         noCommit: getBoolOption(opts, "no-commit"),
@@ -86,7 +86,7 @@ async function main(): Promise<void> {
         status: getStringOption(opts, "status"),
         date: getStringOption(opts, "date"),
         keyword: getStringOption(opts, "keyword"),
-        type: enumOpt("type", ["prd", "phase", "spec"], "prd"),
+        type: enumOpt("type", ["prd", "phase", "spec"] as const, "prd"),
         json,
       });
       break;

@@ -10,6 +10,7 @@ import { resolve } from "path";
 
 import type { PrdStatus } from "../prd-state-machine";
 import { parseDocument, parseStatusLine } from "../doc-parser";
+import { parseStatus } from "../prd-state-machine";
 
 /** 文件必须存在;不存在抛错 */
 export function requireFile(filePath: string): string {
@@ -26,7 +27,9 @@ export function currentStatusOf(prdPath: string): PrdStatus | null {
   if (!doc) return null;
   const line = doc.statusLine;
   if (!line) return null;
-  return parseStatusLine(line)?.status ?? null;
+  const parsed = parseStatusLine(line);
+  if (!parsed) return null;
+  return parseStatus(parsed.status);
 }
 
 /** 目标路径不冲突检测(供 propose 前置) */
