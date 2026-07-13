@@ -6,13 +6,13 @@
 
 - **静态范式**：4 个 SDD skill + 5 个 rule + 3 个守门 agent
 - **动态范式**：2 个 omp extension（13 个 /sdd-* slash command + 7 个 /openspec-* slash command）+ 2 个 hook（SDD / OpenSpec 二选一）+ 程序化 API 层（`api.ts` + `openspec-api.ts`）+ CI 入口（`api-runner.ts` + `openspec-api-runner.ts`）
-- **门禁子系统**（v1.5.0-alpha 新增）：5 个 `/sdd-gate-*` slash command + gate-config + gate-runner，把 lint -> test -> review -> precommit -> commit 变为进程退出码 / slash command 结果阻断。详见 [sdd-gate 架构](sdd-gate.md)。
+- **门禁子系统**（v1.5.0 新增）：5 个 `/sdd-gate-*` slash command + gate-config + gate-runner，把 lint -> test -> review -> precommit -> commit 变为 omp slash command 结果阻断（非 OS 进程退出码，详见 [sdd-gate 架构](sdd-gate.md)）。
 
 两范式共享同一份 `src/cli/lib/*` 核心库。
 
 ## 1. 系统定位
 
-**SDD 文档生命周期 + 三层代码质量评审的 OMP 分发容器**。通过 omp marketplace 机制，让用户用 `omp plugin install sdd-pack@sdd-pack` 一条命令获得：SDD 技能家族（sdd-core/input/prd/phase）、lore 提交协议 hook、PRD/Phase 状态行守门、三层守门 agent、8 个 sdd slash command、sdd 校验 hook、`bun run` 形式的 CI 入口。
+**SDD 文档生命周期 + 三层代码质量评审 + 门禁流水线的 OMP 分发容器**。通过 omp marketplace 机制，让用户用 `omp plugin install sdd-pack@sdd-pack` 一条命令获得：SDD 技能家族（sdd-core/input/prd/phase）、lore 提交协议 hook、PRD/Phase 状态行守门、三层守门 agent、13 个 sdd slash command（含 5 个 /sdd-gate-* 门禁）、sdd 校验 hook、`bun run` 形式的 CI 入口。
 
 ## 2. 架构原则
 
@@ -109,12 +109,14 @@ src/cli/lib/api-types.ts
 // .omp-plugin/marketplace.json
 {
   "name": "sdd-pack",
-  "metadata": { "version": "1.4.0-alpha", "pluginRoot": "plugins" },
+  "metadata": { "version": "1.5.0", "pluginRoot": "plugins" },
   "plugins": [
     {
       "name": "sdd-pack",
-      "description": "SDD 技能家族 + 三层守门 agent + hook extension + sdd extension",
-      "source": "./sdd-pack"
+      "description": "SDD 一体化工具(正本) + OpenSpec hook 默认实现(可选)",
+      "source": "./sdd-pack",
+      "version": "1.5.0",
+      "agents": ["reviewer", "arch-reviewer", "sdd-reviewer"]
     }
   ]
 }
@@ -126,9 +128,10 @@ src/cli/lib/api-types.ts
 // plugins/sdd-pack/package.json
 {
   "name": "sdd-pack",
-  "version": "1.4.0-alpha",
-  "files": ["skills", "rules", "hooks", "agents", "extensions", "src", "README.md"],
-  "omp": { "extensions": ["./extensions/sdd-extension/index.ts"] }
+  "version": "1.5.0",
+  "files": ["skills", "rules", "hooks/sdd", "hooks/openspec", "agents", "extensions", "src", "README.md"],
+  "omp": { "extensions": ["./extensions/sdd-extension/index.ts", "./extensions/openspec-extension/index.ts"] },
+  "devDependencies": { "@types/node": "^26", "@types/bun": "^1.3" }
 }
 ```
 
