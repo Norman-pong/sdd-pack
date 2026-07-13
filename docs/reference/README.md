@@ -59,7 +59,7 @@
 
 | Agent         | 来源                                       | blocking | 触发                  | verdict 字段          | 说明                                                                  |
 | ------------- | ------------------------------------------ | -------- | --------------------- | --------------------- | --------------------------------------------------------------------- |
-| reviewer      | `plugins/sdd-pack/agents/reviewer.md`      | true     | commit-review.ts 自动 | `overall_correctness` | Layer 1 commit gate：runtime bug + patch-local design + lore/SDD 探针 |
+| reviewer      | `plugins/sdd-pack/agents/reviewer.md`      | true     | /sdd-gate 流水线      | `overall_correctness` | Layer 1 commit gate：runtime bug + patch-local design + lore/SDD 探针 |
 | arch-reviewer | `plugins/sdd-pack/agents/arch-reviewer.md` | false    | 手动 task()           | `overall_quality`     | Layer 2 PR/plan gate：layering/SOLID/coupling/ADR，code+plan 双模式   |
 | sdd-reviewer  | `plugins/sdd-pack/agents/sdd-reviewer.md`  | false    | 手动 task()           | `overall_conformance` | Layer 3 phase/merge gate：PRD 验收/Phase 覆盖/ADR/lore/docs-sync      |
 

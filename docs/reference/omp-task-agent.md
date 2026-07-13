@@ -89,13 +89,13 @@
 
 | Agent           | source                | blocking | spawns    | 触发方式                           | output verdict        |
 | --------------- | --------------------- | -------- | --------- | ---------------------------------- | --------------------- |
-| `reviewer`      | plugin (覆盖 bundled) | true     | `explore` | `commit-review.ts` 扩展自动调用    | `overall_correctness` |
-| `arch-reviewer` | plugin (新增)         | false    | `explore` | 手动 `task(agent="arch-reviewer")` | `overall_quality`     |
-| `sdd-reviewer`  | plugin (新增)         | false    | —         | 手动 `task(agent="sdd-reviewer")`  | `overall_conformance` |
+| `reviewer`      | plugin (覆盖 bundled) | true     | `explore` | `/sdd-gate-review` 检查 `.sdd/review/staged.reviewer.json` | `overall_correctness` |
 
-## 8. commit-review.ts 兼容性要点
+## 8. sdd-gate 门禁流水线集成
 
-`commit-review.ts` 扩展**不解析** verdict JSON，仅检查 commit message 中的 `[omp-review:ok]` token。LLM 读 verdict 后决定是否追加 token。因此：
+reviewer agent 的 step 8 写入 `.sdd/review/staged.reviewer.json`（含 `overall_correctness` + `staged_hash`）。
+`/sdd-gate-review` slash command 检查该产物存在 + verdict 非 `incorrect` + staged_hash 匹配当前 diff。
+因此：
 
 - 扩展 `overall_correctness` enum（如新增 `correct-with-debt`）安全。
 - 新增 finding category / dimension / check 安全。
