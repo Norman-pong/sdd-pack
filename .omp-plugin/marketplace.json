@@ -3,7 +3,7 @@
   "owner": { "name": "norman" },
   "metadata": {
     "description": "sdd-pack 一体化开发管理工具：SDD 技能家族(sdd-core/input/prd/phase) + 三层守门 agent(reviewer/arch-reviewer/sdd-reviewer) + 双范式 hook(SDD/OpenSpec) + 双范式 extension(/sdd-* + /openspec-*) + 双范式 CI runner",
-    "version": "1.5.0-alpha",
+    "version": "1.5.0",
     "pluginRoot": "plugins"
   },
   "plugins": [
@@ -31,7 +31,7 @@
         "cohesion",
         "coupling"
       ],
-      "version": "1.5.0-alpha",
+      "version": "1.5.0",
       "agents": ["reviewer", "arch-reviewer", "sdd-reviewer"]
     }
   ]
