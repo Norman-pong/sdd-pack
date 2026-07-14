@@ -1,6 +1,8 @@
 ---
 description: Before writing or editing any file under docs/, route through the SDD skill family (sdd-core/sdd-input/sdd-prd/sdd-phase) instead of bare write/edit — ensures naming conventions, required sections, and PRD↔Phase cross-references are honored at write time, not patched at commit time.
 scope: "tool:write(docs/**), tool:edit(docs/**)"
+layer: soft-gate
+enforcement: ttsr
 ---
 
 Before you `write` or `edit` a file whose path starts with `docs/`, stop and route through the SDD skill family. Documents under `docs/` follow naming conventions, required sections, and cross-reference rules that bare file edits will violate.

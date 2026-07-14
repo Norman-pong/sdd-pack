@@ -2,6 +2,8 @@
 description: All commits must go through `lore commit` AND pass quality gates first (lint + verify + reviewer review). Catches both `git commit` (wrong tool) and `lore commit` (premature).
 condition: "(^|[\\s;&|]+)(git|lore)\\s+commit(?=\\s|$)"
 scope: "tool:bash"
+layer: soft-gate
+enforcement: ttsr
 ---
 
 Every commit — whether the command is `git commit` or `lore commit` — must clear three quality gates **in order** first. Then submit through `lore commit` only.

@@ -1,6 +1,8 @@
 ---
 description: 当 PRD 所处阶段推进或新需求到来时，按 PRD 生命周期状态机和变更类型判据决定是并入、收尾还是起新 PRD；禁止往已冻结/已发布的 PRD 堆叠新版本功能。触发词：新需求、需求变更、新增功能、v2、第二版、范围变更、scope change、改 PRD、加功能、功能调整。
 scope: "tool:write(docs/prd/**), tool:edit(docs/prd/**)"
+layer: soft-gate
+enforcement: ttsr
 ---
 
 当一个新的产品需求到来、而仓库里已有一个 PRD 时，先判读它是哪一类变更，再决定动作。本 rule 防"PRD 状态行堆叠多版本功能"失控——即 `sdd-pack-version-alignment-guard` skill 所警告的根因。

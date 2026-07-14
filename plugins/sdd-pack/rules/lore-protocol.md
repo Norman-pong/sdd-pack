@@ -1,6 +1,8 @@
 ---
 description: Lore protocol — query constraints/rejected/directives before any file edit; write lore-enriched commits via `lore commit` with the trailer JSON schema
 alwaysApply: true
+layer: soft-gate
+enforcement: ttsr
 ---
 
 # Lore Protocol

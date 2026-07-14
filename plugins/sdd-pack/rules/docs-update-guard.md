@@ -2,6 +2,8 @@
 description: Before any commit, check whether the staged change requires updating docs (PRD / Phase / Architecture / Reference / index). If yes, follow the `sdd` skill before submitting.
 condition: "(^|[\\s;&|]+)(git|lore)\\s+commit(?=\\s|$)"
 scope: "tool:bash"
+layer: soft-gate
+enforcement: ttsr
 ---
 
 Before you `git commit` or `lore commit`, scan the staged change set and ask: does anything in this commit require a doc update? If yes, apply the `sdd` skill **before** the commit goes out — either in this commit (stage the doc changes too) or in a separate docs-only commit immediately before.
