@@ -537,3 +537,110 @@ sdd-pack 原有门禁依赖三层防线（rule 文本 / omp hook sendMessage / a
 
 - 详见 `docs/architecture/sdd-gate.md`
 - tsconfig.json + @types/node + @types/bun 在本次引入（之前项目无类型检查）
+
+
+## ADR-013: sdd-pack omp 5 类资产分工契约
+
+**状态**: Accepted (2026-07-14, v1.5.1)
+**决策人**: norman
+**触发**: 用户审查 sdd-pack 定位时反馈"sdd-pack 在 skill/rule/agent/extension/hook 五类 omp 资产之间分工不清，README 把所有资产塞进一行 changelog 堆叠、没有权威清单"。需要把每类资产的"在哪、做什么、谁触发"一次性固化。
+**影响**: `.omp-plugin/marketplace.json` 新增 `assets` 字段（全部 5 类）；`plugins/sdd-pack/README.md` 头部新增 §0/§0.1/§0.2/§0.3 段；后续添加新资产时按本契约选择最适合的 omp 资产类型，不再"全塞 extension"。
+
+### 背景
+
+sdd-pack 作为 omp marketplace plugin，同时使用了 omp 全部 5 类资产（skill/rule/agent/extension/hook），但仓库文档未对每类资产的职责边界做权威说明，导致：
+1. 新贡献者难以判断"新增能力应该走 skills 还是 rules 还是 extension"。
+2. 用户误以为"5 个 rule 是硬门禁"（实际全部为 TTSR 软门禁）。
+3. README 第一行用 changelog 堆叠充当定位介绍，信息密度过低。
+
+此外 omp marketplace 索引（`.omp-plugin/marketplace.json`）只声明了 agents 字段，缺失 skills/rules/commands/hooks 声明，导致 catalog 信息不全。
+
+### 决策
+
+**5 类 omp 资产各司其职，互不替代**：
+
+| omp 资产 | 落地目录 | 提供方 | 消费方 | 触发点 |
+| --- | --- | --- | --- | --- |
+| Skills | `plugins/sdd-pack/skills/` | sdd-pack | 主 agent（看到 description 自主 read SKILL.md） | description 触发 |
+| Rules | `plugins/sdd-pack/rules/` | sdd-pack | omp 规则管线 → hook 注入 system 提示 → 主 agent 自觉遵守 | `condition` + `scope` 前缀匹配 |
+| Agents | `plugins/sdd-pack/agents/` | sdd-pack | 主 agent 通过 `task()` 手动 spawn | 手动或 `/sdd-gate-review` 派生 |
+| Extensions | `plugins/sdd-pack/extensions/` | sdd-pack | omp slash command，主 agent 在 session 内调用 | `omp --extension` 装载 |
+| Hooks | `plugins/sdd-pack/hooks/` | sdd-pack | omp tool_call 拦截器 | `omp --hook <path>` 装载 |
+
+### 方案
+
+1. **.omp-plugin/marketplace.json assets 字段**：列出全部 skills / rules / agents / commands（20 个 /sdd-* 与 /openspec-*）+ hooks（2 个）路径。元数据列表式，供 omp catalog 展示。
+2. **README §0 重写**：把第一行的 changelog 堆叠替换为标准 omp 插件 README 结构——§0 插件定位 / §0.1 组件矩阵 / §0.2 三层守门 agent / §0.3 软门禁 vs 硬门禁对照。
+3. **后续添加新能力的判断流程**：
+   - 需要 LLM 主动加载的流程知识 → 新 skill
+   - 需要在特定 tool_call 路径上注入提示 → 新 rule
+   - 需要独立子线程跑多步审查 → 新 agent
+   - 需要用户在 omp session 里手动触发特定流程 → 新 slash command（新增到对应 extension）
+   - 需要在 tool_call 前后拦截执行 → 新 hook
+
+### 拒绝的方案
+
+- **README 沿用 changelog 风格继续堆叠**：信息密度低，新贡献者入门成本高。改为标准结构化 README。
+- **把所有能力都加到 extension 当 slash command**：违反 omp 设计意图——slash command 是 LLM 主动调用的入口，不是被动触发的机制。TTSR 提示应该走 rule，程序级阻断应该走 slash + runner。
+- **为 sdd-pack 建 `plugins/sdd-pack/plugin.json`**：omp 用 `.omp-plugin/marketplace.json` 做 catalog，插件根走目录约定（agents/skills/rules/extensions/hooks）发现，plugin 级 manifest 与 omp loader 冲突。
+
+### 后续
+
+- v1.6.0 起，新增 skill/rule/agent 必须先在本 ADR 的判断流程中归类后才允许提交。
+- ADR-014 锁定"三层守门 agent 触发契约"（与本 ADR 互补，本 ADR 解决"什么资产类型"，014 解决"agent 何时触发"）。
+
+## ADR-014: 三层守门 agent 触发契约（sdd-reviewer 按需触发，非 commit gate）
+
+**状态**: Accepted (2026-07-14, v1.5.1)
+**决策人**: norman
+**触发**: 用户反馈"sdd-pack 在提交时没有触发 sdd-reviewer agent"。排查发现：sdd-reviewer 在自己 frontmatter 里自我标注 `Spawned on demand, not bound to commit gate`，且 `gate-runner.ts` 的 `loadRequiredReviewers` 默认只返回 `["reviewer"]`——这并非 bug，但是设计契约未在 ADR 显式固化，新用户难以判断何时触发哪个 agent。
+**影响**: 本 ADR 固化三层守门 agent 的触发边界。后续添加新 reviewer 时，按本契约决定是否绑定 commit gate；若绑定则需在 `.sdd/gate.json` 的 `reviewers` 字段显式声明。
+
+### 背景
+
+sdd-pack 当前有 3 个守门 agent，定位清晰但分散在多文件未集中归档：
+
+| Agent | 文件 | frontmatter self-positioning | 是否默认启用 |
+| --- | --- | --- | --- |
+| `reviewer` | `plugins/sdd-pack/agents/reviewer.md` | Layer 1 commit gate | 是（默认） |
+| `arch-reviewer` | `plugins/sdd-pack/agents/arch-reviewer.md` | Layer 2 PR/plan gate | 否 |
+| `sdd-reviewer` | `plugins/sdd-pack/agents/sdd-reviewer.md` | `Spawned on demand, not bound to commit gate` | 否 |
+
+且门禁检查点由两层控制：
+1. **`extensions/sdd-extension/index.ts:340-373` 的 slash command 注册表**——只有 `/sdd-gate-review` 一个审查门禁阶段。
+2. **`src/cli/lib/gate-runner.ts:390-400` 的 `loadRequiredReviewers()`**——默认 `["reviewer"]`，通过读取 `<项目根>/.sdd/gate.json` 的 `reviewers` 字段可扩展为 `["reviewer", "arch-reviewer", "sdd-reviewer"]`，但需每个 reviewer 都有 `.sdd/review/<sha>.<name>.json` 产物落盘才不 block。
+
+用户"提交时不触发 sdd-reviewer"的反馈根因：这两个机制叠加导致 sdd-reviewer 默认既不在 slash 流水线被 spawn，也不在 gate-runner 被检查。需要把契约固化。
+
+### 决策
+
+**三层守门 agent 分工如下，sdd-reviewer 不是 commit gate**：
+
+| 层 | Agent | 触发 | blocking | 触发场景 | 启用条件 |
+| --- | --- | --- | --- | --- | --- |
+| Layer 1 commit gate | `reviewer` | `/sdd-gate-review` 阶段 3 spawn | 是 | 每次 commit | 默认启用 |
+| Layer 2 PR/plan gate | `arch-reviewer` | 手动 `task()` spawn | 否 | PR / 架构决策前 | `.sdd/gate.json` 配 `"reviewers": ["reviewer", "arch-reviewer"]` |
+| Layer 3 merge/phase gate | `sdd-reviewer` | 手动 `task()` spawn | 否 | phase 收尾 / merge 前 | `.sdd/gate.json` 配 `"reviewers": ["reviewer", "sdd-reviewer"]` |
+
+`/sdd-gate-review` 的运行时行为：
+- `loadRequiredReviewers()` 返回列表
+- 对列表中每个 reviewer，检查 `.sdd/review/<sha>.<reviewer>.json` 产物存在 + staged_hash 匹配 + verdict != incorrect
+- 任一缺失或过期 → `status: "block"`（`exitCode: 2`）
+
+### 方案
+
+1. **保留默认不变**：`loadRequiredReviewers` 仍默认 `["reviewer"]`，不引入 sdd-reviewer 强制 check。这样大多数用户（只跑 commit gate）不会被 phase gate 拖累。
+2. **README §0.2 显式标注三层分工**：在 sdd-pack README 新加一节说明每个 agent 的触发场景、启用条件、产物路径。
+3. **市场索引同步**：`.omp-plugin/marketplace.json` 的 `assets.agents` 列名 + `reviewer_layers` 字段明示三层关系。
+4. **添加触发入口（可选 P3 任务）**：为 sdd-reviewer / arch-reviewer 各加一个 `/sdd-gate-sdd-review` 与 `/sdd-gate-arch-review` slash command，使 layer 2/3 不必依赖手动 `task()`，但不在本 ADR 范围内实施。
+
+### 拒绝的方案
+
+- **直接把 sdd-reviewer 提升为 commit gate**：每次 commit 都要跑 PRD 验收开关 / Phase 覆盖 / ADR compliance / docs-sync 7 项检查，违背 sdd-reviewer 定位为 phase-completion / merge gate 的初衷。前端开发每 commit 一次的频次下成本过高。
+- **改 `loadRequiredReviewers` 默认值为 `["reviewer", "sdd-reviewer"]`**：直接让所有未配置 `reviewers` 字段的用户突然被 block，因为他们的项目里没有 `.sdd/review/<sha>.sdd-reviewer.json` 产物。
+- **依赖 omp rulebook 的 `permissionDecision: deny` 把 sdd-reviewer 强制绑入**：当前 omp rulebook 是否有此机制尚未在本仓库确认；且即使有，把按需 agent 转硬门禁与 LLM agent 工作流所需的"提示 → 自决"循环相悖。
+
+### 后续
+
+- 后续若用户要求"每次 commit 自动 spawn sdd-reviewer"，需要单独 ADR 决策（可能引入 on-demand spawn + 异步产物落盘机制，不复用本次 gate-runner 文件契约的同步模式）。
+- ADR-013 规定"什么资产类型用什么 omp 资产"（本 ADR 互补，013 解决"资产类型"，014 解决"agent 触发"）。
