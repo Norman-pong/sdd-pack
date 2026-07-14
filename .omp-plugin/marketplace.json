@@ -32,7 +32,57 @@
         "coupling"
       ],
       "version": "1.5.1",
-      "agents": ["reviewer", "arch-reviewer", "sdd-reviewer"]
+      "assets": {
+        "skills": ["sdd-core", "sdd-input", "sdd-prd", "sdd-phase"],
+        "rules": [
+          "lore-protocol",
+          "docs-update-guard",
+          "lore-commit-guard",
+          "sdd-doc-edit-guard",
+          "prd-change-management"
+        ],
+        "agents": ["reviewer", "arch-reviewer", "sdd-reviewer"],
+        "commands": [
+          "/sdd-validate",
+          "/sdd-propose",
+          "/sdd-archive",
+          "/sdd-migrate",
+          "/sdd-status",
+          "/sdd-list",
+          "/sdd-why",
+          "/sdd-apply",
+          "/sdd-gate-lint",
+          "/sdd-gate-test",
+          "/sdd-gate-review",
+          "/sdd-gate-precommit",
+          "/sdd-gate-commit",
+          "/openspec-init-check",
+          "/openspec-status",
+          "/openspec-validate",
+          "/openspec-list",
+          "/openspec-show",
+          "/openspec-instructions",
+          "/openspec-archive"
+        ],
+        "hooks": [
+          "hooks/sdd/index.ts",
+          "hooks/openspec/index.ts"
+        ]
+      },
+      "paradigm": {
+        "primary": "sdd",
+        "optional_alternative": "openspec",
+        "hook_choice": "二选一：omp --hook <plugin>/hooks/sdd/index.ts 或 --hook <plugin>/hooks/openspec/index.ts；不装载 hook 时仅 extension 工作，无 commit 拦截"
+      },
+      "reviewer_layers": {
+        "layer_1_commit": { "agent": "reviewer", "blocking": true, "verdict_field": "overall_correctness" },
+        "layer_2_pr_plan": { "agent": "arch-reviewer", "blocking": false, "verdict_field": "overall_quality" },
+        "layer_3_merge_phase": { "agent": "sdd-reviewer", "blocking": false, "verdict_field": "overall_conformance" }
+      },
+      "rule_enforcement": {
+        "model": "ttsr",
+        "explanation": "5 个 rule 全部是 TTSR 软门禁：tool_call 时由 hook 注入 system 提示，由主 agent 自觉遵守。程序级硬门禁由 /sdd-gate-* slash command + gate-runner.ts 提供。"
+      }
     }
   ]
 }

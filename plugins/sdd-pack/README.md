@@ -1,8 +1,47 @@
 # sdd-pack (omp marketplace plugin)
 
-> **状态：v1.5.1** - 双范式一体化开发管理工具：**SDD 正本**(sdd-core/input/prd/phase 4 技能 + 5 规则 + 3 守门 agent + 13 个 `/sdd-*` slash command 含 5 个 `/sdd-gate-*` 门禁) + **OpenSpec 可选 hook 默认实现**(7 个 `/openspec-*` slash command + 守卫 hook)。
-> 通过 `omp --hook` 二选一装载 SDD 或 OpenSpec 守卫 hook;不装载时仅 extension 工作。
-> 关键决策：[ADR-009 sdd Extension 替代独立 CLI](../architecture/decisions.md) · [ADR-010 hook 改默认实现](../architecture/decisions.md) · [ADR-011 双范式架构](../architecture/decisions.md)
+sdd-pack 是 **omp 上的一体化开发管理插件**:用 SDD 范式(正本)或 OpenSpec 范式(可选)管理需求/阶段/审查/提交门禁的端到端工作流。
+提供 omp 全部 5 类资产(skills / rules / agents / extensions / hooks),通过 marketplace 装机即用。
+
+**版本**: v1.5.1
+
+## 0. 插件定位
+
+- **角色**: omp marketplace plugin(双范式),为使用 SDD 或 OpenSpec 流程的开发者提供"文档 + 提交 + 审查"端到端支持
+- **5 类 omp 资产齐备**: 4 skills + 5 rules + 3 agents + 2 extensions(20 slash commands)+ 2 hooks(SDD/OpenSpec 二选一)
+- **commit 门禁三段式**: TTSR 软门禁(rules) → commit gate 硬门禁(`/sdd-gate-*` slash) → 三层守门 agent(reviewer / arch-reviewer / sdd-reviewer)
+- **关键决策**: [ADR-009 sdd Extension 替代独立 CLI](../architecture/decisions.md) · [ADR-010 hook 改默认实现](../architecture/decisions.md) · [ADR-011 双范式架构](../architecture/decisions.md)
+
+## 0.1 omp 组件矩阵(权威清单)
+
+| omp 资产 | sdd-pack 内的目录/文件 | 作用 | 触发机制 |
+| --- | --- | --- | --- |
+| Skills | `skills/sdd-core` `skills/sdd-input` `skills/sdd-prd` `skills/sdd-phase` | 主 agent 看到 description → 主动 read SKILL.md 加载流程知识 | description 触发,主 agent 自主加载 |
+| Rules | `rules/lore-protocol.md` `rules/docs-update-guard.md` `rules/lore-commit-guard.md` `rules/sdd-doc-edit-guard.md` `rules/prd-change-management.md` | TTSR 软门禁:在 tool_call 时由 hook 往消息流注入 system 提示,由主 agent 自觉遵守 | condition + scope 前缀匹配,`omp` 规则管线触发 |
+| Agents | `agents/reviewer.md` `agents/arch-reviewer.md` `agents/sdd-reviewer.md` | 独立子线程审查,产物落 `.sdd/review/<sha>.<agent>.json` | task() 手动 spawn,**不绑 commit gate** |
+| Extension | `extensions/sdd-extension/index.ts` `extensions/openspec-extension/index.ts` | 注册 `/sdd-*` 与 `/openspec-*` slash command,主 agent 在 omp 内调用 | `omp --extension <path>` 装载 |
+| Hook | `hooks/sdd/index.ts` `hooks/openspec/index.ts` | 拦截 tool_call,执行 commit gate / session_start reminder / path gate | `omp --hook <path>` 装载(SDD/OpenSpec 二选一) |
+
+## 0.2 三层守门 agent 分工
+
+| 层 | Agent | 触发 | blocking | 产物文件 | 触发场景 |
+| --- | --- | --- | --- | --- | --- |
+| Layer 1 commit gate | `reviewer` | `/sdd-gate-review` 流水线阶段 3 spawn | 是 | `.sdd/review/<sha>.reviewer.json` | 每次 commit |
+| Layer 2 PR/plan gate | `arch-reviewer` | 手动 task() | 否 | `.sdd/review/<sha>.arch-reviewer.json`(若启用) | PR / 架构决策前 |
+| Layer 3 merge/phase gate | `sdd-reviewer` | 手动 task() | 否 | `.sdd/review/<sha>.sdd-reviewer.json`(若启用) | phase 收尾 / merge 前 |
+
+> 默认只启用 Layer 1;Layer 2/3 需在 `.sdd/gate.json` 的 `reviewers` 字段加 `"arch-reviewer"` 和/或 `"sdd-reviewer"` 后才会被 `/sdd-gate-review` 检查产物。
+
+## 0.3 门禁模型:软门禁 vs 硬门禁
+
+| 层次 | 机制 | 提供者 |
+| --- | --- | --- |
+| 软门禁 (TTSR) | 注入 system 提示,主 agent 自觉遵守 | 5 个 rules + `hooks/sdd/index.ts` 的 commit gate 提示 |
+| 软门禁 (TTSR) | 路径写入时路由到 SDD skill | `rules/sdd-doc-edit-guard` + `rules/prd-change-management` |
+| 硬门禁 (程序级) | `/sdd-gate-*` slash command 返回 `status: "block"` | `extensions/sdd-extension/index.ts` |
+| 硬门禁 (程序级) | `gate-runner.ts` 的 5 阶段流水线(返回 `exitCode: 2`) | `src/cli/lib/gate-runner.ts` |
+
+> **没有任何 rule 是程序级硬门禁**——所有 rule 都是 TTSR。硬门禁只有 slash command 和 `gate-runner` 两类。
 
 ## 1. 安装
 
