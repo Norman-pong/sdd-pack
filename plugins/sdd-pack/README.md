@@ -3,7 +3,7 @@
 sdd-pack 是 **omp 上的一体化开发管理插件**:用 SDD 范式(正本)或 OpenSpec 范式(可选)管理需求/阶段/审查/提交门禁的端到端工作流。
 提供 omp 全部 5 类资产(skills / rules / agents / extensions / hooks),通过 marketplace 装机即用。
 
-**版本**: v1.5.1
+**版本**: v1.5.2
 
 ## 0. 插件定位
 

@@ -1,6 +1,6 @@
 {
   "name": "sdd-pack",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "SDD 一体化开发管理工具 + OpenSpec 可选 hook 默认实现",
   "files": [
     "skills",
