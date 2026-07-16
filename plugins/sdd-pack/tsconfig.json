@@ -13,8 +13,7 @@
   },
   "include": [
     "src/**/*.ts",
-    "extensions/**/*.ts",
-    "hooks/**/*.ts"
+    "extensions/**/*.ts"
   ],
   "exclude": [
     "node_modules"

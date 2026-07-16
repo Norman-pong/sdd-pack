@@ -3,7 +3,7 @@
 sdd-pack 是 **omp 上的一体化开发管理插件**:用 SDD 范式(正本)或 OpenSpec 范式(可选)管理需求/阶段/审查/提交门禁的端到端工作流。
 提供 omp 全部 5 类资产(skills / rules / agents / extensions / hooks),通过 marketplace 装机即用。
 
-**版本**: v1.5.1
+**版本**: v1.6.0
 
 ## 0. 插件定位
 
@@ -36,33 +36,41 @@ sdd-pack 是 **omp 上的一体化开发管理插件**:用 SDD 范式(正本)或
 
 | 层次 | 机制 | 提供者 |
 | --- | --- | --- |
-| 软门禁 (TTSR) | 注入 system 提示,主 agent 自觉遵守 | 5 个 rules + `hooks/sdd/index.ts` 的 commit gate 提示 |
-| 软门禁 (TTSR) | 路径写入时路由到 SDD skill | `rules/sdd-doc-edit-guard` + `rules/prd-change-management` |
-| 硬门禁 (程序级) | `/sdd-gate-*` slash command 返回 `status: "block"` | `extensions/sdd-extension/index.ts` |
+| 软门禁 (TTSR) | 注入 system 提示,主 agent 自觉遵守 | 5 个 rules（omp plugin link 后自动发现） |
+| 硬门禁 (程序级) | `pi.on("tool_call")` 返回 `{block: true, reason}` | `extensions/sdd-extension/index.ts`（合并自 hooks/sdd/） |
+| 硬门禁 (程序级) | `/sdd-gate-*` slash command 返回 `status: "block"` | `extensions/sdd-extension/index.ts`（13 个 command） |
 | 硬门禁 (程序级) | `gate-runner.ts` 的 5 阶段流水线(返回 `exitCode: 2`) | `src/cli/lib/gate-runner.ts` |
 
 > **没有任何 rule 是程序级硬门禁**——所有 rule 都是 TTSR。硬门禁只有 slash command 和 `gate-runner` 两类。
 
 ## 1. 安装
 
+### 推荐方式: omp plugin link（全部资产生效）
+
 ```bash
 # 1. 添加 marketplace
 omp plugin marketplace add Norman-pong/sdd-pack
 
-# 2. 安装 plugin
-omp plugin install sdd-pack@sdd-pack
+# 2. link 安装（5 类资产全部生效: skills + rules + extensions + agents 装载 + hooks 拦截）
+omp plugin link ~/workspace/zhimingcool/sdd-pack/plugins/sdd-pack
 
-# 3. (二选一)装载 hook — 默认推荐 SDD 守卫
-echo "alias omp='omp --hook $(pwd)/plugins/sdd-pack/hooks/sdd/index.ts'" >> ~/.zshrc
-source ~/.zshrc
-
-# 4. 或装载 OpenSpec 守卫
-echo "alias omp='omp --hook $(pwd)/plugins/sdd-pack/hooks/openspec/index.ts'" >> ~/.zshrc
-source ~/.zshrc
+# 3. 重启 omp session
 ```
 
-> **环境要求**: Node.js + bun(omp runtime 通过 bun 加载 hook .ts 文件)。
-> **v1.5.0-alpha 起 hook 二选一**:不装载 hook 时仅 extension(slash command)工作,无守卫;装载 hook 后获得 commit gate / session_start reminder。
+> link 后自动生效: `/sdd-gate-*` slash command + 5 个 TTSR rule + tool_call 硬拦截 + skills。
+> agents 需额外执行 `omp agents unpack` 复制到 `~/.omp/agent/agents/`。
+
+### 兼容方式: omp plugin install（仅 skills 生效）
+
+```bash
+omp plugin install sdd-pack@sdd-pack
+```
+
+> ⚠ marketplace install 路径下 omp 不装载 extension module,5 个 rule 0 条装载,hook 不拦截。
+> 仅 skills 自动发现。如需全部资产生效,改用 `omp plugin link`。
+
+> **环境要求**: Node.js + bun(omp runtime 通过 bun 加载 extension .ts 文件)。
+> **v1.6.0 起 hook 逻辑合并进 extension**:不再需要 `--hook` flag,tool_call 拦截由 extension 自带。
 
 ## 2. SDD 范式(正本)
 

@@ -47,6 +47,12 @@ interface ExtensionAPI {
       handler: (args: string, ctx: unknown) => Promise<unknown> | unknown;
     },
   ): void;
+  on(event: string, handler: (e: unknown) => void | Promise<void | ToolCallBlockResult>): void;
+  sendMessage(msg: { role: "system" | "user"; content: string }): void;
+}
+interface ToolCallBlockResult {
+  block: true;
+  reason: string;
 }
 interface CommandUI {
   notify(level: "info" | "warn" | "error", message: string): void;
@@ -73,6 +79,100 @@ function splitArgs(s: string): string[] {
 
 function severityOf(s: string): "warn" | "error" {
   return s === "warn" ? "warn" : "error";
+}
+
+// ===== 从 hooks/openspec/index.ts 合并的 tool_call 拦截逻辑 =====
+
+// --- 类型守卫 ---
+
+interface ToolCallEvent {
+  toolName: string;
+  input: Record<string, unknown>;
+}
+
+function isGitCommit(input: Record<string, unknown>): boolean {
+  const cmd = input["command"];
+  if (typeof cmd !== "string") return false;
+  return /\bgit\s+commit(?=\s|$)/.test(cmd);
+}
+
+function isLoreCommit(input: Record<string, unknown>): boolean {
+  const cmd = input["command"];
+  if (typeof cmd !== "string") return false;
+  return /\blore\s+commit(?=\s|$)/.test(cmd);
+}
+
+function isOpenSpecSpecPath(input: Record<string, unknown>): boolean {
+  const path = input["path"];
+  if (typeof path !== "string") return false;
+  return /(^|\/)openspec\/specs\//.test(path);
+}
+
+function isOpenSpecChangePath(input: Record<string, unknown>): boolean {
+  const path = input["path"];
+  if (typeof path !== "string") return false;
+  return /(^|\/)openspec\/changes\//.test(path);
+}
+
+function isRootAgentsMd(input: Record<string, unknown>): boolean {
+  const path = input["path"];
+  if (typeof path !== "string") return false;
+  return path === "AGENTS.md" || path.endsWith("/AGENTS.md");
+}
+
+// --- message 常量 ---
+
+const OPENSPEC_REMINDER = [
+  "📜 OpenSpec Harness reminder (alwaysApply):",
+  "",
+  "1. 启用判定: openspec/specs/ + openspec/changes/ + openspec/AGENTS.md 全部存在",
+  "2. 修改前: `openspec list` 看活动变更,`openspec show <change-id>` 看详情",
+  "3. 提交前: `/openspec-validate` + `/openspec-status`(本 hook 自动跑)",
+  "4. 规范更新走 /openspec-archive 或 OpenSpec CLI,不要 raw 编辑",
+  "5. 本提醒来自 sdd-pack OpenSpec extension(ADR-015,合并自 hooks/openspec/)",
+].join("\n");
+
+const RAW_SPEC_WRITE_WARNING = [
+  "⚠ openspec-spec-guard [hook]: 检测到直接写入 openspec/specs/**",
+  "   OpenSpec 工作流: 编辑应走 change proposal 路径",
+  "   → /openspec-show <change-id>  → 编辑 specs/<area>/spec.md delta",
+  "   → /openspec-archive          → 合并 delta 回 openspec/specs/",
+].join("\n");
+
+const RAW_CHANGE_WRITE_WARNING = [
+  "⚠ openspec-change-guard [hook]: 检测到直接写入 openspec/changes/<id>/**",
+  "   OpenSpec 生命周期: 通过 slash command 创建/修改变更,不走 raw edit",
+  "   → /openspec-list    → 找到现有变更",
+  "   → /openspec-show    → 读 proposal/tasks/spec deltas",
+  "   → /openspec-archive → 变更完成时归档",
+].join("\n");
+
+const AGENTS_MD_GUARD = [
+  "⚠ openspec-agents-guard [hook]: 检测到直接编辑 AGENTS.md。",
+  "   OpenSpec init 后,根 AGENTS.md 由 openspec/AGENTS.md 接管,",
+  "   修改应走 OpenSpec 生命周期(/openspec-* 或 openspec CLI)而非 raw edit。",
+  "   例外: 引入新 AI 工具时,可走 `openspec update` 刷新子工具绑定。",
+].join("\n");
+
+// --- OpenSpec 守卫 gate:在 commit 时跑 validate + status ---
+
+// --- OpenSpec 守卫 gate:在 commit 时跑 validate + status(in-process) ---
+async function runOpenSpecGate(): Promise<ToolCallBlockResult | null> {
+  try {
+    const v = await validateProject({ severity: "error" });
+    if (v.status === "error") {
+      return {
+        block: true,
+        reason: `🚫 OpenSpec validate 失败:\n${v.errors.join("\n")}`,
+      };
+    }
+    // status 检查: 仅确认 openspec 目录结构存在,不 block
+    await getStatus();
+  } catch (e) {
+    // OpenSpec 未初始化或异常 → 放行(不 block),仅警告
+    return null;
+  }
+  return null;
 }
 
 // ===== 7 个 command handlers =====
@@ -212,5 +312,48 @@ export default function (pi: ExtensionAPI): void {
   pi.registerCommand("openspec-archive", {
     description: "归档 OpenSpec 变更 → openspec/changes/archive/",
     handler: handleArchive,
+  });
+
+  // ===== session_start — 注入 OpenSpec reminder =====
+  pi.on("session_start", (_e) => {
+    pi.sendMessage({ role: "system", content: OPENSPEC_REMINDER });
+  });
+
+  // ===== tool_call — commit 硬拦截 + openspec/ 路径提示 =====
+  pi.on("tool_call", async (e) => {
+    const ev = e as ToolCallEvent;
+    const toolName = ev.toolName;
+    const input = ev.input ?? {};
+
+    if (toolName === "bash" && (isGitCommit(input) || isLoreCommit(input))) {
+      const cmd = typeof input["command"] === "string" ? (input["command"] as string) : "";
+      const isLore = isLoreCommit(input);
+      // isGit 需排除 lore commit 的情况(lore commit 内部可能含 git commit 字样)
+      const isGit = isGitCommit(input) && !isLore;
+
+      if (isGit) {
+        return {
+          block: true,
+          reason:
+            "🚫 openspec-commit-guard [hook] 禁止 `git commit`(任意 flag):\n`git commit` 绕过 OpenSpec 变更上下文,本插件硬拦截。\n请改用 `lore commit`(或先跑 `/openspec-validate` + `/openspec-status`)。",
+        };
+      }
+
+      if (isLore && /(?:^|\s)--amend(?:\s|$)/.test(cmd)) {
+        return; // lore commit --amend 放行
+      }
+
+      const gateBlock = await runOpenSpecGate();
+      if (gateBlock) return gateBlock;
+      return;
+    }
+
+    if (toolName === "write" || toolName === "edit") {
+      if (isOpenSpecSpecPath(input))
+        pi.sendMessage({ role: "system", content: RAW_SPEC_WRITE_WARNING });
+      else if (isOpenSpecChangePath(input))
+        pi.sendMessage({ role: "system", content: RAW_CHANGE_WRITE_WARNING });
+      else if (isRootAgentsMd(input)) pi.sendMessage({ role: "system", content: AGENTS_MD_GUARD });
+    }
   });
 }

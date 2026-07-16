@@ -52,6 +52,7 @@ import {
 } from "../../src/cli/lib/gate-runner";
 import type { GateResult } from "../../src/cli/lib/gate-config";
 import { findProjectRoot } from "../../src/cli/lib/path";
+import { stagedFiles } from "../../src/cli/lib/orchestration/git";
 
 // ===== 类型兜底(unknown,跟 hooks/sdd/index.ts 同构) =====
 interface ExtensionAPI {
@@ -62,6 +63,12 @@ interface ExtensionAPI {
       handler: (args: string, ctx: unknown) => Promise<unknown> | unknown;
     },
   ): void;
+  on(event: string, handler: (e: unknown) => void | Promise<void | ToolCallBlockResult>): void;
+  sendMessage(msg: { role: "system" | "user"; content: string }): void;
+}
+interface ToolCallBlockResult {
+  block: true;
+  reason: string;
 }
 interface CommandUI {
   notify(level: "info" | "warn" | "error", message: string): void;
@@ -99,6 +106,122 @@ function hasUI(ctx: unknown): ctx is { ui: CommandUI } {
 // ===== helper: 类型守卫(取 ui) =====
 function uiOf(ctx: unknown): CommandContext {
   return hasUI(ctx) ? ctx : { ui: { notify: () => {}, setWidget: () => {} } };
+}
+
+// ===== 从 hooks/sdd/index.ts 合并的 tool_call 拦截逻辑 =====
+
+// --- 类型守卫 ---
+
+interface ToolCallEvent {
+  toolName: string;
+  input: Record<string, unknown>;
+}
+
+// 匹配 `git commit`(排除 commit-tree/commit-graph)
+function isGitCommit(input: Record<string, unknown>): boolean {
+  const cmd = input["command"];
+  if (typeof cmd !== "string") return false;
+  return /\bgit\s+commit(?=\s|$)/.test(cmd);
+}
+
+// 匹配 `lore commit`
+function isLoreCommit(input: Record<string, unknown>): boolean {
+  const cmd = input["command"];
+  if (typeof cmd !== "string") return false;
+  return /\blore\s+commit(?=\s|$)/.test(cmd);
+}
+
+// 路径在 docs/ 下
+function isDocWritePath(input: Record<string, unknown>): boolean {
+  const path = input["path"];
+  if (typeof path !== "string") return false;
+  return path.startsWith("docs/") || /(^|\/)docs\//.test(path);
+}
+
+// --- message 常量 ---
+
+const LORE_PROTOCOL_REMINDER = [
+  "📜 lore 提交协议(始终生效,plugin hook 注入):",
+  "",
+  "1. 修改文件前: `lore constraints <path> --json` / `lore rejected <path> --json` / `lore directives <path> --json`",
+  "2. 提交用 `lore commit`(禁止裸 `git commit`): 带 intent + Constraint/Rejected/Directive 等 JSON trailer",
+  "3. 文档同步: `sdd validate --staged` 自动校验(已集成到 commit guard)",
+  "4. 完整 schema: `rule://lore-protocol`(alwaysApply)",
+  "5. 本提醒来自 sdd-pack SDD 范式 extension(ADR-015,合并自 hooks/sdd/)",
+].join("\n");
+
+const DOCS_UPDATE_HINT =
+  "💡 docs-update-guard [hook]: 检测到 commit 命令。如果本次改动触及 docs/ 请确认 PRD↔Phase 双向引用已更新(skill://sdd-core)。";
+
+const LORE_COMMIT_BLOCK_REASON = [
+  "🚫 lore-commit-guard [hook]: 请走 sdd-gate 门禁流水线:",
+  "",
+  "   编码 -> /sdd-gate-lint -> /sdd-gate-test -> reviewer -> /sdd-gate-review -> /sdd-gate-precommit -> /sdd-gate-commit",
+  "",
+  "   依次执行:",
+  "   1. /sdd-gate-lint         # lint 门禁(block=exit 2, fail=exit 1)",
+  "   2. /sdd-gate-test         # 功能验证(可选,缺则 skip)",
+  "   3. spawn reviewer agent    # 审查 staged diff,写 .sdd/review/staged.json",
+  "   4. /sdd-gate-review       # 检查 review 产物(缺则 block)",
+  "   5. /sdd-gate-precommit    # 再跑 lint + lore 约束检查",
+  '   6. /sdd-gate-commit --message \'{"intent":"...","trailers":{}}\'',
+  "",
+  "   裸 `git commit` / 裸 `lore commit` 都会绕过门禁,禁止直接使用。",
+  "   lint 命令在 .sdd/gate.json 配置;无配置时自动检测项目类型(vp check / cargo clippy / go vet 等)。",
+].join("\n");
+
+const DOC_EDIT_GUIDANCE = [
+  "📝 sdd-doc-edit-guard [hook]: 检测到写 docs/ 目录。",
+  "   docs/ 写入请走 skill://sdd-core 流程:",
+  "   - 新需求 → skill://sdd-input → spec → PRD → Phase",
+  "   - PRD 修改 → skill://sdd-prd",
+  "   - Phase 任务 → skill://sdd-phase",
+].join("\n");
+
+// --- 辅助函数 ---
+
+// 提取 effective severity(环境变量 SDD_VALIDATE_SEVERITY)
+function getValidateSeverity(): CheckSeverity {
+  const sev = process.env.SDD_VALIDATE_SEVERITY;
+  if (sev === "warn" || sev === "error" || sev === "block") return sev;
+  return "warn";
+}
+
+// in-process 调 api.validateDocs()
+async function runSddValidate(pi: ExtensionAPI): Promise<void> {
+  try {
+    const files = stagedFiles();
+    if (files.length === 0) return;
+    const result = await validateDocs({ staged: true, files, severity: getValidateSeverity() });
+    if (result.status === "block") {
+      pi.sendMessage({
+        role: "system",
+        content: `🚫 sdd validate 硬拦截:\n${result.errors.join("\n")}`,
+      });
+    } else if (result.status === "error") {
+      pi.sendMessage({
+        role: "system",
+        content: `⚠ sdd validate 错误(灰度阶段,仅警告):\n${result.errors.join("\n")}`,
+      });
+    }
+  } catch (e) {
+    pi.sendMessage({
+      role: "system",
+      content: `⚠ sdd validate 异常(已跳过): ${e instanceof Error ? e.message : String(e)}`,
+    });
+  }
+}
+
+// 调 runReview 检查 reviewer 产物,返回 block result 或 null
+function runLoreReviewGate(): ToolCallBlockResult | null {
+  const result = runReview(process.cwd());
+  if (result.status === "block") {
+    return {
+      block: true,
+      reason: `🚫 sdd-gate-review 硬拦截:\n${result.message ?? "reviewer 产物缺失或未通过"}`,
+    };
+  }
+  return null;
 }
 
 // ===== arg split(omp 注入 `args: string` 而非 argv) =====
@@ -370,4 +493,46 @@ export default function (pi: ExtensionAPI): void {
   pi.registerCommand("sdd-gate-review", { description: "门禁阶段3: 检查 reviewer 产物存在且通过", handler: handleGateReview });
   pi.registerCommand("sdd-gate-precommit", { description: "门禁阶段4: 再跑 lint + lore 约束检查", handler: handleGatePrecommit });
   pi.registerCommand("sdd-gate-commit", { description: "门禁阶段5: lore commit（--message 传 JSON）", handler: handleGateCommit });
+
+  // ===== session_start — 注入 lore protocol reminder =====
+  pi.on("session_start", (_e) => {
+    pi.sendMessage({ role: "system", content: LORE_PROTOCOL_REMINDER });
+  });
+
+  // ===== tool_call — commit 硬拦截 + docs/ 写入提示 =====
+  pi.on("tool_call", async (e) => {
+    const ev = e as ToolCallEvent;
+    const toolName = ev.toolName;
+    const input = ev.input ?? {};
+
+    if (toolName === "bash" && (isGitCommit(input) || isLoreCommit(input))) {
+      const cmd = typeof input["command"] === "string" ? (input["command"] as string) : "";
+      const isLore = isLoreCommit(input);
+      // isGit 需排除 lore commit 的情况(lore commit 内部可能含 git commit 字样)
+      const isGit = isGitCommit(input) && !isLore;
+      pi.sendMessage({ role: "system", content: DOCS_UPDATE_HINT });
+
+      if (isGit) {
+        return {
+          block: true,
+          reason:
+            "🚫 lore-commit-guard [hook] 禁止 `git commit`(任意 flag):\n`git commit` 绕过 lore trailer + SDD 上下文,本插件硬拦截。\n请改用 `lore commit`(或先跑 `/sdd-gate-lint` -> reviewer -> `/sdd-gate-commit` 流水线)。",
+        };
+      }
+
+      if (isLore && /(?:^|\s)--amend(?:\s|$)/.test(cmd)) {
+        return; // lore commit --amend 放行
+      }
+
+      pi.sendMessage({ role: "system", content: LORE_COMMIT_BLOCK_REASON });
+      await runSddValidate(pi);
+      const reviewBlock = runLoreReviewGate();
+      if (reviewBlock) return reviewBlock;
+      return;
+    }
+
+    if ((toolName === "write" || toolName === "edit") && isDocWritePath(input)) {
+      pi.sendMessage({ role: "system", content: DOC_EDIT_GUIDANCE });
+    }
+  });
 }

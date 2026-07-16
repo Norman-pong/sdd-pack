@@ -3,7 +3,7 @@
   "owner": { "name": "norman" },
   "metadata": {
     "description": "sdd-pack 一体化开发管理工具：SDD 技能家族(sdd-core/input/prd/phase) + 三层守门 agent(reviewer/arch-reviewer/sdd-reviewer) + 双范式 hook(SDD/OpenSpec) + 双范式 extension(/sdd-* + /openspec-*) + 双范式 CI runner",
-    "version": "1.5.1",
+    "version": "1.6.0",
     "pluginRoot": "plugins"
   },
   "plugins": [
@@ -31,7 +31,7 @@
         "cohesion",
         "coupling"
       ],
-      "version": "1.5.1",
+      "version": "1.6.0",
       "assets": {
         "skills": ["sdd-core", "sdd-input", "sdd-prd", "sdd-phase"],
         "rules": [
@@ -64,15 +64,12 @@
           "/openspec-instructions",
           "/openspec-archive"
         ],
-        "hooks": [
-          "hooks/sdd/index.ts",
-          "hooks/openspec/index.ts"
-        ]
+        "hooks": []
       },
       "paradigm": {
         "primary": "sdd",
         "optional_alternative": "openspec",
-        "hook_choice": "二选一：omp --hook <plugin>/hooks/sdd/index.ts 或 --hook <plugin>/hooks/openspec/index.ts；不装载 hook 时仅 extension 工作，无 commit 拦截"
+        "hook_choice": "hook 逻辑已合并进 extension module(ADR-015),无需单独装载;omp plugin link 后自动生效"
       },
       "reviewer_layers": {
         "layer_1_commit": { "agent": "reviewer", "blocking": true, "verdict_field": "overall_correctness" },
@@ -81,7 +78,7 @@
       },
       "rule_enforcement": {
         "model": "ttsr",
-        "explanation": "5 个 rule 全部是 TTSR 软门禁：tool_call 时由 hook 注入 system 提示，由主 agent 自觉遵守。程序级硬门禁由 /sdd-gate-* slash command + gate-runner.ts 提供。"
+        "explanation": "5 个 rule 全部是 TTSR 软门禁：omp plugin link 后由 omp-plugins provider 自动发现，tool_call 时注入 system 提示，由主 agent 自觉遵守。程序级硬门禁由 extension 内嵌的 pi.on(\"tool_call\") 拦截 + /sdd-gate-* slash command + gate-runner.ts 提供。"
       }
     }
   ]

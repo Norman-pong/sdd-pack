@@ -1,0 +1,4 @@
+{
+  "lint": "cd plugins/sdd-pack && bunx tsc --noEmit",
+  "test": "cd plugins/sdd-pack && bun test"
+}

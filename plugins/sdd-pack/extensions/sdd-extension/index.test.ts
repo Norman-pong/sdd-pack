@@ -18,10 +18,26 @@ interface CapturedCommand {
   description: string;
   handler: (args: string, ctx: unknown) => Promise<unknown> | unknown;
 }
+interface CapturedHandler {
+  event: string;
+  handler: (e: unknown) => void | Promise<unknown>;
+}
+interface CapturedMessage {
+  role: "system" | "user";
+  content: string;
+}
 const captured: CapturedCommand[] = [];
+const capturedHandlers: CapturedHandler[] = [];
+const capturedMessages: CapturedMessage[] = [];
 const mockPi = {
   registerCommand(name: string, def: { description: string; handler: CapturedCommand["handler"] }) {
     captured.push({ name, description: def.description, handler: def.handler });
+  },
+  on(event: string, handler: (e: unknown) => void | Promise<unknown>) {
+    capturedHandlers.push({ event, handler });
+  },
+  sendMessage(msg: { role: "system" | "user"; content: string }) {
+    capturedMessages.push(msg);
   },
 };
 
@@ -52,6 +68,99 @@ function getHandler(name: string): CapturedCommand["handler"] {
   if (!c) throw new Error(`未注册 command: ${name}`);
   return c.handler;
 }
+
+function getEventHandler(event: string): (e: unknown) => Promise<unknown> {
+  const h = capturedHandlers.find((x) => x.event === event);
+  if (!h) throw new Error(`未注册 event: ${event}`);
+  return h.handler as (e: unknown) => Promise<unknown>;
+}
+
+// ===== tool_call 硬拦截测试 =====
+
+describe("sdd-extension — tool_call git commit 硬拦截", () => {
+  test("git commit -m 返回 block + reason + 发 DOCS_UPDATE_HINT", async () => {
+    capturedMessages.length = 0;
+    const h = getEventHandler("tool_call");
+    const result = await h({ toolName: "bash", input: { command: "git commit -m 'test'" } });
+    expect(result).toBeDefined();
+    if (result && typeof result === "object" && "block" in result) {
+      expect(result.block).toBe(true);
+    }
+    expect(capturedMessages.some((m) => m.content.includes("docs-update-guard"))).toBe(true);
+  });
+
+  test("git commit --amend 也 block(amend 例外只对 lore commit)", async () => {
+    capturedMessages.length = 0;
+    const h = getEventHandler("tool_call");
+    const result = await h({ toolName: "bash", input: { command: "git commit --amend" } });
+    expect(result).toBeDefined();
+    if (result && typeof result === "object" && "block" in result) {
+      expect(result.block).toBe(true);
+    }
+  });
+
+  test("git commit -S/-a/--no-verify 全部 block", async () => {
+    const h = getEventHandler("tool_call");
+    for (const flag of ["-S", "-a", "--no-verify"]) {
+      capturedMessages.length = 0;
+      const result = await h({ toolName: "bash", input: { command: `git commit ${flag} -m 'x'` } });
+      expect(result).toBeDefined();
+      if (result && typeof result === "object" && "block" in result) {
+        expect(result.block).toBe(true);
+      }
+    }
+  });
+
+  test("git commit-tree / git commit-graph 不误拦", async () => {
+    capturedMessages.length = 0;
+    const h = getEventHandler("tool_call");
+    const r1 = await h({ toolName: "bash", input: { command: "git commit-tree HEAD -m 'x'" } });
+    const r2 = await h({ toolName: "bash", input: { command: "git commit-graph write" } });
+    expect(r1).toBeUndefined();
+    expect(r2).toBeUndefined();
+  });
+});
+
+describe("sdd-extension — tool_call lore commit", () => {
+  test("lore commit --amend 放行(返回 undefined)", async () => {
+    capturedMessages.length = 0;
+    const h = getEventHandler("tool_call");
+    const result = await h({ toolName: "bash", input: { command: "lore commit --amend --no-edit" } });
+    expect(result).toBeUndefined();
+  });
+
+  test("lore commit(非 amend)发 LORE_COMMIT_BLOCK_REASON message", async () => {
+    capturedMessages.length = 0;
+    const h = getEventHandler("tool_call");
+    await h({ toolName: "bash", input: { command: "lore commit --intent test" } });
+    expect(capturedMessages.some((m) => m.content.includes("lore-commit-guard"))).toBe(true);
+  });
+});
+
+describe("sdd-extension — tool_call docs/ 写入提示", () => {
+  test("write + docs/ 路径触发 sdd-doc-edit-guard", async () => {
+    capturedMessages.length = 0;
+    const h = getEventHandler("tool_call");
+    await h({ toolName: "write", input: { path: "docs/architecture/overview.md" } });
+    expect(capturedMessages.some((m) => m.content.includes("sdd-doc-edit-guard"))).toBe(true);
+  });
+
+  test("write + 非 docs/ 路径不触发", async () => {
+    capturedMessages.length = 0;
+    const h = getEventHandler("tool_call");
+    await h({ toolName: "write", input: { path: "src/foo.ts" } });
+    expect(capturedMessages.some((m) => m.content.includes("sdd-doc-edit-guard"))).toBe(false);
+  });
+});
+
+describe("sdd-extension — session_start", () => {
+  test("触发 session_start 注入 LORE_PROTOCOL_REMINDER", async () => {
+    capturedMessages.length = 0;
+    const h = getEventHandler("session_start");
+    await h({});
+    expect(capturedMessages.some((m) => m.content.includes("lore 提交协议"))).toBe(true);
+  });
+});
 
 describe("sdd-extension — 13 slash command 注册", () => {
   test("注册 13 个 command", () => {
