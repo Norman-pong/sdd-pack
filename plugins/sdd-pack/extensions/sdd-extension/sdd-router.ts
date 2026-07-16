@@ -1,7 +1,7 @@
 /**
- * sdd-router.ts — /sdd 主命令路由 + 4 个流转 handler (ADR-018 Phase 001)
+ * sdd-router.ts — /sdd 主命令路由 + 9 个流转 handler (ADR-018 Phase 001+002)
  *
- * 子命令: init, review, approve, back
+ * 子命令: init, review, approve, back, plan, start, archive, phase, status
  * 无状态,不做校验逻辑(校验在 api/lib 层)。
  */
 
@@ -10,6 +10,11 @@ import {
   reviewPrd,
   approvePrd,
   backPrd,
+  planPrd,
+  startPrd,
+  archivePrdV2,
+  phaseTransition,
+  getStatusPanel,
   type InitOptions,
   type InitResult,
   type ReviewResult,
@@ -17,6 +22,14 @@ import {
   type ApproveResult,
   type BackOptions,
   type BackResult,
+  type PlanOptions,
+  type PlanResult,
+  type StartResult,
+  type ArchiveOptionsV2,
+  type ArchiveResultV2,
+  type PhaseTransitionOptions,
+  type PhaseTransitionResult,
+  type StatusPanelResult,
 } from "../../src/cli/api";
 import {
   parseArgs,
@@ -141,6 +154,115 @@ async function handleBack(tokens: string[], ctx: unknown): Promise<unknown> {
   return result;
 }
 
+async function handlePlan(tokens: string[], ctx: unknown): Promise<unknown> {
+  const opts = parseArgs(tokens);
+  const phase = getStringOption(opts, "phase");
+  const link = getStringOption(opts, "link");
+  if (!phase && !link) {
+    return usageError("sdd plan", "/sdd plan [--phase <title>] [--link <phase-id>]", ctx);
+  }
+  const options: PlanOptions = { phase, link };
+  const result: PlanResult = await planPrd(options);
+  const c = uiOf(ctx);
+  c.ui.setWidget("sdd-display", resultToWidgetLines("sdd plan", result));
+  if (result.status === "pass") {
+    c.ui.notify(`流转成功: ${result.from} → ${result.to}\nPhase: ${result.phaseId}\n${result.next ?? ""}`, "info");
+  } else {
+    c.ui.notify(`流转失败: ${result.errors.join("; ")}`, "error");
+  }
+  return result;
+}
+
+async function handleStart(_tokens: string[], ctx: unknown): Promise<unknown> {
+  const result: StartResult = await startPrd();
+  const c = uiOf(ctx);
+  c.ui.setWidget("sdd-display", resultToWidgetLines("sdd start", result));
+  if (result.status === "pass") {
+    c.ui.notify(`流转成功: ${result.from} → ${result.to}\n${result.next ?? ""}`, "info");
+  } else if (result.status === "warn") {
+    c.ui.notify(`流转成功(警告): ${result.from} → ${result.to}\n${result.warnings.join("; ")}\n${result.next ?? ""}`, "warning");
+  } else {
+    c.ui.notify(`流转失败: ${result.errors.join("; ")}`, "error");
+  }
+  return result;
+}
+
+async function handleArchive(tokens: string[], ctx: unknown): Promise<unknown> {
+  const opts = parseArgs(tokens);
+  const reasonRaw = getStringOption(opts, "reason");
+  if (!reasonRaw || (reasonRaw !== "completed" && reasonRaw !== "abandoned")) {
+    return usageError("sdd archive", "/sdd archive --reason <completed|abandoned>", ctx);
+  }
+  const options: ArchiveOptionsV2 = { reason: reasonRaw };
+  const result: ArchiveResultV2 = await archivePrdV2(options);
+  const c = uiOf(ctx);
+  c.ui.setWidget("sdd-display", resultToWidgetLines("sdd archive", result));
+  if (result.status === "pass") {
+    c.ui.notify(`归档成功: ${result.from} → ${result.to}\n${result.movedTo ? `已移动到: ${result.movedTo}\n` : ""}${result.next ?? ""}`, "info");
+  } else {
+    c.ui.notify(`归档失败: ${result.errors.join("; ")}`, "error");
+  }
+  return result;
+}
+
+async function handlePhase(tokens: string[], ctx: unknown): Promise<unknown> {
+  const opts = parseArgs(tokens);
+  const actionRaw = opts.positional[0];
+  if (!actionRaw || (actionRaw !== "start" && actionRaw !== "complete" && actionRaw !== "abandon")) {
+    return usageError("sdd phase", "/sdd phase <start|complete|abandon> [--id <phase-id>]", ctx);
+  }
+  const options: PhaseTransitionOptions = {
+    action: actionRaw,
+    id: getStringOption(opts, "id"),
+  };
+  const result: PhaseTransitionResult = await phaseTransition(options);
+  const c = uiOf(ctx);
+  c.ui.setWidget("sdd-display", resultToWidgetLines("sdd phase", result));
+  if (result.status === "pass") {
+    c.ui.notify(`Phase 流转成功: ${result.from} → ${result.to}\n${result.next ?? ""}`, "info");
+  } else if (result.status === "warn") {
+    c.ui.notify(`Phase 流转成功(警告): ${result.from} → ${result.to}\n${result.warnings.join("; ")}\n${result.next ?? ""}`, "warning");
+  } else {
+    c.ui.notify(`Phase 流转失败: ${result.errors.join("; ")}`, "error");
+  }
+  return result;
+}
+
+async function handleStatus(_tokens: string[], ctx: unknown): Promise<unknown> {
+  const result: StatusPanelResult = await getStatusPanel();
+  const c = uiOf(ctx);
+  const lines: string[] = [`┌─ sdd status`];
+  lines.push(`├─ status: ${result.status}`);
+  if (result.prdId) lines.push(`├─ prd: ${result.prdId}`);
+  if (result.title) lines.push(`├─ title: ${result.title}`);
+  if (result.prdStatus) lines.push(`├─ prdStatus: ${result.prdStatus}`);
+  if (result.phaseCount !== undefined) lines.push(`├─ phaseCount: ${result.phaseCount}`);
+  if (result.phases && result.phases.length > 0) {
+    lines.push(`├─ phases:`);
+    for (const p of result.phases) {
+      lines.push(`│  ${p.id} [${p.status}] ${p.title}`);
+    }
+  }
+  if (result.availableActions && result.availableActions.length > 0) {
+    lines.push(`├─ availableActions:`);
+    for (const a of result.availableActions) {
+      lines.push(`│  ${a}`);
+    }
+  }
+  if (result.errors.length > 0) {
+    lines.push(`├─ errors:`);
+    for (const e of result.errors) lines.push(`│  ${e}`);
+  }
+  lines.push("└─");
+  c.ui.setWidget("sdd-display", lines);
+  if (result.status === "pass") {
+    c.ui.notify(`PRD: ${result.prdId} [${result.prdStatus}] | Phase: ${result.phaseCount} 个`, "info");
+  } else {
+    c.ui.notify(`获取状态失败: ${result.errors.join("; ")}`, "error");
+  }
+  return result;
+}
+
 // ===== /sdd 主命令路由 =====
 
 const SUBCOMMANDS: Record<string, Handler> = {
@@ -148,6 +270,11 @@ const SUBCOMMANDS: Record<string, Handler> = {
   review: handleReview,
   approve: handleApprove,
   back: handleBack,
+  plan: handlePlan,
+  start: handleStart,
+  archive: handleArchive,
+  phase: handlePhase,
+  status: handleStatus,
 };
 
 export async function handleSdd(args: string, ctx: unknown): Promise<unknown> {
@@ -156,7 +283,7 @@ export async function handleSdd(args: string, ctx: unknown): Promise<unknown> {
   if (!sub) {
     const c = uiOf(ctx);
     c.ui.notify(
-      "用法: /sdd <subcommand> [args]\n子命令: init, review, approve, back",
+      "用法: /sdd <subcommand> [args]\n子命令: init, review, approve, back, plan, start, archive, phase, status",
       "info",
     );
     return { error: "missing subcommand" };
@@ -165,7 +292,7 @@ export async function handleSdd(args: string, ctx: unknown): Promise<unknown> {
   if (!handler) {
     const c = uiOf(ctx);
     c.ui.notify(
-      `未知子命令: ${sub}\n可用: init, review, approve, back`,
+      `未知子命令: ${sub}\n可用: init, review, approve, back, plan, start, archive, phase, status`,
       "error",
     );
     return { error: `unknown subcommand: ${sub}` };

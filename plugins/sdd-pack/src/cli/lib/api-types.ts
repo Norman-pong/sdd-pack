@@ -219,3 +219,91 @@ export interface BackResult {
   warnings: string[];
   next?: string;
 }
+
+// ===== ADR-018: PRD 后半段流转命令类型(Phase 002) =====
+
+/** planPrd 入参 */
+export interface PlanOptions {
+  /** 创建新 Phase 的标题 */
+  phase?: string;
+  /** 关联已有 Phase ID */
+  link?: string;
+}
+
+/** planPrd 返回 */
+export interface PlanResult {
+  status: "pass" | "error";
+  prdId?: string;
+  from?: string;
+  to?: string;
+  phaseId?: string;
+  phasePath?: string;
+  errors: string[];
+  warnings: string[];
+  next?: string;
+}
+
+/** startPrd 返回 */
+export interface StartResult {
+  status: "pass" | "warn" | "error";
+  prdId?: string;
+  from?: string;
+  to?: string;
+  errors: string[];
+  warnings: string[];
+  next?: string;
+}
+
+/** archivePrdV2 入参 */
+export interface ArchiveOptionsV2 {
+  /** 归档原因(必填) */
+  reason: "completed" | "abandoned";
+}
+
+/** archivePrdV2 返回 */
+export interface ArchiveResultV2 {
+  status: "pass" | "error";
+  prdId?: string;
+  from?: string;
+  to?: string;
+  movedTo?: string;
+  errors: string[];
+  warnings: string[];
+  next?: string;
+}
+
+/** phaseTransition 入参 */
+export interface PhaseTransitionOptions {
+  /** Phase ID(可选,默认取 active PRD 的第一个 InProgress Phase) */
+  id?: string;
+  /** 目标动作 */
+  action: "start" | "complete" | "abandon";
+}
+
+/** phaseTransition 返回 */
+export interface PhaseTransitionResult {
+  status: "pass" | "warn" | "error";
+  phaseId?: string;
+  from?: string;
+  to?: string;
+  errors: string[];
+  warnings: string[];
+  next?: string;
+}
+
+/** getStatusPanel 返回 */
+export interface StatusPanelResult {
+  status: "pass" | "error";
+  prdId?: string;
+  title?: string;
+  prdStatus?: string;
+  phaseCount?: number;
+  phases?: Array<{
+    id: string;
+    title: string;
+    status: string;
+  }>;
+  availableActions?: string[];
+  errors: string[];
+  warnings: string[];
+}

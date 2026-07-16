@@ -429,3 +429,270 @@ describe("/sdd 主命令路由", () => {
     expect(widgets[0].content.join("\n")).toContain("usage");
   });
 });
+
+describe("/sdd plan 子命令", () => {
+  test("缺少 --phase 和 --link → error + setWidget", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("plan", ctx);
+    expect(r).toBeDefined();
+    expect(messages.some((m) => m.level === "error" && m.text.includes("用法"))).toBe(true);
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+    expect(widgets[0].content.join("\n")).toContain("usage");
+  });
+
+  test("--phase <title> → setWidget + notify", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("plan --phase \"Phase 1\"", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+  });
+
+  test("--link <phase-id> → setWidget + notify", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("plan --link phase-001", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+  });
+});
+
+describe("/sdd start 子命令", () => {
+  test("start → setWidget + notify", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("start", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+  });
+});
+
+describe("/sdd archive 子命令", () => {
+  test("缺少 --reason → error + setWidget", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("archive", ctx);
+    expect(r).toBeDefined();
+    expect(messages.some((m) => m.level === "error" && m.text.includes("用法"))).toBe(true);
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+    expect(widgets[0].content.join("\n")).toContain("usage");
+  });
+
+  test("--reason invalid → error + setWidget", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("archive --reason invalid", ctx);
+    expect(r).toBeDefined();
+    expect(messages.some((m) => m.level === "error" && m.text.includes("用法"))).toBe(true);
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+    expect(widgets[0].content.join("\n")).toContain("usage");
+  });
+
+  test("--reason completed → setWidget + notify", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("archive --reason completed", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+  });
+
+  test("--reason abandoned → setWidget + notify", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("archive --reason abandoned", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+  });
+});
+
+describe("/sdd phase 子命令", () => {
+  test("缺少 action → error + setWidget", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("phase", ctx);
+    expect(r).toBeDefined();
+    expect(messages.some((m) => m.level === "error" && m.text.includes("用法"))).toBe(true);
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+    expect(widgets[0].content.join("\n")).toContain("usage");
+  });
+
+  test("action invalid → error + setWidget", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("phase invalid", ctx);
+    expect(r).toBeDefined();
+    expect(messages.some((m) => m.level === "error" && m.text.includes("用法"))).toBe(true);
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+    expect(widgets[0].content.join("\n")).toContain("usage");
+  });
+
+  test("phase start → setWidget + notify", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("phase start", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+  });
+
+  test("phase complete → setWidget + notify", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("phase complete", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+  });
+
+  test("phase abandon → setWidget + notify", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("phase abandon", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+  });
+
+  test("phase start --id phase-001 → setWidget + notify", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("phase start --id phase-001", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+  });
+});
+
+describe("/sdd status 子命令", () => {
+  test("status → setWidget + notify", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("status", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+  });
+});
+
+describe("sdd-extension — tool_call 状态行硬拦截", () => {
+  test("write PRD 文件含状态行 → block", async () => {
+    const handler = getEventHandler("tool_call");
+    const r = await handler({
+      toolName: "write",
+      input: {
+        path: "docs/prd/2026-07-16-test.md",
+        content: "# PRD\n\n> 状态：已批准\n",
+      },
+    });
+    expect(r).toBeDefined();
+    expect((r as { block?: boolean }).block).toBe(true);
+    expect((r as { reason?: string }).reason).toContain("状态行必须通过");
+  });
+
+  test("write Phase 文件含状态行 → block", async () => {
+    const handler = getEventHandler("tool_call");
+    const r = await handler({
+      toolName: "write",
+      input: {
+        path: "docs/phase/prd-001/001-foundation.md",
+        content: "# Phase\n\n> 状态：进行中\n",
+      },
+    });
+    expect(r).toBeDefined();
+    expect((r as { block?: boolean }).block).toBe(true);
+    expect((r as { reason?: string }).reason).toContain("状态行必须通过");
+  });
+
+  test("edit PRD 文件新增状态行 → block", async () => {
+    const handler = getEventHandler("tool_call");
+    const r = await handler({
+      toolName: "edit",
+      input: {
+        path: "docs/prd/2026-07-16-test.md",
+        body: "+> 状态：已批准\n",
+      },
+    });
+    expect(r).toBeDefined();
+    expect((r as { block?: boolean }).block).toBe(true);
+    expect((r as { reason?: string }).reason).toContain("状态行必须通过");
+  });
+
+  test("edit PRD 文件修改状态行 → block", async () => {
+    const handler = getEventHandler("tool_call");
+    const r = await handler({
+      toolName: "edit",
+      input: {
+        path: "docs/prd/2026-07-16-test.md",
+        new_string: "+> 状态：已批准\n",
+      },
+    });
+    expect(r).toBeDefined();
+    expect((r as { block?: boolean }).block).toBe(true);
+    expect((r as { reason?: string }).reason).toContain("状态行必须通过");
+  });
+
+  test("write 非 PRD/Phase 文件含状态行 → 不 block", async () => {
+    const handler = getEventHandler("tool_call");
+    const r = await handler({
+      toolName: "write",
+      input: {
+        path: "docs/architecture/overview.md",
+        content: "# Arch\n\n> 状态：稳定\n",
+      },
+    });
+    expect(r).toBeUndefined();
+  });
+
+  test("write PRD 文件不含状态行 → 不 block", async () => {
+    const handler = getEventHandler("tool_call");
+    const r = await handler({
+      toolName: "write",
+      input: {
+        path: "docs/prd/2026-07-16-test.md",
+        content: "# PRD\n\n## 1. 背景\n",
+      },
+    });
+    expect(r).toBeUndefined();
+  });
+
+  test("edit PRD 文件不含状态行 → 不 block", async () => {
+    const handler = getEventHandler("tool_call");
+    const r = await handler({
+      toolName: "edit",
+      input: {
+        path: "docs/prd/2026-07-16-test.md",
+        body: "+## 2. 新章节\n",
+      },
+    });
+    expect(r).toBeUndefined();
+  });
+
+  test("write docs/index.md 含状态行 → 不 block", async () => {
+    const handler = getEventHandler("tool_call");
+    const r = await handler({
+      toolName: "write",
+      input: {
+        path: "docs/index.md",
+        content: "# Index\n\n> 状态：活跃\n",
+      },
+    });
+    expect(r).toBeUndefined();
+  });
+
+  test("bash 命令 → 不 block(非 write/edit)", async () => {
+    const handler = getEventHandler("tool_call");
+    const r = await handler({
+      toolName: "bash",
+      input: {
+        command: "echo '> 状态：已批准' > docs/prd/test.md",
+      },
+    });
+    expect(r).toBeUndefined();
+  });
+});

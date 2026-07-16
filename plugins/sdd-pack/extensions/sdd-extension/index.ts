@@ -119,6 +119,23 @@ function isDocWritePath(input: Record<string, unknown>): boolean {
   return path.startsWith("docs/") || /(^|\/)docs\//.test(path);
 }
 
+// 路径是 PRD 或 Phase 文件
+function isPrdOrPhaseFile(path: string): boolean {
+  return /\/(prd|phase)\//.test(path);
+}
+
+// 检测是否触碰状态行(write 或 edit)
+function touchesStatusLine(input: Record<string, unknown>, toolName: string): boolean {
+  if (!isPrdOrPhaseFile(String(input.path ?? input.filePath ?? ""))) return false;
+  if (toolName === "write") {
+    return /^>\s*状态[：:]/m.test(String(input.content ?? ""));
+  }
+  if (toolName === "edit") {
+    return /^\+>\s*状态[：:]/m.test(String(input.body ?? input.new_string ?? ""));
+  }
+  return false;
+}
+
 // --- message 常量 ---
 
 const LORE_PROTOCOL_REMINDER = [
@@ -167,6 +184,12 @@ const DOC_EDIT_GUIDANCE_PHASE = [
 const DOC_EDIT_GUIDANCE_ARCH_REF = [
   "📝 sdd-doc-edit-guard [hook]: 检测到写 docs/architecture/ 或 docs/reference/ 目录。",
   "   架构文档变更需同步 ADR（docs/architecture/decisions.md）;参考文档变更请确保引用路径有效。",
+].join("\n");
+
+const STATUS_LINE_BLOCK_REASON = [
+  "🚫 sdd-status-line-guard [hook] 禁止直接编辑 PRD/Phase 状态行:",
+  "状态行必须通过 /sdd <transition> 命令流转,不可直接 edit。",
+  "可用命令: /sdd init/review/approve/plan/start/archive/back/phase/sync",
 ].join("\n");
 
 // 向后兼容别名
@@ -473,6 +496,15 @@ export default function (pi: ExtensionAPI): void {
       const reviewBlock = runLoreReviewGate();
       if (reviewBlock) return reviewBlock;
       return;
+    }
+
+    // ===== PRD/Phase 状态行硬拦截(PRD §2.6) =====
+    if ((toolName === "write" || toolName === "edit") && touchesStatusLine(input, toolName)) {
+      // docs/index.md 不拦截
+      const path = String(input.path ?? input.filePath ?? "");
+      if (!path.includes("docs/index.md")) {
+        return { block: true, reason: STATUS_LINE_BLOCK_REASON };
+      }
     }
 
     if (toolName === "write" || toolName === "edit") {

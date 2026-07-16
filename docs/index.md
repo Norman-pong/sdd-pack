@@ -31,7 +31,7 @@
 
 | 日期                                              | 阶段名称                                                            | 状态           | 对应 PRD                                                  | 说明                                                       |
 | [2026-07-16](phase/prd-20260716-001/001-foundation.md) | [Phase 001: 基础设施](phase/prd-20260716-001/001-foundation.md) | 已完成 | [PRD](prd/2026-07-16-sdd-pack-v18.md) | meta-store + init/review/approve/back 基础流转 + OpenSpec 移除 |
-| [2026-07-16](phase/prd-20260716-001/002-commands.md) | [Phase 002: 命令体系](phase/prd-20260716-001/002-commands.md) | 未开始 | [PRD](prd/2026-07-16-sdd-pack-v18.md) | plan/start/archive + phase 流转 + status 面板 + tool_call 硬拦截 |
+| [2026-07-16](phase/prd-20260716-001/002-commands.md) | [Phase 002: 命令体系](phase/prd-20260716-001/002-commands.md) | 已完成 | [PRD](prd/2026-07-16-sdd-pack-v18.md) | plan/start/archive + phase 流转 + status 面板 + tool_call 硬拦截 |
 | [2026-07-16](phase/prd-20260716-001/003-gate-integration.md) | [Phase 003: 门禁集成](phase/prd-20260716-001/003-gate-integration.md) | 未开始 | [PRD](prd/2026-07-16-sdd-pack-v18.md) | 门禁嵌入流转 + validator 切换 + sync + F14 注入 + 别名兼容 + 迁移 |
 | ------------------------------------------------- | ------------------------------------------------------------------- | -------------- | --------------------------------------------------------- | ---------------------------------------------------------- |
 | [2026-06-24](phase/archive/2026-06-24-sdd-pack.md)        | [SDD Pack 阶段文档（已归档）](phase/archive/2026-06-24-sdd-pack.md)                   | 已完成         | [PRD](prd/archive/2026-06-24-sdd-pack.md)（已归档）                         | 4 阶段：验证 → 组装 → 上线 → 完善                          |

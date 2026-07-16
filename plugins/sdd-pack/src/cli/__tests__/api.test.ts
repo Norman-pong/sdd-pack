@@ -5,8 +5,8 @@
  */
 
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
-import { existsSync } from "fs";
-import { resolve } from "path";
+import { existsSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "fs";
+import { resolve, resolve as pathResolve } from "path";
 
 import {
   validateDocs,
@@ -22,6 +22,11 @@ import {
   reviewPrd,
   approvePrd,
   backPrd,
+  planPrd,
+  startPrd,
+  archivePrdV2,
+  phaseTransition,
+  getStatusPanel,
 } from "../api";
 
 // ===== validateDocs =====
@@ -178,19 +183,18 @@ describe("archivePhase", () => {
   });
 });
 
-// ===== initPrd / reviewPrd / approvePrd / backPrd 集成测试 =====
-// 使用临时目录 + chdir 模拟真实仓库,验证完整流转
-
-import { mkdirSync, rmSync, writeFileSync, readFileSync } from "node:fs";
-import { resolve as pathResolve } from "node:path";
 import {
   readPrdMeta,
   readMetaIndex,
   writePrdMeta,
   writeMetaIndex,
+  readPhaseMeta,
+  writePhaseMeta,
+  listPhaseMetas,
   type PrdMeta,
+  type PhaseMeta,
 } from "../lib/meta-store";
-import { PrdStatus } from "../lib/prd-state-machine";
+import { PrdStatus, PhaseStatus, ArchiveReason } from "../lib/prd-state-machine";
 
 const FLOW_TEST_ROOT = pathResolve(import.meta.dir, "../../.test-tmp-api-flow");
 const FLOW_DOCS_PRD = pathResolve(FLOW_TEST_ROOT, "docs/prd");
@@ -354,5 +358,188 @@ describe("PRD 流转集成测试", () => {
     const r = await backPrd({ to: "pending" });
     expect(r.status).toBe("error");
     expect(r.errors[0]).toMatch(/非法回退/);
+  });
+});
+
+
+// ===== Phase 002: planPrd / startPrd / archivePrdV2 / phaseTransition / getStatusPanel 集成测试 =====
+
+describe("Phase 002 流转集成测试", () => {
+  const originalCwd = process.cwd();
+
+  beforeEach(() => {
+    setupFlowDirs();
+    process.chdir(FLOW_TEST_ROOT);
+  });
+
+  afterEach(() => {
+    process.chdir(originalCwd);
+    cleanupFlowDirs();
+  });
+
+  test("planPrd Reviewed→Planned 并创建 Phase 文件", async () => {
+    // init + review + approve
+    const initR = await initPrd({ title: "Plan Test" });
+    await reviewPrd();
+    await approvePrd({});
+    // plan
+    const r = await planPrd({ phase: "Foundation" });
+    expect(r.status).toBe("pass");
+    expect(r.from).toBe(PrdStatus.Reviewed);
+    expect(r.to).toBe(PrdStatus.Planned);
+    expect(r.phaseId).toBeDefined();
+    expect(r.phasePath).toBeDefined();
+    // 验证 Phase 文件存在
+    expect(existsSync(r.phasePath!)).toBe(true);
+    // 验证 Phase meta
+    const phaseMeta = readPhaseMeta(r.phaseId!);
+    expect(phaseMeta).not.toBeNull();
+    expect(phaseMeta!.parentId).toBe(initR.prdId!);
+    expect(phaseMeta!.status).toBe(PhaseStatus.NotStarted);
+    // 验证 PRD meta
+    const prdMeta = readPrdMeta(initR.prdId!);
+    expect(prdMeta!.status).toBe(PrdStatus.Planned);
+    expect(prdMeta!.phaseIds).toContain(r.phaseId!);
+    expect(prdMeta!.nextPhaseSeq).toBe(2);
+  });
+
+  test("planPrd --link 关联已有 Phase", async () => {
+    // init + review + approve
+    const initR = await initPrd({ title: "Link Test" });
+    await reviewPrd();
+    await approvePrd({});
+    // 先创建一个 Phase
+    const planR1 = await planPrd({ phase: "Phase One" });
+    expect(planR1.status).toBe("pass");
+    // plan 后状态是 Planned,不能再次 plan(测试状态机校验)
+    const r = await planPrd({ link: planR1.phaseId! });
+    expect(r.status).toBe("error");
+    expect(r.errors[0]).toMatch(/仅 Reviewed 可执行/);
+  });
+  test("startPrd Planned→InProgress", async () => {
+    // init + review + approve + plan
+    const initR = await initPrd({ title: "Start Test" });
+    await reviewPrd();
+    await approvePrd({});
+    await planPrd({ phase: "Foundation" });
+    // start(Phase 还是 NotStarted,会 warn)
+    const r = await startPrd();
+    expect(r.status).toBe("warn");
+    expect(r.from).toBe(PrdStatus.Planned);
+    expect(r.to).toBe(PrdStatus.InProgress);
+    const meta = readPrdMeta(initR.prdId!);
+    expect(meta!.status).toBe(PrdStatus.InProgress);
+  });
+
+  test("startPrd 无 InProgress Phase 时 warn", async () => {
+    // init + review + approve + plan
+    const initR = await initPrd({ title: "Start Warn Test" });
+    await reviewPrd();
+    await approvePrd({});
+    await planPrd({ phase: "Foundation" });
+    // start(Phase 还是 NotStarted)
+    const r = await startPrd();
+    expect(r.status).toBe("warn");
+    expect(r.warnings.length).toBeGreaterThan(0);
+    expect(r.warnings[0]).toMatch(/NotStarted/);
+  });
+
+  test("archivePrdV2 --reason abandoned 无门禁直接归档", async () => {
+    // init + review + approve + plan + start
+    const initR = await initPrd({ title: "Archive Abandon Test" });
+    await reviewPrd();
+    await approvePrd({});
+    await planPrd({ phase: "Foundation" });
+    await startPrd();
+    // archive abandoned
+    const r = await archivePrdV2({ reason: "abandoned" });
+    expect(r.status).toBe("pass");
+    expect(r.from).toBe(PrdStatus.InProgress);
+    expect(r.to).toBe(PrdStatus.Archived);
+    const meta = readPrdMeta(initR.prdId!);
+    expect(meta!.archiveReason).toBe(ArchiveReason.Abandoned);
+    // 验证 activePrdId 被清空
+    const idx = readMetaIndex();
+    expect(idx.activePrdId).toBeNull();
+  });
+
+  test("archivePrdV2 --reason completed 门禁失败时 block", async () => {
+    // init + review + approve + plan + start
+    const initR = await initPrd({ title: "Archive Gate Test" });
+    await reviewPrd();
+    await approvePrd({});
+    await planPrd({ phase: "Foundation" });
+    await startPrd();
+    // archive completed(无 lint/test/review 配置,会 block)
+    const r = await archivePrdV2({ reason: "completed" });
+    expect(r.status).toBe("error");
+    expect(r.errors.length).toBeGreaterThan(0);
+  });
+
+  test("phaseTransition start NotStarted→InProgress", async () => {
+    // init + review + approve + plan
+    const initR = await initPrd({ title: "Phase Start Test" });
+    await reviewPrd();
+    await approvePrd({});
+    const planR = await planPrd({ phase: "Foundation" });
+    // phase start
+    const r = await phaseTransition({ action: "start", id: planR.phaseId! });
+    expect(r.status).toBe("pass");
+    expect(r.from).toBe(PhaseStatus.NotStarted);
+    expect(r.to).toBe(PhaseStatus.InProgress);
+    const phaseMeta = readPhaseMeta(planR.phaseId!);
+    expect(phaseMeta!.status).toBe(PhaseStatus.InProgress);
+  });
+
+  test("phaseTransition complete InProgress→Completed", async () => {
+    // init + review + approve + plan + phase start
+    const initR = await initPrd({ title: "Phase Complete Test" });
+    await reviewPrd();
+    await approvePrd({});
+    const planR = await planPrd({ phase: "Foundation" });
+    await phaseTransition({ action: "start", id: planR.phaseId! });
+    // phase complete(无 lint/test 配置,lint 会 block)
+    const r = await phaseTransition({ action: "complete", id: planR.phaseId! });
+    // lint 未配置时会 block,所以这里预期 error
+    expect(r.status).toBe("error");
+  });
+
+  test("phaseTransition abandon NotStarted→Abandoned", async () => {
+    // init + review + approve + plan
+    const initR = await initPrd({ title: "Phase Abandon Test" });
+    await reviewPrd();
+    await approvePrd({});
+    const planR = await planPrd({ phase: "Foundation" });
+    // phase abandon
+    const r = await phaseTransition({ action: "abandon", id: planR.phaseId! });
+    expect(r.status).toBe("pass");
+    expect(r.from).toBe(PhaseStatus.NotStarted);
+    expect(r.to).toBe(PhaseStatus.Abandoned);
+    const phaseMeta = readPhaseMeta(planR.phaseId!);
+    expect(phaseMeta!.status).toBe(PhaseStatus.Abandoned);
+  });
+
+  test("getStatusPanel 返回活跃 PRD + Phase 状态", async () => {
+    // init + review + approve + plan
+    const initR = await initPrd({ title: "Status Panel Test" });
+    await reviewPrd();
+    await approvePrd({});
+    await planPrd({ phase: "Foundation" });
+    // status panel
+    const r = await getStatusPanel();
+    expect(r.status).toBe("pass");
+    expect(r.prdId).toBe(initR.prdId);
+    expect(r.title).toBe("Status Panel Test");
+    expect(r.prdStatus).toBe(PrdStatus.Planned);
+    expect(r.phaseCount).toBe(1);
+    expect(r.phases!.length).toBe(1);
+    expect(r.phases![0].status).toBe(PhaseStatus.NotStarted);
+    expect(r.availableActions).toContain("/sdd start");
+  });
+
+  test("getStatusPanel 无活跃 PRD 时 error", async () => {
+    const r = await getStatusPanel();
+    expect(r.status).toBe("error");
+    expect(r.errors[0]).toMatch(/无活跃 PRD/);
   });
 });

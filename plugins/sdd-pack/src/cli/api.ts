@@ -26,7 +26,17 @@ export {
 } from "./api-legacy";
 
 // Re-export flow functions from api-flow.ts (ADR-018)
-export { initPrd, reviewPrd, approvePrd, backPrd } from "./api-flow";
+export {
+  initPrd,
+  reviewPrd,
+  approvePrd,
+  backPrd,
+  planPrd,
+  startPrd,
+  archivePrdV2,
+  phaseTransition,
+  getStatusPanel,
+} from "./api-flow";
 
 // Re-export types
 export type {
@@ -55,4 +65,12 @@ export type {
   ApproveResult,
   BackOptions,
   BackResult,
+  PlanOptions,
+  PlanResult,
+  StartResult,
+  ArchiveOptionsV2,
+  ArchiveResultV2,
+  PhaseTransitionOptions,
+  PhaseTransitionResult,
+  StatusPanelResult,
 } from "./lib/api-types";
