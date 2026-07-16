@@ -43,16 +43,14 @@
     {
       "id": 3,
       "prompt": "这个项目是新建的，还没有任何文档结构。帮我初始化一套完整的项目文档体系，项目是一个物联网设备管理平台。",
-      "expected_output": "创建了完整的 docs/ 目录结构，包括 index.md、CONTRIBUTING.md、prd/_template.md、phase/_template.md、architecture/overview.md、reference/README.md 等所有必需文件，目录结构符合规范，模板文件内容完整可用",
+      "expected_output": "创建了完整的 docs/ 目录结构，包括 index.md、CONTRIBUTING.md、prd/、phase/、architecture/overview.md、reference/README.md 等所有必需文件和目录，目录结构符合规范",
       "files": [],
       "expectations": [
         "创建了 docs/ 目录",
         "创建了 docs/index.md",
         "创建了 docs/CONTRIBUTING.md",
         "创建了 docs/prd/ 目录",
-        "创建了 docs/prd/_template.md",
         "创建了 docs/phase/ 目录",
-        "创建了 docs/phase/_template.md",
         "创建了 docs/architecture/ 目录",
         "创建了 docs/architecture/overview.md",
         "创建了 docs/reference/ 目录",

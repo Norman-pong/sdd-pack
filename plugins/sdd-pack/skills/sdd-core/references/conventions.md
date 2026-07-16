@@ -11,14 +11,13 @@ docs/
 ├── index.md              # 文档总入口（必须存在）
 ├── CONTRIBUTING.md       # 贡献指南（必须存在）
 ├── spec/                 # 结构化需求输入
-│   ├── _template.md      # Spec 模板
 │   └── *.md              # Spec 文件
 ├── prd/                  # 产品需求文档
-│   ├── _template.md      # PRD 模板
-│   └── *.md              # PRD 文件
+│   ├── *.md              # PRD 文件
+│   └── archive/          # 已归档 PRD
 ├── phase/                # 阶段任务文档
-│   ├── _template.md      # Phase 模板
-│   └── *.md              # Phase 文件
+│   ├── *.md              # Phase 文件
+│   └── archive/          # 已归档 Phase
 ├── architecture/         # 架构文档
 │   ├── overview.md       # 架构总览（必须存在）
 │   └── *.md              # 专题架构文档
@@ -43,9 +42,6 @@ docs/
 
 - `docs/index.md`：文档总索引
 - `docs/CONTRIBUTING.md`：贡献指南
-- `docs/spec/_template.md`：Spec 模板
-- `docs/prd/_template.md`：PRD 模板
-- `docs/phase/_template.md`：Phase 模板
 - `docs/architecture/overview.md`：架构总览
 - `docs/reference/README.md`：参考资料索引
 
@@ -62,7 +58,6 @@ sdd-input / sdd-prd / sdd-phase 等辅助技能在对应产物目录下可创建
 
 ```
 docs/prd/
-├── _template.md
 ├── 2026-06-23-user-authentication.md
 └── .working/
     └── 2026-06-23-user-authentication/

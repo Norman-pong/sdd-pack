@@ -191,7 +191,6 @@ graph TD
     Docs["docs/"] --> Prd["prd/"]
     Prd --> Active1["2026-06-23-user-authentication.md<br/>(活跃)"]
     Prd --> Active2["2026-09-15-user-authentication-v2.md<br/>(活跃·新目标)"]
-    Prd --> Tmpl["_template.md<br/>(模板)"]
     Prd --> Readme["README.md<br/>(sdd-core 维护索引)"]
     Prd --> Archive["archive/"]
     Archive --> Snap["2026-06-23-user-authentication.md<br/>(归档快照)"]

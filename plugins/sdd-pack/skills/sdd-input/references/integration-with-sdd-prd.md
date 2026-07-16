@@ -155,7 +155,6 @@ spec 的 9 个章节 = sdd-prd 阶段 1 自审的"输入截面":
     │           └── assumptions.md
     ├── prd/                           # sdd-prd 产物
     │   ├── YYYY-MM-DD-<name>.md       # 目标驱动 PRD
-    │   ├── _template.md
     │   └── .working/                  # 临时目录
     │       └── YYYY-MM-DD-<name>/
     │           ├── problem-list.md

@@ -110,12 +110,12 @@ describe("listPrds", () => {
   });
 
   test("keyword filter narrows results on real docs", async () => {
-    const r = await listPrds({ keyword: "sdd-extension" });
+    const r = await listPrds({ keyword: "sdd-pack" });
     expect(r.items.length).toBeGreaterThan(0);
     for (const item of r.items) {
       const hit =
-        item.title.toLowerCase().includes("sdd-extension") ||
-        item.fileName.toLowerCase().includes("sdd-extension");
+        item.title.toLowerCase().includes("sdd-pack") ||
+        item.fileName.toLowerCase().includes("sdd-pack");
       expect(hit).toBe(true);
     }
   });
@@ -130,8 +130,8 @@ describe("getWhy", () => {
   });
 
   test("valid target returns structure", async () => {
-    const r = await getWhy("docs/prd/2026-06-29-sdd-cli.md:3");
-    expect(r.target).toBe("docs/prd/2026-06-29-sdd-cli.md:3");
+    const r = await getWhy("docs/prd/archive/2026-06-29-sdd-cli.md:3");
+    expect(r.target).toBe("docs/prd/archive/2026-06-29-sdd-cli.md:3");
     // available 取决于本机是否装 lore
   });
 });
@@ -164,7 +164,7 @@ describe("archivePhase", () => {
 
   test("dry-run on existing phase succeeds with noCommit", async () => {
     const r = await archivePhase({
-      phasePath: "docs/phase/2026-06-24-sdd-pack.md",
+      phasePath: "docs/phase/archive/2026-06-24-sdd-pack.md",
       reason: "completed",
       dryRun: true,
       noCommit: true,

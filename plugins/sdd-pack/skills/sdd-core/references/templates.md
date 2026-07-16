@@ -733,10 +733,10 @@ docs/
    lore constraints docs/<目录> --json
 ````
 
-2. **复制模板**：
-   - PRD：复制 `docs/prd/_template.md` 并按模板填写
-   - Phase：复制 `docs/phase/_template.md` 并按模板填写
-   - Spec：复制 `docs/spec/_template.md` 并按模板填写
+2. **生成框架**：
+   - PRD：用 `sdd propose --title "<名称>"` CLI 生成
+   - Phase：用 `sdd archive-phase` 或手动创建（模板由 `template-engine.ts` 内联生成）
+   - Spec：手动创建，参考 `references/templates.md` §0 的结构
    - Architecture：参考 `references/templates.md` 中的架构模板
 
 3. **命名文件**：

@@ -31,10 +31,10 @@
 
 | 日期                                              | 阶段名称                                                            | 状态           | 对应 PRD                                                  | 说明                                                       |
 | ------------------------------------------------- | ------------------------------------------------------------------- | -------------- | --------------------------------------------------------- | ---------------------------------------------------------- |
-| [2026-06-24](phase/2026-06-24-sdd-pack.md)        | [SDD Pack 阶段文档](phase/2026-06-24-sdd-pack.md)                   | 已完成         | [PRD](prd/2026-06-24-sdd-pack.md)                         | 4 阶段：验证 → 组装 → 上线 → 完善                          |
-| [2026-06-29](phase/2026-06-29-sdd-cli.md)         | [sdd CLI 阶段文档](phase/2026-06-29-sdd-cli.md)                     | 草稿（已归档） | [PRD](prd/2026-06-29-sdd-cli.md)（已替换）                | 历史档案                                                   |
-| [2026-06-30](phase/2026-06-30-sdd-extension.md)   | [sdd Extension 阶段文档](phase/2026-06-30-sdd-extension.md)         | 已替换         | [PRD](prd/2026-06-30-sdd-extension.md)（已替换）          | 15 个任务，3 Phase：骨架 → 门禁 → 闭环完善。被双范式 phase 整体替换 |
-| [2026-07-01](phase/2026-07-01-sdd-dual-paradigm.md) | [双范式架构实施 phase](phase/2026-07-01-sdd-dual-paradigm.md)       | 已完成         | [PRD](prd/2026-07-01-sdd-dual-paradigm.md)                | 5 个 track：restore-sdd-core + split-openspec-namespace + split-hooks + rewrite-architecture-doc + revise-adr-add |
+| [2026-06-24](phase/archive/2026-06-24-sdd-pack.md)        | [SDD Pack 阶段文档（已归档）](phase/archive/2026-06-24-sdd-pack.md)                   | 已完成         | [PRD](prd/archive/2026-06-24-sdd-pack.md)（已归档）                         | 4 阶段：验证 → 组装 → 上线 → 完善                          |
+| [2026-06-29](phase/archive/2026-06-29-sdd-cli.md)         | [sdd CLI 阶段文档（已归档）](phase/archive/2026-06-29-sdd-cli.md)                     | 已归档 | [PRD](prd/archive/2026-06-29-sdd-cli.md)（已归档）                | 历史档案                                                   |
+| [2026-06-30](phase/archive/2026-06-30-sdd-extension.md)   | [sdd Extension 阶段文档（已归档）](phase/archive/2026-06-30-sdd-extension.md)         | 已归档         | [PRD](prd/archive/2026-06-30-sdd-extension.md)（已归档）          | 15 个任务，3 Phase：骨架 → 门禁 → 闭环完善。被双范式 phase 整体替换 |
+| [2026-07-01](phase/archive/2026-07-01-sdd-dual-paradigm.md) | [双范式架构实施 phase（已归档）](phase/archive/2026-07-01-sdd-dual-paradigm.md)       | 已完成         | [PRD](prd/archive/2026-07-01-sdd-dual-paradigm.md)（已归档）                | 5 个 track：restore-sdd-core + split-openspec-namespace + split-hooks + rewrite-architecture-doc + revise-adr-add |
 
 ## 架构文档（Architecture）
 

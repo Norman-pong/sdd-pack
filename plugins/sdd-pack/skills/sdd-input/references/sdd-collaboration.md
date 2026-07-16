@@ -25,7 +25,6 @@
 | `docs/index.md`                  | 管            | 不写                   | 不写                | 不写                |
 | `docs/CONTRIBUTING.md`           | 管            | 不写                   | 不写                | 不写                |
 | `docs/spec/YYYY-MM-DD-<name>.md` | 命名/规范     | **本技能唯一交付**     | 不写,但**引用**     | 不写                |
-| `docs/spec/_template.md`         | 项目级        | 不写                   | 不写                | 不写                |
 | `docs/spec/.working/...`         | 不主动建      | **本技能管**(临时目录) | 不写                | 不写                |
 | `docs/prd/...`                   | 命名/规范     | 不写                   | **本技能下游**      | 不写,但**回填 TBD** |
 | `docs/phase/...`                 | 命名/规范     | 不写                   | 不写                | **本技能下游**      |
@@ -200,7 +199,6 @@ PRD 落盘
 - 写 `docs/phase/...`(由 sdd-phase 写)
 - 写 `docs/architecture/...`(由 sdd-core / sdd-prd 维护)
 - 写 `docs/reference/...`(sdd-core 管)
-- 改 `docs/spec/_template.md`(项目级模板,改它需团队决议)
 - 跳过 lore commit 直接 `git commit`
 - **任何具体技术选型**——这是硬约束,违反就是越界
 

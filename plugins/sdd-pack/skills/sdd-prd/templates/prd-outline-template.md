@@ -6,15 +6,9 @@
 
 ---
 
-## 模板使用优先级
+## 模板使用
 
-1. **优先**:`docs/prd/_template.md`(项目团队确认的版本)
-2. **Fallback**:`sdd-core/references/templates.md` §1(sdd-core 内置 PRD 模板)
-3. **本技能模板**:本文件(sdd-prd 内置,已含 §0 目标声明/验收开关)
-
-**实际操作**:
-
-- 读项目内或 sdd-core 内置模板作基础
+模板由 `sdd propose` CLI（`template-engine.ts`）内联生成，本文件仅作 sdd-prd 技能参考（已含 §0 目标声明/验收开关）。
 - 在 `> 对应阶段:` 行后**追加** §0 目标声明 + §0 目标验收开关 两章节
 - 其余章节保持原样
 

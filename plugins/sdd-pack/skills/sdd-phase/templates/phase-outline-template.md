@@ -8,8 +8,8 @@
 
 ## 模板使用优先级
 
-1. **优先**:`docs/phase/_template.md`(项目团队确认的版本)
-2. **Fallback**:`sdd-core/references/templates.md` §2(sdd-core 内置 Phase 模板)
+1. **优先**:用 `sdd propose` CLI 生成 Phase 框架（模板由 `template-engine.ts` 内联生成）
+2. **参考**:`sdd-core/references/templates.md` §2(sdd-core 内置 Phase 模板结构说明)
 3. **本技能模板**:本文件(sdd-phase 内置,已含 PRD 反向链接强化)
 
 **实际操作**:

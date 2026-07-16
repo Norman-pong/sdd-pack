@@ -42,16 +42,14 @@ docs/
 ├── index.md                    # 文档总入口，维护全局索引
 ├── CONTRIBUTING.md             # 贡献指南，说明工作流程
 ├── spec/                       # 结构化需求输入
-│   ├── _template.md            # Spec 模板
 │   └── YYYY-MM-DD-<name>.md    # sdd-input 产出的结构化 spec
 ├── prd/                        # 产品需求文档
-│   ├── _template.md            # PRD 模板
 │   ├── YYYY-MM-DD-<name>.md    # 按日期命名的 PRD
 │   ├── archive/                # 已归档 PRD（目标达成后移入，详见 conventions.md §3.4）
 │   └── .working/               # 辅助技能临时工作区（阶段 4 后清理，详见 conventions.md §1.4）
 ├── phase/                      # 阶段任务文档
-│   ├── _template.md            # Phase 模板
 │   ├── YYYY-MM-DD-<phase>.md   # 与 PRD 一一对应的阶段任务
+│   ├── archive/                # 已归档 phase（移入 archive/）
 │   └── .working/               # 辅助技能临时工作区（阶段 4 后清理，详见 conventions.md §1.4）
 ├── architecture/               # 架构文档
 │   ├── overview.md             # 架构总览（必须存在）
@@ -135,31 +133,20 @@ echo '{
 
 ## 常见场景
 
-### 模板来源（单一事实源）
+### 模板来源（代码内联生成）
 
-模板分两个角色，**运行时只读项目内模板**：
+模板由 `sdd-propose` CLI 命令（`src/cli/lib/template-engine.ts`）在代码内联生成，**不依赖项目内 `_template.md` 文件**。`references/templates.md` 仅作为技能自身参考，展示模板的结构和字段说明。
 
-| 角色                   | 路径                               | 何时使用                        |
-| ---------------------- | ---------------------------------- | ------------------------------- |
-| **运行时来源**（唯一） | `docs/<type>/_template.md`         | 创建/修改文档时读取             |
-| **初始化拷贝源**       | `sdd-core/references/templates.md` | 仅在场景 4 初始化时拷贝到项目内 |
-
-**原则**：
-
-- `sdd-core/references/templates.md` 是初始化时的**一次性拷贝源**，不是运行时 fallback。初始化后，项目内 `docs/<type>/_template.md` 是唯一事实源。
-- 若项目内模板不存在，**不要回退到 sdd-core 内置模板**，而是提示用户先初始化（场景 4）或从 sdd-core 拷贝。
-- 辅助技能（sdd-prd/sdd-phase）自带的 `templates/` 仅作该技能自身参考，不参与运行时优先级链。
-
-创建文档时，读取项目内 `docs/<type>/_template.md` 作为基础结构。
+创建文档时，用 `sdd propose` 命令生成基础框架，然后按用户需求调整内容。
 
 ### 场景 1：创建新 PRD 框架
 
 1. 检查 `docs/prd/` 是否存在
    - **不存在**：先询问用户是否需要初始化文档体系（跳转场景 4）
    - **存在**：继续下一步
-2. 读取 PRD 模板：`docs/prd/_template.md`（项目内唯一事实源；若缺失则先初始化，见「模板来源」）
+2. 用 `sdd propose` CLI 生成 PRD 框架（模板由 `template-engine.ts` 内联生成）
 3. 用当天日期命名文件：`docs/prd/YYYY-MM-DD-<name>.md`
-4. 按模板结构填充内容，结合用户需求调整章节
+4. 按生成的框架填充内容，结合用户需求调整章节
 5. 在 PRD 顶部保留 `> 对应阶段: [TBD - 由 sdd-phase 补全](../phase/YYYY-MM-DD-<phase-name>.md)` 占位；**不要直接创建 Phase 文档**
 6. 更新 `docs/index.md` 的 PRD 章节和 `docs/prd/README.md`（如果存在）
 7. 用 lore 提交
@@ -184,15 +171,15 @@ echo '{
 如果用户项目中没有 `docs/` 目录：
 
 1. **询问用户**："检测到项目中没有 docs/ 目录，是否需要初始化文档体系？"
-2. 用户同意后，从技能自身的 `references/templates.md` 和 `references/conventions.md` 读取模板和规范内容
-3. 创建完整目录结构，**模板文件的内容来自技能的 references，不是空文件**：
-   - `docs/index.md`（从 `references/templates.md` §5 读取索引模板）
-   - `docs/CONTRIBUTING.md`（从 `references/templates.md` §6 读取贡献指南模板）
-   - `docs/spec/_template.md`（从 `references/templates.md` §0 读取 Spec 模板）
-   - `docs/prd/_template.md`（从 `references/templates.md` §1 读取 PRD 模板）
-   - `docs/phase/_template.md`（从 `references/templates.md` §2 读取 Phase 模板）
-   - `docs/architecture/overview.md`（从 `references/templates.md` §3.1 读取架构总览模板）
-   - `docs/reference/README.md`（从 `references/templates.md` §4 读取参考资料索引模板）
+2. 用户同意后，创建完整目录结构：
+   - `docs/index.md`（文档总入口）
+   - `docs/CONTRIBUTING.md`（贡献指南）
+   - `docs/spec/`（结构化需求输入目录）
+   - `docs/prd/`（产品需求文档目录）
+   - `docs/phase/`（阶段任务文档目录）
+   - `docs/architecture/overview.md`（架构总览）
+   - `docs/reference/README.md`（参考资料索引）
+3. 后续创建 PRD/Phase 时用 `sdd propose` / `sdd archive-phase` CLI 生成框架
 4. 用 lore 提交初始化变更
 
 ## 质量检查

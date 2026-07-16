@@ -24,9 +24,7 @@
 | ---------------------------------- | ------------- | -------------------- | ----------------------------- |
 | `docs/index.md`                    | 管            | 不写                 | 不写                          |
 | `docs/CONTRIBUTING.md`             | 管            | 不写                 | 不写                          |
-| `docs/prd/_template.md`            | 项目级        | 不写                 | 不写                          |
 | `docs/prd/YYYY-MM-DD-<name>.md`    | 命名/规范     | 内容(本技能唯一交付) | 不写,但**引用**与**回填 TBD** |
-| `docs/phase/_template.md`          | 项目级        | 不写                 | 不写                          |
 | `docs/phase/YYYY-MM-DD-<phase>.md` | 命名/规范     | 不写                 | **本技能唯一交付**            |
 | `docs/phase/.working/...`          | 不主动建      | 不建                 | **sdd-phase 管**(临时目录)    |
 | `docs/architecture/...`            | 命名/规范     | `decisions.md` 内容  | 不写,但**引用**               |
@@ -197,7 +195,6 @@ sequenceDiagram
 - **写** `docs/prd/...`(由 sdd-prd 写;本技能只**引用**与**回填占位**)
 - 写 `docs/architecture/overview.md`(sdd-core 场景 4 初始化)
 - 写 `docs/reference/...`(sdd-core 管外部资料)
-- 改 `docs/phase/_template.md`(项目级模板,改它需要团队决议)
 - 改 PRD 其他章节(只允许改 `> 对应阶段:` 这一行)
 - 跳过 lore commit 直接 `git commit`
 

@@ -22,7 +22,6 @@
 | ------------------------------- | ---------------------- | ------------------------ | --------------------------------------- |
 | `docs/index.md`                 | **sdd-core 管**        | **同步必要条目**         | 无自动 guard 时,sdd-prd 阶段 4 直接同步 |
 | `docs/CONTRIBUTING.md`          | **sdd-core 管**        | **不写**                 | sdd-core 维护                           |
-| `docs/prd/_template.md`         | **项目级,sdd-core 管** | **不写**                 | sdd-core 初始化时创建                   |
 | `docs/prd/YYYY-MM-DD-<name>.md` | **命名/规范**          | **内容(本技能唯一交付)** | sdd-prd 唯一交付                        |
 | `docs/prd/.working/...`         | **不主动建**           | **sdd-prd 管**           | sdd-prd 阶段 1-3 工作产物,阶段 4 后清理 |
 | `docs/prd/archive/...`          | **不主动建**           | **sdd-prd 管**           | sdd-prd 独家归档区                      |
@@ -128,7 +127,7 @@ sequenceDiagram
     participant SddPrd as sdd-prd
     participant Lore as lore commit
     User->>Sdd: 调用 sdd-core 场景 4 初始化 docs/
-    Sdd->>Sdd: 创建 docs/index.md, docs/prd/_template.md 等基础文件
+    Sdd->>Sdd: 创建 docs/index.md 等基础文件
     User->>SddPrd: 触发 4 阶段工作流
     SddPrd->>SddPrd: 自审 到 深审 到 增量 到 精简
     SddPrd->>SddPrd: 写入 docs/prd/YYYY-MM-DD-<name>.md
@@ -146,7 +145,7 @@ sequenceDiagram
     participant Sdd as sdd-core
     participant Lore as lore commit
     User->>SddPrd: 触发 4 阶段工作流
-    SddPrd->>SddPrd: 读 docs/prd/_template.md 作基础
+    SddPrd->>SddPrd: 用 sdd propose CLI 生成 PRD 框架
     SddPrd->>SddPrd: 追加 §0 目标声明/验收开关
     SddPrd->>SddPrd: 写入 docs/prd/YYYY-MM-DD-<name>.md
     SddPrd->>SddPrd: ADR 合并入 docs/architecture/decisions.md
@@ -188,7 +187,6 @@ sequenceDiagram
 - 写 `docs/phase/...`(其他技能负责)
 - 写 `docs/architecture/overview.md`(sdd-core 场景 4 初始化)
 - 写 `docs/reference/...`(sdd-core 管外部资料,sdd-prd 不放实施文档)
-- 改 `docs/prd/_template.md`(项目级模板,改它需要团队决议)
 - 跳过 lore commit 直接 `git commit`
 
 ---

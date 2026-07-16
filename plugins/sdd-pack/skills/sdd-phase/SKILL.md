@@ -40,7 +40,6 @@ description: |
 | `docs/phase/YYYY-MM-DD-<phase>.md` 编写     | 不主动写                      | 本技能唯一交付                                                                       |
 | `docs/phase/YYYY-MM-DD-<phase>.md` 命名     | 遵循 conventions.md §2.2      | 遵循                                                                                 |
 | `docs/phase/YYYY-MM-DD-<phase>.md` 必填章节 | conventions.md §4 强制 5 章节 | 遵循 + 顶部含 PRD 反向链接                                                           |
-| `docs/phase/_template.md`                   | 项目级,sdd-core 初始化        | 不主动写                                                                             |
 | `docs/prd/...`                              | 由 sdd-prd 写                 | 不写,但会**引用**与**补全 TBD**                                                      |
 | `docs/index.md` / `docs/CONTRIBUTING.md`    | sdd-core 管                   | 阶段 4 同步必要索引                                                                  |
 | lore commit 提交                            | 协议本身                      | 本技能走此提交                                                                       |
@@ -121,22 +120,17 @@ Phase 必含 sdd-core 强制 5 章节(conventions.md §4.1):
 | 顶部 `> 对应 PRD:` | 反向链接                         | conventions.md §4.3 强制 | 必填     |
 | 顶部 `> 状态:`     | 未开始/进行中/已完成             | conventions.md §4.4 强制 | 必填     |
 
-### 3.3 模板来源（单一事实源）
+### 3.3 模板来源
 
-对齐 sdd-core「模板来源（单一事实源）」：
-
-| 角色                   | 路径                                  | 何时使用                                |
-| ---------------------- | ------------------------------------- | --------------------------------------- |
-| **运行时来源**（唯一） | `docs/phase/_template.md`             | 创建/修改 Phase 时读取                  |
-| **初始化拷贝源**       | `sdd-core/references/templates.md` §2 | 仅 sdd-core 场景 4 初始化时拷贝到项目内 |
+模板由 `sdd propose` CLI 命令（`src/cli/lib/template-engine.ts`）在代码内联生成，**不依赖项目内 `_template.md` 文件**。`sdd-core/references/templates.md` §2 仅作为技能自身参考，展示模板的结构和字段说明。
 
 sdd-phase 自带的 `templates/phase-outline-template.md` 仅作本技能参考，不参与运行时优先级链。
 
 **实际操作**：
 
-- 读 `docs/phase/_template.md` 作为基础结构（项目内唯一事实源；缺失则先初始化）
+- 用 `sdd propose` CLI 生成 Phase 框架（模板由 `template-engine.ts` 内联生成）
 - 在 `> 对应 PRD:` 行后**确认**有反向链接（若模板已有则跳过）
-- 其余章节保持项目内模板原样
+- 其余章节按生成的框架填充
 
 ### 3.4 提交协议
 
@@ -362,7 +356,7 @@ flowchart LR
 
 模板:
 
-- 运行时来源:`docs/phase/_template.md`(项目内唯一事实源;缺失则先初始化)
+- 用 `sdd propose` CLI 生成 Phase 框架（模板由 `template-engine.ts` 内联生成）
 - 本技能参考:`templates/phase-outline-template.md`(不参与运行时优先级)
 
 **完成标志**:

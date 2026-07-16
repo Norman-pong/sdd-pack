@@ -64,7 +64,7 @@ description: |
 
 - 中型项目(5-15 人)、需求→实施的过渡阶段
 - spec/客户需求/用户故事已存在,需要系统化提纯为可执行 PRD
-- 项目已用 sdd-core 初始化过(`docs/prd/_template.md` 或 sdd-core 内置模板可用)
+- 项目已用 sdd-core 初始化过（`docs/prd/` 目录存在）
 - 需要"目标驱动 + 归档"防止 PRD 随时间被 agent 污染
 
 **不适用:**
@@ -119,23 +119,15 @@ PRD 顶部按 conventions.md §3.3 必须有"对应阶段"链接。但本技能*
 - 文件路径**必须**指向 `../phase/...`,即使文件暂不存在
 - 阶段 4 完成时若 Phase 仍为 TBD,允许提交——其他技能会补全
 
-### 3.4 模板来源（单一事实源）
+### 3.4 模板来源（代码内联生成）
 
-对齐 sdd-core「模板来源（单一事实源）」：
-
-| 角色                   | 路径                                  | 何时使用                                |
-| ---------------------- | ------------------------------------- | --------------------------------------- |
-| **运行时来源**（唯一） | `docs/prd/_template.md`               | 创建/修改 PRD 时读取                    |
-| **初始化拷贝源**       | `sdd-core/references/templates.md` §1 | 仅 sdd-core 场景 4 初始化时拷贝到项目内 |
-
-sdd-prd 自带的 `templates/prd-outline-template.md` 仅作本技能参考（已含 §0 目标声明/验收开关），不参与运行时优先级链。
+模板由 `sdd propose` CLI 命令（`src/cli/lib/template-engine.ts`）在代码内联生成，**不依赖项目内 `_template.md` 文件**。`references/templates.md` 和 `templates/prd-outline-template.md` 仅作为技能自身参考。
 
 **实际操作**：
 
-- 读 `docs/prd/_template.md` 作为基础结构（项目内唯一事实源）
-- 若项目内模板缺失，提示用户先初始化（sdd-core 场景 4），不回退到 sdd-core 内置模板
-- 在 `> 对应阶段:` 行后**追加** `## 0. 目标声明` 和 `## 0. 目标验收开关` 两章节（若模板已有则跳过）
-- 其余章节保持项目内模板原样
+- 用 `sdd propose --title "<名称>"` CLI 生成 PRD 基础框架
+- 在 `> 对应阶段:` 行后**追加** `## 0. 目标声明` 和 `## 0. 目标验收开关` 两章节
+- 其余章节保持 CLI 生成的框架原样
 
 ### 3.5 提交协议
 
@@ -347,7 +339,7 @@ flowchart LR
 
 模板:
 
-- 运行时来源:`docs/prd/_template.md`(项目内唯一事实源;缺失则先初始化)
+- 运行时来源:`sdd propose` CLI（`template-engine.ts` 内联生成）
 - 本技能参考:`templates/prd-outline-template.md`(已含 §0 目标声明/验收开关,不参与运行时优先级)
 
 **完成标志**:
