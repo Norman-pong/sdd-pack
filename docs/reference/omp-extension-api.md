@@ -508,8 +508,8 @@ graph TB
 
 | 文档                                  | 路径                                                                         | 关系                             |
 | ------------------------------------- | ---------------------------------------------------------------------------- | -------------------------------- |
-| sdd-extension PRD                     | [`docs/prd/2026-06-30-sdd-extension.md`](../prd/2026-06-30-sdd-extension.md) | 本参考文档是其下游（实施依据）   |
-| sdd CLI 旧 PRD                        | [`docs/prd/2026-06-29-sdd-cli.md`](../prd/2026-06-29-sdd-cli.md)             | supersedes 目标                  |
+| sdd-extension PRD（已归档）          | [`docs/prd/archive/2026-06-30-sdd-extension.md`](../prd/archive/2026-06-30-sdd-extension.md) | 本参考文档是其下游（实施依据）   |
+| sdd CLI 旧 PRD（已归档）             | [`docs/prd/archive/2026-06-29-sdd-cli.md`](../prd/archive/2026-06-29-sdd-cli.md)             | supersedes 目标                  |
 | ADR-006（hook 装载方案）              | [`docs/architecture/decisions.md`](../architecture/decisions.md)             | v1.3 hook 装载决策依据           |
 | ADR-009（sdd Extension 替代独立 CLI） | [`docs/architecture/decisions.md`](../architecture/decisions.md)             | v1.4 决策（Accepted 2026-06-30） |
 | sdd-core skills                       | `plugins/sdd-pack/skills/sdd-core/`                                          | 本参考文档下游消费者             |

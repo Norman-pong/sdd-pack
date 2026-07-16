@@ -21,6 +21,7 @@ import {
   listPrds,
   getWhy,
   getApplyChecklist,
+  archivePhase,
   type ValidateOptions,
   type ProposeOptions,
   type ArchiveOptions,
@@ -32,8 +33,10 @@ import {
   type MigrateResult,
   type StatusResult,
   type ListResult,
-  type WhyResult,
   type ApplyResult,
+  type WhyResult,
+  type PhaseArchiveOptions,
+  type PhaseArchiveResult,
 } from "../../src/cli/api";
 import {
   parseArgs,
@@ -170,13 +173,26 @@ const LORE_COMMIT_BLOCK_REASON = [
   "   lint 命令在 .sdd/gate.json 配置;无配置时自动检测项目类型(vp check / cargo clippy / go vet 等)。",
 ].join("\n");
 
-const DOC_EDIT_GUIDANCE = [
+const DOC_EDIT_GUIDANCE_DOC = [
   "📝 sdd-doc-edit-guard [hook]: 检测到写 docs/ 目录。",
   "   docs/ 写入请走 skill://sdd-core 流程:",
   "   - 新需求 → skill://sdd-input → spec → PRD → Phase",
   "   - PRD 修改 → skill://sdd-prd",
   "   - Phase 任务 → skill://sdd-phase",
 ].join("\n");
+
+const DOC_EDIT_GUIDANCE_PHASE = [
+  "📝 sdd-doc-edit-guard [hook]: 检测到写 docs/phase/ 目录。",
+  "   Phase 写入请走 skill://sdd-phase 流程。Phase 归档用 /sdd-archive-phase（ADR-017）。",
+].join("\n");
+
+const DOC_EDIT_GUIDANCE_ARCH_REF = [
+  "📝 sdd-doc-edit-guard [hook]: 检测到写 docs/architecture/ 或 docs/reference/ 目录。",
+  "   架构文档变更需同步 ADR（docs/architecture/decisions.md）;参考文档变更请确保引用路径有效。",
+].join("\n");
+
+// 向后兼容别名
+const DOC_EDIT_GUIDANCE = DOC_EDIT_GUIDANCE_DOC;
 
 // --- 辅助函数 ---
 
@@ -293,6 +309,28 @@ async function handleArchive(args: string, ctx: unknown): Promise<unknown> {
   const c = uiOf(ctx);
   if (result.status === "pass") c.ui.notify(`归档完成: ${pos} (${reason})`, "info");
   else c.ui.notify(`归档失败: ${result.errors.join("; ")}`, "error");
+  return result;
+}
+
+async function handleArchivePhase(args: string, ctx: unknown): Promise<unknown> {
+  const opts = parseArgs(splitArgs(args));
+  const pos = opts.positional[0];
+  if (!pos) {
+    const c = uiOf(ctx);
+    c.ui.notify("用法: /sdd-archive-phase <phase-path> --reason <completed|abandoned> [--dry-run] [--no-commit]", "error");
+    return { error: "missing phase-path" };
+  }
+  const reason = getEnumOption(opts, "reason", ["completed", "abandoned"], "completed") as "completed" | "abandoned";
+  const options: PhaseArchiveOptions = {
+    phasePath: pos,
+    reason,
+    dryRun: getBoolOption(opts, "dry-run"),
+    noCommit: getBoolOption(opts, "no-commit"),
+  };
+  const result: PhaseArchiveResult = await archivePhase(options);
+  const c = uiOf(ctx);
+  if (result.status === "pass") c.ui.notify(`Phase 归档完成: ${pos} (${reason})`, "info");
+  else c.ui.notify(`Phase 归档失败: ${result.errors.join("; ")}`, "error");
   return result;
 }
 
@@ -471,6 +509,10 @@ export default function (pi: ExtensionAPI): void {
     description: "归档 PRD(reason: completed|replaced|abandoned)",
     handler: handleArchive,
   });
+  pi.registerCommand("sdd-archive-phase", {
+    description: "归档 Phase(reason: completed|abandoned, ADR-017)",
+    handler: handleArchivePhase,
+  });
   pi.registerCommand("sdd-migrate", {
     description: "状态行堆叠清理 -> 单行 + CHANGELOG",
     handler: handleMigrate,
@@ -528,8 +570,16 @@ export default function (pi: ExtensionAPI): void {
       return;
     }
 
-    if ((toolName === "write" || toolName === "edit") && isDocWritePath(input)) {
-      pi.sendMessage({ role: "system", content: DOC_EDIT_GUIDANCE });
+    if (toolName === "write" || toolName === "edit") {
+      const path = typeof input["path"] === "string" ? input["path"] : "";
+      if (path.includes("/phase/") || path.startsWith("docs/phase/")) {
+        pi.sendMessage({ role: "system", content: DOC_EDIT_GUIDANCE_PHASE });
+      } else if (path.includes("/architecture/") || path.includes("/reference/") ||
+                 path.startsWith("docs/architecture/") || path.startsWith("docs/reference/")) {
+        pi.sendMessage({ role: "system", content: DOC_EDIT_GUIDANCE_ARCH_REF });
+      } else if (isDocWritePath(input)) {
+        pi.sendMessage({ role: "system", content: DOC_EDIT_GUIDANCE_DOC });
+      }
     }
   });
 }

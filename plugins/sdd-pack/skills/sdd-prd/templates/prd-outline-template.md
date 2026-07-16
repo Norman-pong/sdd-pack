@@ -29,7 +29,7 @@
 
 # {产品/功能名} PRD v{版本号}
 
-> 状态:草稿 | 评审中 | 已评审(sdd-core conventions §3.4)
+> 状态:草稿 | 待评审 | 已评审 | 已规划任务 | 进行中 | 已归档(ADR-016 6 PrdStatus + 2 ArchiveReason)
 > 归档日期:{YYYY-MM-DD,未归档填 "—"}
 > 修改记录:执行 `lore log docs/prd/<filename>.md`
 > 对应阶段: [TBD - 由其他技能补全](../phase/YYYY-MM-DD-<phase-name>.md)

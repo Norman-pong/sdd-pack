@@ -17,6 +17,7 @@ import {
   listPrds,
   getWhy,
   getApplyChecklist,
+  archivePhase,
 } from "../api";
 
 // ===== validateDocs =====
@@ -145,5 +146,30 @@ describe("getApplyChecklist", () => {
     const r = await getApplyChecklist("docs/prd/archive/2026-06-30-sdd-extension.md");
     expect(r.total).toBeGreaterThan(0);
     expect(r.items[0].id).toBe(1);
+  });
+});
+
+// ===== archivePhase =====
+describe("archivePhase", () => {
+  test("nonexistent phase returns error", async () => {
+    const r = await archivePhase({ phasePath: "/nonexistent/phase.md", reason: "completed" });
+    expect(r.status).toBe("error");
+    expect(r.errors.length).toBeGreaterThan(0);
+  });
+
+  test("dry-run on nonexistent phase returns error", async () => {
+    const r = await archivePhase({ phasePath: "/nonexistent/phase.md", reason: "completed", dryRun: true });
+    expect(r.status).toBe("error");
+  });
+
+  test("dry-run on existing phase succeeds with noCommit", async () => {
+    const r = await archivePhase({
+      phasePath: "docs/phase/2026-06-24-sdd-pack.md",
+      reason: "completed",
+      dryRun: true,
+      noCommit: true,
+    });
+    expect(r.status).toBe("pass");
+    expect(r.operations.length).toBeGreaterThan(0);
   });
 });

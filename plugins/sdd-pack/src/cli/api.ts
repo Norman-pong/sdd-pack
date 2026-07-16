@@ -33,6 +33,8 @@ export type {
   WhyResult,
   ApplyResult,
   ApplyChecklistItem,
+  PhaseArchiveOptions,
+  PhaseArchiveResult,
 } from "./lib/api-types";
 import type {
   ValidateOptions,
@@ -51,6 +53,8 @@ import type {
   WhyResult,
   ApplyResult,
   ApplyChecklistItem,
+  PhaseArchiveOptions,
+  PhaseArchiveResult,
 } from "./lib/api-types";
 import { validate, type ValidationConfig } from "./lib/validator";
 import {
@@ -64,7 +68,7 @@ import {
 import { generateTemplate, type TemplateType } from "./lib/template-engine";
 import { loreCommit, buildTrailer, isLoreAvailable } from "./lib/lore-wrapper";
 import { requireFile, requireString, currentStatusOf } from "./lib/orchestration/gates";
-import { PrdStatus } from "./lib/prd-state-machine";
+import { PrdStatus, PhaseStatus } from "./lib/prd-state-machine";
 import { listMdFiles, dateFromPath } from "./lib/orchestration/scan";
 import { stagedFiles } from "./lib/orchestration/git";
 import {
@@ -393,4 +397,60 @@ export async function getApplyChecklist(prdPath: string): Promise<ApplyResult> {
     if (check) items.push({ id: ++id, description: check[1].trim(), section });
   }
   return { prdPath: fullPath, items, total: items.length };
+}
+
+// ===== 9. archivePhase（ADR-017） =====
+
+/** Phase 归档状态行（ADR-017: completed→已完成, abandoned→已废弃） */
+function buildPhaseArchiveStatusLine(reason: "completed" | "abandoned", today: string): string {
+  const label = reason === "completed" ? PhaseStatus.Completed : PhaseStatus.Abandoned;
+  return `> 状态：${label} | 归档日期：${today}`;
+}
+
+export async function archivePhase(opts: PhaseArchiveOptions): Promise<PhaseArchiveResult> {
+  const r: PhaseArchiveResult = {
+    status: "pass",
+    operations: [],
+    statusLineUpdated: false,
+    indexSynced: false,
+    loreCommitted: false,
+    errors: [],
+    warnings: [],
+  };
+  try {
+    const phasePath = requireFile(resolve(findRepoRoot(), opts.phasePath));
+    const reason = opts.reason;
+    if (opts.dryRun) {
+      r.operations.push(`(dry-run) 状态行 → ${reason}`);
+      return r;
+    }
+    const content = readFileSync(phasePath, "utf-8");
+    const newLine = buildPhaseArchiveStatusLine(reason, todayStr());
+    const updated = applyStatusLine(content, newLine);
+    r.statusLineUpdated = updated !== content;
+    writeFileSync(phasePath, updated, "utf-8");
+    r.operations.push(`状态行更新 → ${reason === "completed" ? "已完成" : "已废弃"}`);
+    r.indexSynced = syncIndex(
+      resolve(findRepoRoot(), "docs/index.md"),
+      phasePath,
+      reason === "completed" ? "completed" : "abandoned",
+      phasePath.split("/").pop()?.replace(/\.md$/, "") ?? "",
+    );
+    if (!opts.noCommit) {
+      if (isLoreAvailable()) {
+        const trailer = buildTrailer("archive", `归档 Phase: ${phasePath} (${reason})`, "docs", [
+          phasePath,
+        ]);
+        const lr = await loreCommit(
+          `archive-phase(${reason}): ${phasePath.split("/").pop()}`,
+          trailer,
+        );
+        r.loreCommitted = lr.success;
+      } else r.warnings.push("lore 不可用,跳过 lore commit");
+    }
+  } catch (e) {
+    r.status = "error";
+    r.errors.push(errMsg(e));
+  }
+  return r;
 }

@@ -144,3 +144,67 @@ export function getAllTransitionRules(): TransitionRule[] {
   }
   return rules;
 }
+
+// ===== Phase 状态机（ADR-017） =====
+
+/** Phase 文档的所有合法状态 */
+export enum PhaseStatus {
+  /** 未开始：任务待执行 */
+  NotStarted = "未开始",
+  /** 进行中：任务正在执行 */
+  InProgress = "进行中",
+  /** 已完成：所有任务验收通过（终态） */
+  Completed = "已完成",
+  /** 已废弃：任务废弃不再执行（终态） */
+  Abandoned = "已废弃",
+}
+
+/** Phase 状态迁移表（ADR-017） */
+const PHASE_TRANSITION_MATRIX: Record<PhaseStatus, { allowed: Set<PhaseStatus>; forbidden: Set<PhaseStatus> }> =
+  {
+    [PhaseStatus.NotStarted]: {
+      // 未开始 → 进行中 / 已废弃
+      allowed: new Set([PhaseStatus.InProgress, PhaseStatus.Abandoned]),
+      forbidden: new Set([PhaseStatus.Completed]),
+    },
+    [PhaseStatus.InProgress]: {
+      // 进行中 → 已完成 / 已废弃
+      allowed: new Set([PhaseStatus.Completed, PhaseStatus.Abandoned]),
+      forbidden: new Set([PhaseStatus.NotStarted]),
+    },
+    [PhaseStatus.Completed]: {
+      // 已完成是终态
+      allowed: new Set(),
+      forbidden: new Set(Object.values(PhaseStatus)),
+    },
+    [PhaseStatus.Abandoned]: {
+      // 已废弃是终态
+      allowed: new Set(),
+      forbidden: new Set(Object.values(PhaseStatus)),
+    },
+  };
+
+/** 判断 Phase 迁移是否合法 */
+export function isPhaseTransitionAllowed(from: PhaseStatus, to: PhaseStatus): boolean {
+  return PHASE_TRANSITION_MATRIX[from]?.allowed.has(to) ?? false;
+}
+
+/** 判断 Phase 迁移是否非法 */
+export function isPhaseTransitionForbidden(from: PhaseStatus, to: PhaseStatus): boolean {
+  return PHASE_TRANSITION_MATRIX[from]?.forbidden.has(to) ?? false;
+}
+
+/** 判断 Phase 是否为终态（无出边） */
+export function isPhaseTerminalStatus(status: PhaseStatus): boolean {
+  const row = PHASE_TRANSITION_MATRIX[status];
+  return row ? row.allowed.size === 0 : false;
+}
+
+/** 解析 Phase 状态字符串为 PhaseStatus */
+export function parsePhaseStatus(s: string): PhaseStatus | null {
+  const trimmed = s.trim();
+  for (const status of Object.values(PhaseStatus)) {
+    if (status === trimmed) return status;
+  }
+  return null;
+}

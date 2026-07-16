@@ -134,3 +134,22 @@ export interface ApplyResult {
   items: ApplyChecklistItem[];
   total: number;
 }
+
+/** archivePhase 入参（ADR-017） */
+export interface PhaseArchiveOptions {
+  phasePath: string;
+  reason: "completed" | "abandoned";
+  dryRun?: boolean;
+  noCommit?: boolean;
+}
+
+/** archivePhase 返回 */
+export interface PhaseArchiveResult {
+  status: "pass" | "warn" | "error";
+  operations: string[];
+  statusLineUpdated: boolean;
+  indexSynced: boolean;
+  loreCommitted: boolean;
+  errors: string[];
+  warnings: string[];
+}

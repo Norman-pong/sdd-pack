@@ -162,13 +162,14 @@ describe("sdd-extension — session_start", () => {
   });
 });
 
-describe("sdd-extension — 13 slash command 注册", () => {
-  test("注册 13 个 command", () => {
-    expect(captured.length).toBe(13);
+describe("sdd-extension — 14 slash command 注册", () => {
+  test("注册 14 个 command", () => {
+    expect(captured.length).toBe(14);
     const names = captured.map((c) => c.name).sort();
     expect(names).toEqual([
       "sdd-apply",
       "sdd-archive",
+      "sdd-archive-phase",
       "sdd-gate-commit",
       "sdd-gate-lint",
       "sdd-gate-precommit",

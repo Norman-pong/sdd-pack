@@ -747,3 +747,65 @@ v1.6 及之前的 PRD 状态机为 7 状态：
 - 5 个历史 PRD 全部归档（`docs/prd/archive/`），由 `docs/prd/2026-07-16-sdd-pack.md` v1.7 总览 PRD 整合替代
 - `validator.validPrdStatuses` 列表更新为 6 状态（草稿/待评审/已评审/已规划任务/进行中/已归档）
 - 后续 v1.8+ 新需求在 `2026-07-16-sdd-pack.md` 上做 supersedes 链或 delta merge
+
+## ADR-017: Phase 状态机 + 文档类型门禁分层
+
+**状态**: Accepted (2026-07-16)
+**决策人**: norman
+**触发**: ADR-016 完成 PRD 状态机重构后，用户提出"phase/architecture/reference 是否也需要 CLI 更新和门禁机制？"的扩展需求。
+**影响**: 新增 PhaseStatus enum + 迁移表；新增 `sdd archive-phase` CLI 命令；validator 补 phase 状态机校验；architecture/reference 维持无状态（不加状态机）。
+
+### 背景
+
+ADR-016 只重构了 PRD 状态机。docs/ 下还有 3 类文档：
+
+1. **Phase**（`docs/phase/`）：已有 validator 规则（`validPhaseStatuses = ["未开始","进行中","已完成","已废弃"]`），但无独立状态机 enum、无 CLI 归档命令、无迁移规则
+2. **Architecture**（`docs/architecture/`）：无状态、无 validator、无 CLI — 本质是参考材料
+3. **Reference**（`docs/reference/`）：无状态、无 validator、无 CLI — 本质是参考材料
+
+### 决策
+
+**分层门禁策略**：
+
+| 文档类型 | 状态机 | CLI 归档 | validator | hook 守卫 |
+----------|--------|---------|-----------|---------|
+| PRD | PrdStatus (6 + ArchiveReason) | `sdd archive` | ✓ | ✓ |
+| Phase | PhaseStatus (4) | `sdd archive-phase` | ✓ | ✓ |
+| Architecture | 无 | 无 | 结构校验 only | 写入提示 |
+| Reference | 无 | 无 | 结构校验 only | 写入提示 |
+
+**Phase 状态机（PhaseStatus）**：
+
+| PhaseStatus | 中文 | 终态？ | 说明 |
+|-------------|------|--------|------|
+| NotStarted | 未开始 | 否 | 任务待执行 |
+| InProgress | 进行中 | 否 | 任务正在执行 |
+| Completed | 已完成 | 是 | 所有任务验收通过 |
+| Abandoned | 已废弃 | 是 | 任务废弃不再执行 |
+
+迁移规则：
+
+- 未开始 → 进行中 / 已废弃
+- 进行中 → 已完成 / 已废弃
+- 已完成 → 终态（无出边）
+- 已废弃 → 终态（无出边）
+
+**Architecture / Reference 不加状态机**：
+
+- 它们是参考材料，生命周期由 ADR 链（architecture）和人工维护（reference）管理
+- 加状态机会增加维护负担而无实际收益（没有人会"归档"一个 reference 文档）
+- hook 只做写入提示（检测到写 architecture/ 或 reference/ 时提示走 sdd-core 流程），不做状态机校验
+
+### 拒绝的方案
+
+- **全文档类型加状态机**：architecture/reference 是参考材料，状态机是过度工程
+- **Phase 不加状态机，只加 CLI 归档**：validator 已有 phase 状态列表但无迁移规则，半成品状态，不如补全
+- **Phase 复用 PrdStatus**：Phase 和 PRD 生命周期不同（Phase 无"草稿/待评审"阶段），不应复用
+
+### 后续
+
+- `prd-state-machine.ts` 新增 PhaseStatus enum + PHASE_TRANSITION_MATRIX
+- `api.ts` 新增 `archivePhase()` 函数
+- `validator.ts` 的 `validPhaseStatuses` 改为引用 PhaseStatus enum
+- `sdd-extension/index.ts` 新增 `sdd-archive-phase` slash command
+- hook 补 phase 写入守卫 + architecture/reference 写入提示

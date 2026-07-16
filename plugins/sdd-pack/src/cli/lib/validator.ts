@@ -17,7 +17,7 @@ import {
   extractRequiredSections,
   extractH1,
 } from "./doc-parser";
-import { PrdStatus, parseStatus, isTransitionAllowed } from "./prd-state-machine";
+import { PrdStatus, PhaseStatus, parseStatus, isTransitionAllowed } from "./prd-state-machine";
 
 /** 校验 severity */
 export type CheckSeverity = "warn" | "error" | "block";
@@ -322,7 +322,7 @@ function checkStateMachine(ctx: CheckContext): CheckResult {
             "进行中",
             "已归档",
           ];
-          const validPhaseStatuses = ["未开始", "进行中", "已完成", "已废弃"];
+          const validPhaseStatuses = Object.values(PhaseStatus);
           const validStatuses = isPrd ? validPrdStatuses : validPhaseStatuses;
           if (!validStatuses.includes(parsed.status)) {
             violations.push(
