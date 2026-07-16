@@ -10,8 +10,7 @@
 
 | 文档类型 | 最新文档                                                    | 状态     | 说明                                                                                                                                          |
 | -------- | ----------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| PRD      | [sdd-pack 总览 PRD (v1.7 整合)](prd/2026-07-16-sdd-pack.md) | 进行中 | v1.7+ 整合 5 个分散 PRD（SDD Pack / sdd CLI / sdd Extension / OpenSpec / 双范式），单点演进 + 8 状态机重构（ADR-016） |
-| PRD      | [OpenSpec Harness PRD](prd/2026-07-01-openspec-harness.md)  | 已发布   | OpenSpec 作为 hook 默认实现的详细 PRD（init/validate/change/archive 工作流）                                                                  |
+| PRD      | [sdd-pack PRD (v1.8 强状态流转)](prd/2026-07-16-sdd-pack-v18.md) | 待评审 | v1.8: /sdd 主命令体系 + meta.json 事实源 + 全链路强状态流转 + tool_call 硬拦截 + 移除 OpenSpec 双范式 |
 | Phase    | [双范式架构实施 phase](phase/2026-07-01-sdd-dual-paradigm.md) | 已完成 | 5 个 track 落地：restore-sdd-core + split-openspec-namespace + split-hooks + rewrite-architecture-doc + revise-adr-add                     |
 | 架构总览 | [架构总览](architecture/overview.md)                        | v1.5.0  | marketplace 仓库结构、plugin 目录布局、双范式 extension/hook/api-runner + sdd-gate 门禁子系统集成                                           |
 | 架构专题 | [sdd-gate 门禁流水线架构](architecture/sdd-gate.md)         | v1.5.0  | 5 阶段 slash command 门禁流水线（lint/test/review/precommit/commit）+ 动态 lint 注入 + review 产物契约                                       |
@@ -20,7 +19,8 @@
 
 | 日期                                              | 文档名称                                                              | 状态     | 对应 Phase                                              | 说明                                                                                                |
 | ------------------------------------------------- | --------------------------------------------------------------------- | -------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| [2026-07-16](prd/2026-07-16-sdd-pack.md)          | [sdd-pack 总览 PRD (v1.7 整合)](prd/2026-07-16-sdd-pack.md)          | 进行中   | TBD - 由 sdd-phase 补全                                 | v1.7+ 整合 5 个历史 PRD（SDD Pack / sdd CLI / sdd Extension / OpenSpec / 双范式），单点演进          |
+| [2026-07-16](prd/2026-07-16-sdd-pack-v18.md)     | [sdd-pack PRD (v1.8 强状态流转)](prd/2026-07-16-sdd-pack-v18.md)     | 待评审   | TBD - 由 /sdd plan 补全                                  | v1.8: /sdd 主命令体系 + meta.json 事实源 + 全链路强状态流转 + tool_call 硬拦截 + 移除 OpenSpec 双范式 |
+| [2026-07-16](prd/archive/2026-07-16-sdd-pack.md) | [sdd-pack 总览 PRD (v1.7 整合)（已归档）](prd/archive/2026-07-16-sdd-pack.md) | 已归档 | TBD | v1.7 整合 5 个历史 PRD + 6 PrdStatus 状态机重构 - 已被 v1.8 替代 |
 | [2026-06-24](prd/archive/2026-06-24-sdd-pack.md)  | [SDD Pack (omp marketplace 插件) PRD（已归档）](prd/archive/2026-06-24-sdd-pack.md) | 已归档   | [阶段文档](phase/2026-06-24-sdd-pack.md)                | 一键安装、版本化管理、按需启用/禁用 SDD 技能家族 — 已被 v1.7 总览 PRD 整合                          |
 | [2026-06-29](prd/archive/2026-06-29-sdd-cli.md)   | [sdd CLI PRD（已归档）](prd/archive/2026-06-29-sdd-cli.md)            | 已归档   | [阶段文档](phase/2026-06-29-sdd-cli.md)（已归档）       | 独立 CLI 形态已被 [ADR-009](architecture/decisions.md#adr-009-sdd-extension替代独立-cli) Superseded |
 | [2026-06-30](prd/archive/2026-06-30-sdd-extension.md) | [sdd Extension PRD（已归档）](prd/archive/2026-06-30-sdd-extension.md) | 已归档 | [阶段文档](phase/2026-06-30-sdd-extension.md)（已替换） | sdd Extension（Omp Slash Commands）— 替代独立 CLI 形态                                            |
