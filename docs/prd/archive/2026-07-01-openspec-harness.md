@@ -1,6 +1,6 @@
 # OpenSpec Harness PRD
 
-> 状态：已发布 | 创建日期：2026-07-01 | 评审日期：2026-07-01 | 发布日期：2026-07-01 | 系替代：[sdd Extension PRD](2026-06-30-sdd-extension.md)
+> 状态：已归档 | 发布日期：2026-07-16
 > 修改记录：执行 `lore log docs/prd/2026-07-01-openspec-harness.md`
 > 对应阶段：[双范式架构实施 phase](../phase/2026-07-01-sdd-dual-paradigm.md)
 > 关键决策：[ADR-011 双范式架构](../architecture/decisions.md)（Accepted）· [OpenSpec Harness 参考](../reference/openspec-harness.md)

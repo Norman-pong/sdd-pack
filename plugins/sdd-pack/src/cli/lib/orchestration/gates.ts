@@ -8,9 +8,8 @@
 import { existsSync } from "fs";
 import { resolve } from "path";
 
-import type { PrdStatus } from "../prd-state-machine";
+import { PrdStatus, parseStatus } from "../prd-state-machine";
 import { parseDocument, parseStatusLine } from "../doc-parser";
-import { parseStatus } from "../prd-state-machine";
 
 /** 文件必须存在;不存在抛错 */
 export function requireFile(filePath: string): string {
@@ -47,10 +46,10 @@ export function requireString(value: string | undefined, name: string): string {
   return value;
 }
 
-/** --supersedes 指向的旧 PRD 必须是 已发布 状态 */
-export function assertSupersedesPublished(prdPath: string): void {
-  const status = currentStatusOf(prdPath);
-  if (status !== "已发布") {
-    throw new Error(`--supersedes 目标必须为"已发布"状态,实际: ${status ?? "(无法解析)"}`);
+
+/** --supersedes 指向的旧 PRD 必须是 已归档 状态（ADR-016：已完成/已中止 已合并入 已归档 子态） */
+export function assertSupersedesArchived(prdPath: string): void {
+  if (status !== PrdStatus.Archived) {
+    throw new Error(`--supersedes 目标必须为"已归档"状态,实际: ${status ?? "(无法解析)"}`);
   }
 }

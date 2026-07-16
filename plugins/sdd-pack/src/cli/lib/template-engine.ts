@@ -49,9 +49,9 @@ function generateFullTemplate(options: TemplateOptions): string {
 > 修改记录：执行 \`lore log docs/prd/${titleToFileName(date, options.title)}\`
 > 对应阶段：TBD - 待设计评审后由 sdd-phase 补全
 ${supersedesHeader}
-> [!IMPORTANT] PRD 生命周期状态机（遵循 \`rule://prd-change-management\`）
-> 草稿 → 评审中 → 已评审 → 已发布 → 已归档/已替换；已废弃为任意阶段的终态分支。
-> **硬约束**：\`已评审\` 不可回退 \`草稿\`；\`已发布\` 后新需求**只能新开 PRD + supersedes 链**，禁止往已发布 PRD 堆叠新版本功能。变更类型判据（A 实现偏差 / B v1 内微调 / C 跨版本叠加）与决策树见 \`rule://prd-change-management\`。
+> [!IMPORTANT] PRD 生命周期状态机（ADR-016, 6 状态 + 已归档终态）
+> 草稿 ↔ 待评审（可灵活切换） → 已评审 → 已规划任务 → 进行中 → **已归档**（终态）
+> 已归档是唯一终态，通过 ArchiveReason（已完成/已中止）记录归档原因。**硬约束**：已评审 不可回退 草稿；任意状态可直接归档但不可逆；已归档 是终态。变更类型判据（A 实现偏差 / B v1 内微调 / C 跨版本叠加）与决策树见 \`rule://prd-change-management\`。
 
 ## Δ 变更摘要（仅 supersedes 型 PRD 填写）
 

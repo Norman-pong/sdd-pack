@@ -1,19 +1,31 @@
 /**
  * prd-state-machine.ts — PRD 生命周期状态机
  *
- * 程序化实现 prd-change-management rule §3 状态机表
- * 7 状态 × 合法迁移 × 非法迁移
+ * 6 PrdStatus + 2 ArchiveReason（已归档终态含 已完成/已中止 两个归档原因）
  */
 
-/** PRD 文档的所有合法状态 */
+/** PRD 文档的所有合法状态（ADR-016 重构） */
 export enum PrdStatus {
+  /** 草稿：概念先行，无任何约束，可自由修改 */
   Draft = "草稿",
-  Reviewing = "评审中",
+  /** 待评审：经过多轮沟通，格式/规范已正式 */
+  PendingReview = "待评审",
+  /** 已评审：评审通过，等待规划任务 */
   Reviewed = "已评审",
-  Published = "已发布",
-  Replaced = "已替换",
+  /** 已规划任务：任务已拆解到 phase/，待开始执行 */
+  Planned = "已规划任务",
+  /** 进行中：phase 任务正在执行 */
+  InProgress = "进行中",
+  /** 已归档：终态，文件已移入 archive/ 目录。归档原因见 ArchiveReason */
   Archived = "已归档",
-  Abandoned = "已废弃",
+}
+
+/** 已归档 的子态（归档原因），仅作为 Archived 的附加属性 */
+export enum ArchiveReason {
+  /** 项目完成，所有 phase 全部通过 */
+  Completed = "已完成",
+  /** 项目中止，不再继续推进 */
+  Abandoned = "已中止",
 }
 
 /** 状态迁移方向 */
@@ -29,48 +41,41 @@ export interface TransitionRule {
   direction: MigrationDirection;
 }
 
-/** 状态机迁移表（与 prd-change-management rule §3 完全一致） */
+
 const TRANSITION_MATRIX: Record<PrdStatus, { allowed: Set<PrdStatus>; forbidden: Set<PrdStatus> }> =
   {
     [PrdStatus.Draft]: {
-      allowed: new Set([PrdStatus.Reviewing, PrdStatus.Abandoned]),
-      forbidden: new Set([
-        PrdStatus.Published,
-        PrdStatus.Reviewed,
-        PrdStatus.Replaced,
-        PrdStatus.Archived,
-      ]),
+      // 草稿 → 待评审（多轮沟通后正式化）/ 已归档（直接废弃）
+      // 草稿 ↔ 待评审 可灵活切换
+      allowed: new Set([PrdStatus.PendingReview, PrdStatus.Archived]),
+      forbidden: new Set([PrdStatus.Reviewed, PrdStatus.Planned, PrdStatus.InProgress]),
     },
-    [PrdStatus.Reviewing]: {
-      allowed: new Set([PrdStatus.Reviewed, PrdStatus.Draft, PrdStatus.Abandoned]),
-      forbidden: new Set([PrdStatus.Published, PrdStatus.Replaced, PrdStatus.Archived]),
+    [PrdStatus.PendingReview]: {
+      // 待评审 → 已评审（评审通过）/ 草稿（打回继续改）/ 已归档
+      allowed: new Set([PrdStatus.Reviewed, PrdStatus.Draft, PrdStatus.Archived]),
+      forbidden: new Set([PrdStatus.Planned, PrdStatus.InProgress]),
     },
     [PrdStatus.Reviewed]: {
-      allowed: new Set([PrdStatus.Published, PrdStatus.Archived, PrdStatus.Abandoned]),
-      forbidden: new Set([PrdStatus.Draft, PrdStatus.Reviewing, PrdStatus.Replaced]),
+      // 已评审 → 已规划任务 / 已归档
+      allowed: new Set([PrdStatus.Planned, PrdStatus.Archived]),
+      forbidden: new Set([PrdStatus.InProgress]),
     },
-    [PrdStatus.Published]: {
-      allowed: new Set([PrdStatus.Archived, PrdStatus.Replaced]),
-      forbidden: new Set([
-        PrdStatus.Draft,
-        PrdStatus.Reviewing,
-        PrdStatus.Reviewed,
-        PrdStatus.Abandoned,
-      ]),
+    [PrdStatus.Planned]: {
+      // 已规划任务 → 进行中 / 已归档
+      allowed: new Set([PrdStatus.InProgress, PrdStatus.Archived]),
+      forbidden: new Set(),
     },
-    [PrdStatus.Replaced]: {
-      allowed: new Set(),
-      forbidden: new Set(Object.values(PrdStatus)),
+    [PrdStatus.InProgress]: {
+      // 进行中 → 已归档（带 ArchiveReason：已完成 或 已中止）
+      allowed: new Set([PrdStatus.Archived]),
+      forbidden: new Set(),
     },
     [PrdStatus.Archived]: {
+      // 已归档是终态
       allowed: new Set(),
       forbidden: new Set(Object.values(PrdStatus)),
     },
-    [PrdStatus.Abandoned]: {
-      allowed: new Set(),
-      forbidden: new Set(Object.values(PrdStatus)),
-    },
-  };
+}
 
 /**
  * 判断迁移是否合法

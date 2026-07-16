@@ -13,19 +13,14 @@ import { dirname, basename, resolve } from "path";
 import { extractStatusLine } from "../doc-parser";
 import { addPrdEntry } from "../index-sync";
 
-/** reason → 新状态行 */
+/** reason → 新状态行（ADR-016: 所有 reason 都映射到 已归档，ArchiveReason 写入第二个 metadata 字段） */
 export function buildArchiveStatusLine(
   reason: "completed" | "replaced" | "abandoned",
   today: string,
 ): string {
-  switch (reason) {
-    case "completed":
-      return `> 状态：已归档 | 发布日期：${today}`;
-    case "replaced":
-      return `> 状态：已替换 | 发布日期：${today}`;
-    case "abandoned":
-      return `> 状态：已废弃 | 发布日期：${today}`;
-  }
+  const archiveReason =
+    reason === "completed" ? "已完成" : reason === "abandoned" ? "已中止" : "已替换";
+  return `> 状态：已归档 | 归档原因：${archiveReason} | 发布日期：${today}`;
 }
 
 /** 把 content 中旧状态行替换为新状态行 */
@@ -76,8 +71,8 @@ export function syncIndex(
   linkText: string,
 ): boolean {
   if (!existsSync(indexPath)) return false;
-  const statusLabel =
-    reason === "completed" ? "已归档" : reason === "replaced" ? "已替换" : "已废弃";
+  // ADR-016: 已归档 是唯一终态（理由 metadata 已写入 PRD 状态行第二个字段）
+  const statusLabel = "已归档";
   try {
     return addPrdEntry(indexPath, targetPath, statusLabel, linkText);
   } catch {

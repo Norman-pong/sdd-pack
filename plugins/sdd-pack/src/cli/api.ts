@@ -64,6 +64,7 @@ import {
 import { generateTemplate, type TemplateType } from "./lib/template-engine";
 import { loreCommit, buildTrailer, isLoreAvailable } from "./lib/lore-wrapper";
 import { requireFile, requireString, currentStatusOf } from "./lib/orchestration/gates";
+import { PrdStatus } from "./lib/prd-state-machine";
 import { listMdFiles, dateFromPath } from "./lib/orchestration/scan";
 import { stagedFiles } from "./lib/orchestration/git";
 import {
@@ -128,8 +129,8 @@ export async function proposePrd(opts: ProposeOptions): Promise<ProposeResult> {
     if (opts.supersedes) {
       const oldPath = requireFile(resolve(findRepoRoot(), opts.supersedes));
       const status = currentStatusOf(oldPath);
-      if (status !== "已发布")
-        throw new Error(`--supersedes 目标必须为"已发布",实际: ${status ?? "(无法解析)"}`);
+      if (status !== PrdStatus.Archived)
+        throw new Error(`--supersedes 目标必须为"已归档",实际: ${status ?? "(无法解析)"}`);
       supersedesTitle = parseDocument(oldPath)?.title;
     }
     const tplType: TemplateType = opts.supersedes
@@ -261,7 +262,7 @@ export async function migratePrd(opts: MigrateOptions): Promise<MigrateResult> {
     r.parsedEntries = entries.length;
     const today = todayStr();
     const name = prdPath.split("/").pop()?.replace(/\.md$/, "") ?? "prd";
-    const newStatusLine = `> 状态：${parseStatusLine(statusLine)?.status ?? "已发布"} | 发布日期：${today}`;
+    const newStatusLine = `> 状态：${parseStatusLine(statusLine)?.status ?? "进行中"} | 发布日期：${today}`;
     const changelogPath = resolve(dirname(prdPath), `CHANGELOG-${name}.md`);
     const backupPath = resolve(dirname(prdPath), ".migration-backup", `${name}.${today}.bak`);
     if (opts.dryRun) {

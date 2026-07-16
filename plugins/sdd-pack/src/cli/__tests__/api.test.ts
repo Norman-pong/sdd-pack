@@ -142,7 +142,7 @@ describe("getApplyChecklist", () => {
   });
 
   test("existing prd extracts checklist items", async () => {
-    const r = await getApplyChecklist("docs/prd/2026-06-30-sdd-extension.md");
+    const r = await getApplyChecklist("docs/prd/archive/2026-06-30-sdd-extension.md");
     expect(r.total).toBeGreaterThan(0);
     expect(r.items[0].id).toBe(1);
   });

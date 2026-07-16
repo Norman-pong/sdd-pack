@@ -10,7 +10,7 @@
 
 | 文档类型 | 最新文档                                                    | 状态     | 说明                                                                                                                                          |
 | -------- | ----------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| PRD      | [双范式架构总览 PRD](prd/2026-07-01-sdd-dual-paradigm.md)   | 已发布   | sdd-pack v1.5.0 双范式架构（SDD 正本 + OpenSpec 可选 hook 默认实现），替代 [sdd Extension PRD](prd/2026-06-30-sdd-extension.md)         |
+| PRD      | [sdd-pack 总览 PRD (v1.7 整合)](prd/2026-07-16-sdd-pack.md) | 进行中 | v1.7+ 整合 5 个分散 PRD（SDD Pack / sdd CLI / sdd Extension / OpenSpec / 双范式），单点演进 + 8 状态机重构（ADR-016） |
 | PRD      | [OpenSpec Harness PRD](prd/2026-07-01-openspec-harness.md)  | 已发布   | OpenSpec 作为 hook 默认实现的详细 PRD（init/validate/change/archive 工作流）                                                                  |
 | Phase    | [双范式架构实施 phase](phase/2026-07-01-sdd-dual-paradigm.md) | 已完成 | 5 个 track 落地：restore-sdd-core + split-openspec-namespace + split-hooks + rewrite-architecture-doc + revise-adr-add                     |
 | 架构总览 | [架构总览](architecture/overview.md)                        | v1.5.0  | marketplace 仓库结构、plugin 目录布局、双范式 extension/hook/api-runner + sdd-gate 门禁子系统集成                                           |
@@ -18,12 +18,14 @@
 
 ## 产品需求文档（PRD）
 
-| 日期                                            | 文档名称                                                              | 状态     | 对应 Phase                                              | 说明                                                                                                |
-| ----------------------------------------------- | --------------------------------------------------------------------- | -------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| [2026-06-24](prd/2026-06-24-sdd-pack.md)        | [SDD Pack (omp marketplace 插件) PRD](prd/2026-06-24-sdd-pack.md)     | 已发布   | [阶段文档](phase/2026-06-24-sdd-pack.md)                | 一键安装、版本化管理、按需启用/禁用 SDD 技能家族                                                    |
-| [2026-06-29](prd/2026-06-29-sdd-cli.md)         | [sdd CLI PRD](prd/2026-06-29-sdd-cli.md)                              | 已替换   | [阶段文档](phase/2026-06-29-sdd-cli.md)（已归档）       | 独立 CLI 形态已被 [ADR-009](architecture/decisions.md#adr-009-sdd-extension替代独立-cli) Superseded |
-| [2026-06-30](prd/2026-06-30-sdd-extension.md)   | [sdd Extension PRD](prd/2026-06-30-sdd-extension.md)                  | 已替换   | [阶段文档](phase/2026-06-30-sdd-extension.md)（已替换） | sdd Extension（Omp Slash Commands）— 替代独立 CLI 形态。已被 [2026-07-01 双范式 PRD](prd/2026-07-01-sdd-dual-paradigm.md) 替代  |
-| [2026-07-01](prd/2026-07-01-sdd-dual-paradigm.md) | [双范式架构总览 PRD](prd/2026-07-01-sdd-dual-paradigm.md)             | 已发布   | [阶段文档](phase/2026-07-01-sdd-dual-paradigm.md)       | v1.5.0 双范式架构：SDD 正本 + OpenSpec 可选 hook 默认实现 + sdd-gate 门禁流水线                                   |
+| 日期                                              | 文档名称                                                              | 状态     | 对应 Phase                                              | 说明                                                                                                |
+| ------------------------------------------------- | --------------------------------------------------------------------- | -------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| [2026-07-16](prd/2026-07-16-sdd-pack.md)          | [sdd-pack 总览 PRD (v1.7 整合)](prd/2026-07-16-sdd-pack.md)          | 进行中   | TBD - 由 sdd-phase 补全                                 | v1.7+ 整合 5 个历史 PRD（SDD Pack / sdd CLI / sdd Extension / OpenSpec / 双范式），单点演进          |
+| [2026-06-24](prd/archive/2026-06-24-sdd-pack.md)  | [SDD Pack (omp marketplace 插件) PRD（已归档）](prd/archive/2026-06-24-sdd-pack.md) | 已归档   | [阶段文档](phase/2026-06-24-sdd-pack.md)                | 一键安装、版本化管理、按需启用/禁用 SDD 技能家族 — 已被 v1.7 总览 PRD 整合                          |
+| [2026-06-29](prd/archive/2026-06-29-sdd-cli.md)   | [sdd CLI PRD（已归档）](prd/archive/2026-06-29-sdd-cli.md)            | 已归档   | [阶段文档](phase/2026-06-29-sdd-cli.md)（已归档）       | 独立 CLI 形态已被 [ADR-009](architecture/decisions.md#adr-009-sdd-extension替代独立-cli) Superseded |
+| [2026-06-30](prd/archive/2026-06-30-sdd-extension.md) | [sdd Extension PRD（已归档）](prd/archive/2026-06-30-sdd-extension.md) | 已归档 | [阶段文档](phase/2026-06-30-sdd-extension.md)（已替换） | sdd Extension（Omp Slash Commands）— 替代独立 CLI 形态                                            |
+| [2026-07-01](prd/archive/2026-07-01-openspec-harness.md) | [OpenSpec Harness PRD（已归档）](prd/archive/2026-07-01-openspec-harness.md) | 已归档 | TBD | OpenSpec 作为 hook 默认实现的详细 PRD（init/validate/change/archive 工作流）                  |
+| [2026-07-01](prd/archive/2026-07-01-sdd-dual-paradigm.md) | [双范式架构总览 PRD（已归档）](prd/archive/2026-07-01-sdd-dual-paradigm.md) | 已归档 | [阶段文档](phase/2026-07-01-sdd-dual-paradigm.md) | v1.5.0 双范式架构 — 已被 v1.7 总览 PRD 整合                                              |
 
 ## 阶段文档（Phase）
 

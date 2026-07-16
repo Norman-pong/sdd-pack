@@ -1,6 +1,6 @@
 # sdd-pack 双范式架构总览 PRD
 
-> 状态：已发布 | 创建日期：2026-07-01 | 评审日期：2026-07-01 | 发布日期：2026-07-01 | 系替代：[sdd Extension PRD](2026-06-30-sdd-extension.md)
+> 状态：已归档 | 发布日期：2026-07-16
 > 修改记录：执行 `lore log docs/prd/2026-07-01-sdd-dual-paradigm.md`
 > 对应阶段：[双范式架构实施 phase](../phase/2026-07-01-sdd-dual-paradigm.md)
 > 关键决策：[ADR-009 sdd Extension 替代独立 CLI](../architecture/decisions.md)（Accepted）· [ADR-010 hook 改默认实现 + skills/rules/agents 恢复正本](../architecture/decisions.md)（Revised）· [ADR-011 双范式架构](../architecture/decisions.md)（Accepted）

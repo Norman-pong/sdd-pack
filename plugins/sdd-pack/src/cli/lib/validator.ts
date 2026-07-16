@@ -316,12 +316,11 @@ function checkStateMachine(ctx: CheckContext): CheckResult {
           const isPrd = file.includes("/prd/");
           const validPrdStatuses = [
             "草稿",
-            "评审中",
+            "待评审",
             "已评审",
-            "已发布",
-            "已替换",
+            "已规划任务",
+            "进行中",
             "已归档",
-            "已废弃",
           ];
           const validPhaseStatuses = ["未开始", "进行中", "已完成", "已废弃"];
           const validStatuses = isPrd ? validPrdStatuses : validPhaseStatuses;
@@ -334,7 +333,7 @@ function checkStateMachine(ctx: CheckContext): CheckResult {
       }
     }
 
-    // 检查 supersedes 链: 如果 > 替代: 指向的文件状态应为 已替换
+    // 检查 supersedes 链: 如果 > 替代: 指向的文件状态应为 已归档（ADR-016）
     if (refs.supersedes) {
       const supersedePath = resolve(dirname(file), refs.supersedes);
       if (existsSync(supersedePath)) {
@@ -346,12 +345,10 @@ function checkStateMachine(ctx: CheckContext): CheckResult {
             const targetStatus = parseStatus(targetParsed.status);
             if (
               targetStatus &&
-              targetStatus !== PrdStatus.Replaced &&
-              targetStatus !== PrdStatus.Archived &&
-              targetStatus !== PrdStatus.Abandoned
+              targetStatus !== PrdStatus.Archived
             ) {
               violations.push(
-                `${bn}: supersedes 目标 ${basename(supersedePath)} 状态为 '${targetParsed.status}', 应已替换/已归档/已废弃`,
+                `${bn}: supersedes 目标 ${basename(supersedePath)} 状态为 '${targetParsed.status}', 应已归档`,
               );
             }
           }
