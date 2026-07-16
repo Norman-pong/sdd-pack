@@ -1,6 +1,6 @@
 # Phase 001: 基础设施 — meta-store + PRD 基础流转 + OpenSpec 移除
 
-> 状态：未开始 | 发布日期：2026-07-16
+> 状态:已完成 | 创建日期:2026-07-16
 > 修改记录:执行 `lore log docs/phase/prd-20260716-001/001-foundation.md`
 > 对应 PRD:[sdd-pack PRD (v1.8 强状态流转 + meta.json 事实源)](../../prd/2026-07-16-sdd-pack-v18.md)
 > 对齐版本:v1.8.0-alpha(PRD §9)
