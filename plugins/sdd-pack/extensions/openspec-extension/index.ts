@@ -55,8 +55,8 @@ interface ToolCallBlockResult {
   reason: string;
 }
 interface CommandUI {
-  notify(level: "info" | "warn" | "error", message: string): void;
-  setWidget(content: string): void;
+  notify(message: string, type?: "info" | "warning" | "error"): void;
+  setWidget(key: string, content: string[]): void;
 }
 interface CommandContext {
   ui: CommandUI;
@@ -179,8 +179,8 @@ async function runOpenSpecGate(): Promise<ToolCallBlockResult | null> {
 async function handleInitCheck(_args: string, ctx: unknown): Promise<unknown> {
   const r: InitState = await getInitState();
   const c = uiOf(ctx);
-  if (r.initialized) c.ui.notify("info", `OpenSpec 已就绪(scripts/changes/AGENTS.md 齐全)`);
-  else c.ui.notify("warn", `OpenSpec 未就绪,缺失: ${r.missing.join(", ") || "(未知)"}`);
+  if (r.initialized) c.ui.notify(`OpenSpec 已就绪(scripts/changes/AGENTS.md 齐全)`, "info");
+  else c.ui.notify(`OpenSpec 未就绪,缺失: ${r.missing.join(", ") || "(未知)"}`, "warning");
   return r;
 }
 
@@ -192,8 +192,8 @@ async function handleStatus(_args: string, ctx: unknown): Promise<unknown> {
     `归档变更: ${r.archivedChanges}`,
     `spec areas: ${r.specAreas}`,
   ];
-  c.ui.setWidget(lines.join("\n"));
-  c.ui.notify("info", `OpenSpec 状态总览`);
+  c.ui.setWidget("openspec-display", lines.join("\n").split("\n"));
+  c.ui.notify(`OpenSpec 状态总览`, "info");
   return r;
 }
 
@@ -206,9 +206,9 @@ async function handleValidate(args: string, ctx: unknown): Promise<unknown> {
   const options: ValidateOptions = { changeId, severity: sev };
   const r: ValidateResult = await validateProject(options);
   const c = uiOf(ctx);
-  if (r.status === "error") c.ui.notify("error", `校验失败: ${r.errors.length} 个错误`);
-  else if (r.status === "warn") c.ui.notify("warn", `校验通过但有警告`);
-  else c.ui.notify("info", `校验通过 (${r.changesChecked} 个变更)`);
+  if (r.status === "error") c.ui.notify(`校验失败: ${r.errors.length} 个错误`, "error");
+  else if (r.status === "warn") c.ui.notify(`校验通过但有警告`, "warning");
+  else c.ui.notify(`校验通过 (${r.changesChecked} 个变更)`, "info");
   return r;
 }
 
@@ -223,8 +223,8 @@ async function handleList(args: string, ctx: unknown): Promise<unknown> {
   for (const item of r.items) {
     lines.push(`  [${item.status.toUpperCase()}] ${item.changeId} — ${item.title}`);
   }
-  c.ui.setWidget(lines.join("\n"));
-  c.ui.notify("info", `列表: ${r.matched} 个变更`);
+  c.ui.setWidget("openspec-display", lines.join("\n").split("\n"));
+  c.ui.notify(`列表: ${r.matched} 个变更`, "info");
   return r;
 }
 
@@ -232,12 +232,12 @@ async function handleShow(args: string, ctx: unknown): Promise<unknown> {
   const changeId = splitArgs(args)[0] ?? "";
   const c = uiOf(ctx);
   if (!changeId) {
-    c.ui.notify("error", "用法: /openspec-show <change-id>");
+    c.ui.notify("用法: /openspec-show <change-id>", "error");
     return { error: "missing change-id" };
   }
   const r: ShowResult = await showItem(changeId);
   if (!r.exists) {
-    c.ui.notify("error", `变更不存在: ${changeId}`);
+    c.ui.notify(`变更不存在: ${changeId}`, "error");
     return r;
   }
   const lines = [`变更: ${r.changeId}`, `路径: ${r.path}`, ""];
@@ -248,11 +248,8 @@ async function handleShow(args: string, ctx: unknown): Promise<unknown> {
     lines.push(`--- spec deltas ---`);
     for (const d of r.specDeltas) lines.push(`### ${d.name}`, d.content);
   }
-  c.ui.setWidget(lines.join("\n"));
-  c.ui.notify(
-    "info",
-    `${r.changeId}: proposal=${r.proposal ? "✓" : "✗"} tasks=${r.tasks ? "✓" : "✗"} deltas=${r.specDeltas.length}`,
-  );
+  c.ui.setWidget("openspec-display", lines.join("\n").split("\n"));
+  c.ui.notify(`${r.changeId}: proposal=${r.proposal ? "✓" : "✗"} tasks=${r.tasks ? "✓" : "✗"} deltas=${r.specDeltas.length}`, "info");
   return r;
 }
 
@@ -260,11 +257,11 @@ async function handleInstructions(_args: string, ctx: unknown): Promise<unknown>
   const r: InstructionsResult = await getInstructions();
   const c = uiOf(ctx);
   if (!r.available) {
-    c.ui.notify("error", r.error ?? "不可用");
+    c.ui.notify(r.error ?? "不可用", "error");
     return r;
   }
-  c.ui.setWidget(r.content);
-  c.ui.notify("info", `openspec/AGENTS.md: ${r.content.length} 字符`);
+  c.ui.setWidget("openspec-display", r.content.split("\n"));
+  c.ui.notify(`openspec/AGENTS.md: ${r.content.length} 字符`, "info");
   return r;
 }
 
@@ -273,13 +270,13 @@ async function handleArchive(args: string, ctx: unknown): Promise<unknown> {
   const changeId = a[0];
   const c = uiOf(ctx);
   if (!changeId) {
-    c.ui.notify("error", "用法: /openspec-archive <change-id> [--no-commit]");
+    c.ui.notify("用法: /openspec-archive <change-id> [--no-commit]", "error");
     return { error: "missing change-id" };
   }
   const noCommit = a.includes("--no-commit");
   const r: ArchiveResult = await archiveChange({ changeId, noCommit });
-  if (r.status === "pass") c.ui.notify("info", `归档完成: ${r.changeId}`);
-  else c.ui.notify("error", `归档失败: ${r.errors.join("; ")}`);
+  if (r.status === "pass") c.ui.notify(`归档完成: ${r.changeId}`, "info");
+  else c.ui.notify(`归档失败: ${r.errors.join("; ")}`, "error");
   return r;
 }
 

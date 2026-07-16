@@ -40,17 +40,17 @@ const mockPi = {
 // ===== mock ctx =====
 function makeCtx() {
   const messages: Array<{ level: string; text: string }> = [];
-  const widgets: string[] = [];
+  const widgets: Array<{ key: string; content: string[] }> = [];
   return {
     messages,
     widgets,
     ctx: {
       ui: {
-        notify(level: "info" | "warn" | "error", text: string) {
+        notify(text: string, level: "info" | "warn" | "error" | "warning" = "info") {
           messages.push({ level, text });
         },
-        setWidget(content: string) {
-          widgets.push(content);
+        setWidget(key: string, content: string[]) {
+          widgets.push({ key, content });
         },
       },
     },

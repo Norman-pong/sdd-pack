@@ -71,8 +71,8 @@ interface ToolCallBlockResult {
   reason: string;
 }
 interface CommandUI {
-  notify(level: "info" | "warn" | "error", message: string): void;
-  setWidget(content: string): void;
+  notify(message: string, type?: "info" | "warning" | "error"): void;
+  setWidget(key: string, content: string[]): void;
 }
 interface CommandContext {
   ui: CommandUI;
@@ -91,7 +91,7 @@ function notifyBySeverity(
         : result.status === "warn"
           ? "warn"
           : "info";
-  ctx.ui.notify(level, formatSummary(result));
+  ctx.ui.notify(formatSummary(result), level === "warn" ? "warning" : level);
 }
 
 // ===== type guard: ctx 是否含 ui =====
@@ -242,7 +242,7 @@ async function handleValidate(args: string, ctx: unknown): Promise<unknown> {
   };
   const result: ValidationResult = await validateDocs(options);
   const c = uiOf(ctx);
-  c.ui.setWidget(formatHuman(result));
+  c.ui.setWidget("sdd-display", formatHuman(result).split("\n"));
   notifyBySeverity(result, c);
   if (result.status === "block") return { blocked: true, reason: result.errors.join("\n") };
   return { status: result.status, errors: result.errors.length, warnings: result.warnings.length };
@@ -260,9 +260,9 @@ async function handlePropose(args: string, ctx: unknown): Promise<unknown> {
   const result: ProposeResult = await proposePrd(options);
   const c = uiOf(ctx);
   if (result.status === "pass" && result.path) {
-    c.ui.notify("info", `已创建: ${result.path}\n${result.next ?? ""}`);
+    c.ui.notify(`已创建: ${result.path}\n${result.next ?? ""}`, "info");
   } else {
-    c.ui.notify("error", `创建失败: ${result.errors.join("; ")}`);
+    c.ui.notify(`创建失败: ${result.errors.join("; ")}`, "error");
   }
   return result;
 }
@@ -272,10 +272,7 @@ async function handleArchive(args: string, ctx: unknown): Promise<unknown> {
   const pos = opts.positional[0];
   if (!pos) {
     const c = uiOf(ctx);
-    c.ui.notify(
-      "error",
-      "用法: /sdd-archive <prd-path> [--reason <type>] [--merge-delta] [--dry-run] [--no-commit] [--new-prd <path>]",
-    );
+    c.ui.notify("用法: /sdd-archive <prd-path> [--reason <type>] [--merge-delta] [--dry-run] [--no-commit] [--new-prd <path>]", "error");
     return { error: "missing prd-path" };
   }
   const reason = getEnumOption(
@@ -294,8 +291,8 @@ async function handleArchive(args: string, ctx: unknown): Promise<unknown> {
   };
   const result: ArchiveResult = await archivePrd(options);
   const c = uiOf(ctx);
-  if (result.status === "pass") c.ui.notify("info", `归档完成: ${pos} (${reason})`);
-  else c.ui.notify("error", `归档失败: ${result.errors.join("; ")}`);
+  if (result.status === "pass") c.ui.notify(`归档完成: ${pos} (${reason})`, "info");
+  else c.ui.notify(`归档失败: ${result.errors.join("; ")}`, "error");
   return result;
 }
 
@@ -304,7 +301,7 @@ async function handleMigrate(args: string, ctx: unknown): Promise<unknown> {
   const pos = opts.positional[0];
   if (!pos) {
     const c = uiOf(ctx);
-    c.ui.notify("error", "用法: /sdd-migrate <prd-path> [--dry-run] [--no-backup]");
+    c.ui.notify("用法: /sdd-migrate <prd-path> [--dry-run] [--no-backup]", "error");
     return { error: "missing prd-path" };
   }
   const options: MigrateOptions = {
@@ -315,8 +312,8 @@ async function handleMigrate(args: string, ctx: unknown): Promise<unknown> {
   const result: MigrateResult = await migratePrd(options);
   const c = uiOf(ctx);
   if (result.status === "pass")
-    c.ui.notify("info", `迁移完成: 解析 ${result.parsedEntries} 个版本`);
-  else c.ui.notify("error", `迁移失败: ${result.errors.join("; ")}`);
+    c.ui.notify(`迁移完成: 解析 ${result.parsedEntries} 个版本`, "info");
+  else c.ui.notify(`迁移失败: ${result.errors.join("; ")}`, "error");
   return result;
 }
 
@@ -329,8 +326,8 @@ async function handleStatus(_args: string, ctx: unknown): Promise<unknown> {
       `  [${item.type.toUpperCase()}] ${item.fileName} — ${item.status}${item.version ? ` (v${item.version})` : ""}`,
     );
   }
-  c.ui.setWidget(lines.join("\n"));
-  c.ui.notify("info", `状态总览: ${result.items.length} 个文档`);
+  c.ui.setWidget("sdd-display", lines.join("\n").split("\n"));
+  c.ui.notify(`状态总览: ${result.items.length} 个文档`, "info");
   return result;
 }
 
@@ -349,8 +346,8 @@ async function handleList(args: string, ctx: unknown): Promise<unknown> {
   for (const item of result.items) {
     lines.push(`  ${item.date} | ${item.fileName} | ${item.status} | ${item.title}`);
   }
-  c.ui.setWidget(lines.join("\n"));
-  c.ui.notify("info", `列表: ${result.matched} 个匹配`);
+  c.ui.setWidget("sdd-display", lines.join("\n").split("\n"));
+  c.ui.notify(`列表: ${result.matched} 个匹配`, "info");
   return result;
 }
 
@@ -358,8 +355,8 @@ async function handleWhy(args: string, ctx: unknown): Promise<unknown> {
   const target = splitArgs(args)[0] ?? "";
   const result: WhyResult = await getWhy(target);
   const c = uiOf(ctx);
-  if (result.error) c.ui.notify("error", result.error);
-  else c.ui.notify("info", result.text || "(无输出)");
+  if (result.error) c.ui.notify(result.error, "error");
+  else c.ui.notify(result.text || "(无输出)", "info");
   return result;
 }
 
@@ -367,23 +364,23 @@ async function handleApply(args: string, ctx: unknown): Promise<unknown> {
   const prdPath = splitArgs(args)[0] ?? "";
   const c = uiOf(ctx);
   if (!prdPath) {
-    c.ui.notify("error", "用法: /sdd-apply <prd-path>");
+    c.ui.notify("用法: /sdd-apply <prd-path>", "error");
     return { error: "missing prd-path" };
   }
   try {
     const result: ApplyResult = await getApplyChecklist(prdPath);
-    if (result.total === 0) c.ui.notify("warn", "未找到 checklist 条目");
+    if (result.total === 0) c.ui.notify("未找到 checklist 条目", "warning");
     else {
       const lines = [`验收标准: ${result.prdPath}`, ""];
       for (const item of result.items)
         lines.push(`  ${String(item.id).padStart(2)}. [ ] ${item.description}`);
       lines.push(`\n总计: ${result.total} 条`);
-      c.ui.setWidget(lines.join("\n"));
-      c.ui.notify("info", `提取 ${result.total} 条 checklist`);
+      c.ui.setWidget("sdd-display", lines.join("\n").split("\n"));
+      c.ui.notify(`提取 ${result.total} 条 checklist`, "info");
     }
     return result;
   } catch (e) {
-    c.ui.notify("error", e instanceof Error ? e.message : String(e));
+    c.ui.notify(e instanceof Error ? e.message : String(e), "error");
     return { error: e instanceof Error ? e.message : String(e) };
   }
 }
@@ -422,8 +419,8 @@ function gateNotify(result: GateResult, ctx: unknown): void {
     }
   }
   lines.push("└─");
-  c.ui.setWidget(lines.join("\n"));
-  c.ui.notify(gateLevel(result.status), `sdd-gate ${result.stage}: ${result.status}`);
+  c.ui.setWidget("sdd-display", lines.join("\n").split("\n"));
+  c.ui.notify(`sdd-gate ${result.stage}: ${result.status}`, gateLevel(result.status) === "error" ? "error" : gateLevel(result.status) === "warn" ? "warning" : "info");
 }
 
 async function handleGateLint(_args: string, ctx: unknown): Promise<unknown> {

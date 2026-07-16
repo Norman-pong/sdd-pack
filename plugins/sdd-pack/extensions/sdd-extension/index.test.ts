@@ -44,17 +44,17 @@ const mockPi = {
 // ===== mock ctx =====
 function makeCtx() {
   const messages: Array<{ level: string; text: string }> = [];
-  const widgets: string[] = [];
+  const widgets: Array<{ key: string; content: string[] }> = [];
   return {
     messages,
     widgets,
     ctx: {
       ui: {
-        notify(level: "info" | "warn" | "error", text: string) {
+        notify(text: string, level: "info" | "warn" | "error" | "warning" = "info") {
           messages.push({ level, text });
         },
-        setWidget(content: string) {
-          widgets.push(content);
+        setWidget(key: string, content: string[]) {
+          widgets.push({ key, content });
         },
       },
     },
@@ -244,7 +244,7 @@ describe("sdd-status handler", () => {
     const r = await getHandler("sdd-status")("", ctx);
     expect(r).toBeDefined();
     expect(widgets.length).toBeGreaterThan(0);
-    expect(widgets[0]).toMatch(/PRD: \d+, Phase: \d+/);
+    expect(widgets[0].content.join("\n")).toMatch(/PRD: \d+, Phase: \d+/);
     expect(messages.length).toBeGreaterThan(0);
   });
 });
