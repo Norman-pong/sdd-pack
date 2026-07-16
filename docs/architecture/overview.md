@@ -2,24 +2,24 @@
 
 > 修改记录：执行 `lore log docs/architecture/overview.md`
 
-本文档描述 sdd-pack 仓库（`zhimingcool/sdd-pack`）当前架构。`sdd-pack` 是一个 omp marketplace 插件，由**双范式资产**组成：
+本文档描述 sdd-pack 仓库（`zhimingcool/sdd-pack`）当前架构。`sdd-pack` 是一个 omp marketplace 插件，由 **SDD 单范式资产**组成：
 
 - **静态范式**：4 个 SDD skill + 5 个 rule + 3 个守门 agent
-- **动态范式**：2 个 omp extension（13 个 /sdd-* slash command + 7 个 /openspec-* slash command）+ 2 个 hook（SDD / OpenSpec 二选一）+ 程序化 API 层（`api.ts` + `openspec-api.ts`）+ CI 入口（`api-runner.ts` + `openspec-api-runner.ts`）
+- **动态范式**：1 个 omp extension（15 个 /sdd-* slash command）+ hook 逻辑（合并进 extension）+ 程序化 API 层（`api.ts`）+ CI 入口（`api-runner.ts`）
 - **门禁子系统**（v1.5.0 新增）：5 个 `/sdd-gate-*` slash command + gate-config + gate-runner，把 lint -> test -> review -> precommit -> commit 变为 omp slash command 结果阻断（非 OS 进程退出码，详见 [sdd-gate 架构](sdd-gate.md)）。
 
-两范式共享同一份 `src/cli/lib/*` 核心库。
+所有资产共享同一份 `src/cli/lib/*` 核心库。
 
 ## 1. 系统定位
 
-**SDD 文档生命周期 + 三层代码质量评审 + 门禁流水线的 OMP 分发容器**。通过 omp marketplace 机制，让用户用 `omp plugin install sdd-pack@sdd-pack` 一条命令获得：SDD 技能家族（sdd-core/input/prd/phase）、lore 提交协议 hook、PRD/Phase 状态行守门、三层守门 agent、13 个 sdd slash command（含 5 个 /sdd-gate-* 门禁）、sdd 校验 hook、`bun run` 形式的 CI 入口。
+**SDD 文档生命周期 + 三层代码质量评审 + 门禁流水线的 OMP 分发容器**。通过 omp marketplace 机制，让用户用 `omp plugin install sdd-pack@sdd-pack` 一条命令获得：SDD 技能家族（sdd-core/input/prd/phase）、lore 提交协议 hook、PRD/Phase 状态行守门、三层守门 agent、15 个 sdd slash command（含 5 个 /sdd-gate-* 门禁）、sdd 校验 hook、`bun run` 形式的 CI 入口。
 
 ## 2. 架构原则
 
 - **静态优先 + 动态薄壳**：plugin 内容以静态 Markdown 资产（SKILL.md / rule / agent）为主；运行时逻辑集中在 `extensions/`（声明式 omp 扩展）与 `hooks/`（声明式 omp 钩子），业务逻辑下沉到 `src/cli/api.ts` 纯函数薄壳层。
 - **零副作用**（除进程内 spawnSync）：plugin 不声明 MCP servers / LSP servers / custom tools；唯一进程级副作用是 `api-runner.ts` 触发的 `bun run`。
 - **路径透明**：所有路径遵循 omp 标准布局（`skills/<name>/SKILL.md`、`rules/*.md`、`agents/*.md`），extension 入口遵循 `omp.extensions` manifest 约定。
-- **双范式共享内核**：静态资产（skill/rule/agent）通过 OMP 协议分发，动态入口（extension/hook/api-runner）通过 `src/cli/lib/*` 共享核心库（`validator.ts` / `prd-state-machine.ts` / `doc-parser.ts` / `template-engine.ts` / `lore-wrapper.ts`）。
+- **单范式共享内核**：静态资产（skill/rule/agent）通过 OMP 协议分发，动态入口（extension/api-runner）通过 `src/cli/lib/*` 共享核心库（`validator.ts` / `prd-state-machine.ts` / `doc-parser.ts` / `template-engine.ts` / `lore-wrapper.ts`）。
 
 ## 3. 系统架构
 
@@ -33,8 +33,7 @@ graph TB
 
     Plugin --> Skills["skills/<br/>sdd-core / sdd-input / sdd-prd / sdd-phase"]
     Plugin --> Rules["rules/<br/>lore-protocol + 4 guards"]
-    Plugin --> Ext["extensions/sdd-extension/<br/>13 个 /sdd-* slash command（含 5 个 /sdd-gate-*）"]
-    Plugin --> Hooks["hooks/sdd/ + hooks/openspec/<br/>二选一 hook 装载"]
+    Plugin --> Ext["extensions/sdd-extension/<br/>15 个 /sdd-* slash command（含 5 个 /sdd-gate-*）+ tool_call 拦截"]
     Plugin --> Src["src/<br/>cli/api.ts + api-runner.ts + lib/"]
     Plugin --> Manifest["package.json + README.md"]
 
@@ -42,7 +41,6 @@ graph TB
     OMP["omp CLI"] -->|plugin install| Plugin
 
     Ext -->|api.ts| Src
-    Hooks -->|api.ts| Src
     Src --> Lib["lib/ (validator, prd-state-machine,<br/>doc-parser, template-engine,<br/>lore-wrapper, index-sync)"]
     Lib --> Docs
 ```
@@ -77,8 +75,8 @@ graph TB
 | rules               | 5 个 rule（lore 协议 + 4 个守门）            | `plugins/sdd-pack/rules/*.md`                                 |
 | 三层守门 agent      | reviewer / arch-reviewer / sdd-reviewer    | `plugins/sdd-pack/agents/{reviewer,arch-reviewer,sdd-reviewer}.md` |
 | docs-check.sh       | 文档结构校验脚本（sdd-core 引用）            | `plugins/sdd-pack/skills/sdd-core/references/docs-check.sh`   |
-| sdd-extension       | 13 个 `/sdd-*` slash command（8 文档 + 5 门禁） | `plugins/sdd-pack/extensions/sdd-extension/index.ts`          |
-| hooks               | SDD / OpenSpec 二选一 hook 聚合            | `plugins/sdd-pack/hooks/sdd/index.ts` + `hooks/openspec/index.ts` |
+| sdd-extension       | 15 个 `/sdd-*` slash command（8 文档 + 5 门禁 + 1 主命令 + 1 archive-phase） | `plugins/sdd-pack/extensions/sdd-extension/index.ts`          |
+| hooks               | 合并进 `extensions/sdd-extension/index.ts`（commit gate + session_start reminder + path gate） |
 | sdd-api             | 8 个程序化纯函数                           | `plugins/sdd-pack/src/cli/api.ts`                             |
 | api-runner          | `bun run` CI 入口                          | `plugins/sdd-pack/src/cli/api-runner.ts`                      |
 | **gate-config**     | gate.json 读取 + 项目类型自动检测          | `plugins/sdd-pack/src/cli/lib/gate-config.ts`                 |
@@ -89,7 +87,6 @@ graph TB
 
 ```
 extensions/sdd-extension/index.ts
-hooks/index.ts
 src/cli/api-runner.ts
         ↓
 src/cli/api.ts
@@ -109,13 +106,13 @@ src/cli/lib/api-types.ts
 // .omp-plugin/marketplace.json
 {
   "name": "sdd-pack",
-  "metadata": { "version": "1.5.0", "pluginRoot": "plugins" },
+  "metadata": { "version": "1.6.0", "pluginRoot": "plugins" },
   "plugins": [
     {
       "name": "sdd-pack",
-      "description": "SDD 一体化工具(正本) + OpenSpec hook 默认实现(可选)",
+      "description": "SDD 一体化工具(正本)",
       "source": "./sdd-pack",
-      "version": "1.5.0",
+      "version": "1.6.0",
       "agents": ["reviewer", "arch-reviewer", "sdd-reviewer"]
     }
   ]
@@ -128,9 +125,9 @@ src/cli/lib/api-types.ts
 // plugins/sdd-pack/package.json
 {
   "name": "sdd-pack",
-  "version": "1.5.0",
-  "files": ["skills", "rules", "hooks/sdd", "hooks/openspec", "agents", "extensions", "src", "README.md"],
-  "omp": { "extensions": ["./extensions/sdd-extension/index.ts", "./extensions/openspec-extension/index.ts"] },
+  "version": "1.6.0",
+  "files": ["skills", "rules", "agents", "extensions", "src", "README.md"],
+  "omp": { "extensions": ["./extensions/sdd-extension/index.ts"] },
   "devDependencies": { "@types/node": "^26", "@types/bun": "^1.3" }
 }
 ```
@@ -147,8 +144,8 @@ src/cli/lib/api-types.ts
 ## 6. 集成架构
 
 - **与 omp 插件系统**：marketplace catalog（`.omp-plugin/marketplace.json`）声明 plugin；`package.json#omp.extensions` 注册 extension 入口；`omp plugin install/enable/disable/upgrade` 管理生命周期；`omp plugin link` 调试。
-- **与 lore 提交协议**：`hooks/index.ts` 在 `bash` 工具调用 `(git|lore)\s+commit` 时拦截，提示走 `lore commit`；`src/cli/lib/lore-wrapper.ts` 封装 `lore commit` 调用。
-- **与文档系统**：`hooks/index.ts` 在 `write/edit` 命中 `docs/**` 时提示走 `skill://sdd-core` 流程；`api.ts` 8 个函数直接操作 `docs/prd/`、`docs/phase/`、`docs/spec/`。
+- **与 lore 提交协议**：`extensions/sdd-extension/index.ts` 在 `bash` 工具调用 `(git|lore)\s+commit` 时拦截，提示走 `lore commit`；`src/cli/lib/lore-wrapper.ts` 封装 `lore commit` 调用。
+- **与文档系统**：`extensions/sdd-extension/index.ts` 在 `write/edit` 命中 `docs/**` 时提示走 `skill://sdd-core` 流程；`api.ts` 8 个函数直接操作 `docs/prd/`、`docs/phase/`、`docs/spec/`。
 - **与 CI**：`bun run src/cli/api-runner.ts <cmd>` 转发到 `api.ts`；退出码由 `ValidationResult.status` 决定（`block`→exit 2、`error`→exit 1、其他→exit 0）。
 
 ## 7. 部署架构
@@ -173,6 +170,6 @@ graph LR
 
 - **静态资产零执行**：rules / agents 是 Markdown + frontmatter，无可执行代码；`docs-check.sh` 是只读校验脚本。
 - **进程级副作用**：`api-runner.ts` 是唯一外部进程入口（`bun run`），不引入新 sandbox 边界；`api.ts` 不调 `process.exit` / `console.*`，由调用方决定输出与退出码。
-- **写入路径约束**：`hooks/index.ts` 对 `docs/**` 写入给提示（不阻断，提示走 `skill://sdd-core`），避免 agent 绕过 SDD 流程。
-- **Commit 守门**：`hooks/index.ts` 在 `git|lore commit` 时调 `api.validateDocs({ staged: true })`，`status=block` 时 `sendMessage` 强提示（plugin hook 不能 throw，仅 system message 提示）。
+- **写入路径约束**：`extensions/sdd-extension/index.ts` 对 `docs/**` 写入给提示（不阻断，提示走 `skill://sdd-core`），避免 agent 绕过 SDD 流程。
+- **Commit 守门**：`extensions/sdd-extension/index.ts` 在 `git|lore commit` 时调 `api.validateDocs({ staged: true })`，`status=block` 时 `sendMessage` 强提示（plugin hook 不能 throw，仅 system message 提示）。
 - **安装来源**：仅信任 GitHub `zhimingcool/sdd-pack` 仓库；README 明确安装命令与校验方式。

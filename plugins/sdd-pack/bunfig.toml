@@ -6,6 +6,6 @@
 # docs/prd/ 不在那里,fixture test fail。从仓库根跑则正常。
 #
 # 修复:preload 脚本向上找包含 docs/prd/ 的最近父目录并 chdir,
-# prod 代码 0 改动,跨范式边界守住(OpenSpec 测试自身 chdir 隔离不受影响)。
+# prod 代码 0 改动。
 [test]
 preload = ["./test-preload.ts"]

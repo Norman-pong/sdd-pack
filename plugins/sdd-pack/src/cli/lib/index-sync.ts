@@ -5,7 +5,7 @@
  */
 
 import { existsSync, readFileSync, writeFileSync } from "fs";
-import { resolve, relative, basename } from "path";
+import { resolve, relative, basename, dirname } from "path";
 
 /** 索引条目 */
 export interface IndexEntry {
@@ -71,8 +71,8 @@ export function addPrdEntry(
   const content = readFileSync(indexPath, "utf-8");
   const bn = basename(filePath);
   const date = bn.match(/^(\d{4}-\d{2}-\d{2})/)?.[1] ?? "????-??-??";
+  const newRow = `| [${date}](${relative(dirname(indexPath), filePath)}) | [${linkText}](${relative(dirname(indexPath), filePath)}) | ${status} | — | — |`;
 
-  const newRow = `| [${date}](${relative(resolve("."), filePath)}) | [${linkText}](${relative(resolve("."), filePath)}) | ${status} | — | — |`;
 
   // 在 PRD 表格的最后一行前插入（在分隔行后）
   const lines = content.split("\n");
@@ -87,7 +87,7 @@ export function addPrdEntry(
       dividerFound = false;
       continue;
     }
-    if (inPrdTable && line.includes("|---")) {
+    if (inPrdTable && /^\|\s*-{3,}/.test(line)) {
       dividerFound = true;
       continue;
     }

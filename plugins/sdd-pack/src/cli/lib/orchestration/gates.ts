@@ -49,6 +49,7 @@ export function requireString(value: string | undefined, name: string): string {
 
 /** --supersedes 指向的旧 PRD 必须是 已归档 状态（ADR-016：已完成/已中止 已合并入 已归档 子态） */
 export function assertSupersedesArchived(prdPath: string): void {
+  const status = currentStatusOf(prdPath);
   if (status !== PrdStatus.Archived) {
     throw new Error(`--supersedes 目标必须为"已归档"状态,实际: ${status ?? "(无法解析)"}`);
   }

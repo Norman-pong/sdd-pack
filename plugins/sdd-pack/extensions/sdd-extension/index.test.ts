@@ -11,6 +11,8 @@ import { describe, expect, test } from "bun:test";
 
 import factory from "./index";
 import * as api from "../../src/cli/api";
+import { splitArgs } from "./ui-helpers";
+import { parseArgs, getStringOption } from "../../src/cli/lib/orchestration/parseArgs";
 
 // ===== mock ExtensionAPI =====
 interface CapturedCommand {
@@ -74,6 +76,43 @@ function getEventHandler(event: string): (e: unknown) => Promise<unknown> {
   if (!h) throw new Error(`未注册 event: ${event}`);
   return h.handler as (e: unknown) => Promise<unknown>;
 }
+
+
+// ===== splitArgs 单元测试(引号保留) =====
+
+describe("splitArgs — 引号保留", () => {
+  test("双引号多词 → 单 token", () => {
+    expect(splitArgs('--title "My PRD Title"')).toEqual(["--title", "My PRD Title"]);
+  });
+
+  test("单引号多词 → 单 token", () => {
+    expect(splitArgs("--title 'My PRD Title'")).toEqual(["--title", "My PRD Title"]);
+  });
+
+  test("反斜杠转义空格 → 单 token", () => {
+    expect(splitArgs("--title My\\ PRD")).toEqual(["--title", "My PRD"]);
+  });
+
+  test("混合: 引号 + positional", () => {
+    expect(splitArgs('init --title "My PRD" extra')).toEqual(["init", "--title", "My PRD", "extra"]);
+  });
+});
+
+// ===== parseArgs token 保留测试 =====
+
+describe("parseArgs — token 边界保留", () => {
+  test("引号多词 option → 完整值", () => {
+    const tokens = splitArgs('--title "My PRD Title"');
+    const opts = parseArgs(tokens);
+    expect(getStringOption(opts, "title")).toBe("My PRD Title");
+  });
+
+  test("positional 多词 → 拼接", () => {
+    const tokens = splitArgs("My PRD Title");
+    const opts = parseArgs(tokens);
+    expect(opts.positional.join(" ")).toBe("My PRD Title");
+  });
+});
 
 // ===== tool_call 硬拦截测试 =====
 
@@ -162,11 +201,12 @@ describe("sdd-extension — session_start", () => {
   });
 });
 
-describe("sdd-extension — 14 slash command 注册", () => {
-  test("注册 14 个 command", () => {
-    expect(captured.length).toBe(14);
+describe("sdd-extension — 15 slash command 注册", () => {
+  test("注册 15 个 command", () => {
+    expect(captured.length).toBe(15);
     const names = captured.map((c) => c.name).sort();
     expect(names).toEqual([
+      "sdd",
       "sdd-apply",
       "sdd-archive",
       "sdd-archive-phase",
@@ -279,7 +319,7 @@ describe("sdd-apply handler", () => {
 });
 
 describe("sdd-extension 隔离性(api 实际被调)", () => {
-  test("api.ts 的 8 个函数都从 extension 可访问", () => {
+  test("api.ts 的 12 个函数都从 extension 可访问", () => {
     expect(typeof api.validateDocs).toBe("function");
     expect(typeof api.proposePrd).toBe("function");
     expect(typeof api.archivePrd).toBe("function");
@@ -288,5 +328,104 @@ describe("sdd-extension 隔离性(api 实际被调)", () => {
     expect(typeof api.listPrds).toBe("function");
     expect(typeof api.getWhy).toBe("function");
     expect(typeof api.getApplyChecklist).toBe("function");
+    expect(typeof api.initPrd).toBe("function");
+    expect(typeof api.reviewPrd).toBe("function");
+    expect(typeof api.approvePrd).toBe("function");
+    expect(typeof api.backPrd).toBe("function");
+  });
+});
+
+describe("/sdd 主命令路由", () => {
+  test("空 args → 显示用法", async () => {
+    const { ctx, messages } = makeCtx();
+    const r = await getHandler("sdd")("", ctx);
+    expect(r).toBeDefined();
+    expect(messages.some((m) => m.text.includes("用法"))).toBe(true);
+  });
+
+  test("未知子命令 → error", async () => {
+    const { ctx, messages } = makeCtx();
+    const r = await getHandler("sdd")("unknown-sub", ctx);
+    expect(r).toBeDefined();
+    expect(messages.some((m) => m.level === "error" && m.text.includes("未知子命令"))).toBe(true);
+  });
+
+  test("init 子命令缺少 title → error + setWidget", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("init", ctx);
+    expect(r).toBeDefined();
+    expect(messages.some((m) => m.level === "error" && m.text.includes("用法"))).toBe(true);
+    // 缺少 title 时 error-return,但仍有 UI 反馈(setWidget + notify)
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+    expect(widgets[0].content.join("\n")).toContain("usage");
+  });
+
+  test("back 缺少 --to → error + setWidget(不调用 API)", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("back", ctx);
+    expect(r).toBeDefined();
+    expect(messages.some((m) => m.level === "error" && m.text.includes("用法"))).toBe(true);
+    // 缺少 --to 时 error-return,但仍有 UI 反馈(setWidget + notify)
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+    expect(widgets[0].content.join("\n")).toContain("usage");
+  });
+
+  test("back --to reviewed → error + setWidget(非法值,不调用 API)", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("back --to reviewed", ctx);
+    expect(r).toBeDefined();
+    expect(messages.some((m) => m.level === "error" && m.text.includes("用法"))).toBe(true);
+    // 非法 --to 值时 error-return,但仍有 UI 反馈(setWidget + notify)
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+    expect(widgets[0].content.join("\n")).toContain("usage");
+  });
+
+  test("back --to draft → setWidget + notify", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("back --to draft", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+  });
+
+  test("back --to pending → setWidget + notify", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("back --to pending", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+  });
+
+  test("review 子命令 → setWidget + notify", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("review", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+  });
+
+  test("approve 子命令 → setWidget + notify", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("approve", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+  });
+  test("init 子命令缺少 title → error + setWidget", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("init", ctx);
+    expect(r).toBeDefined();
+    expect(messages.some((m) => m.level === "error" && m.text.includes("用法"))).toBe(true);
+    // 缺少 title 时 error-return,但仍有 UI 反馈(setWidget + notify)
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+    expect(widgets[0].content.join("\n")).toContain("usage");
   });
 });

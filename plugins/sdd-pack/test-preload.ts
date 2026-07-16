@@ -9,7 +9,7 @@
  * 最近父目录,chdir 过去。这样后续 resolve("docs/prd") 都能正确指向仓库根。
  *
  * 副作用评估:
- * - OpenSpec 测试 fixture 已用 `process.chdir(FIXTURE_ROOT)` 隔离,他们的
+ * - 测试 fixture 已用 `process.chdir(FIXTURE_ROOT)` 隔离,他们的
  *   chdir 在 preload 之后执行,会覆盖本 preload 的 chdir — 隔离行为不受影响
  * - 找不到 docs/prd 时保持原 cwd(不抛错),fallback 安全
  * - 零其他副作用:不写日志、不预加载模块、不修改全局状态

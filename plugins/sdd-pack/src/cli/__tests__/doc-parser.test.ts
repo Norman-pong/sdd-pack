@@ -12,7 +12,11 @@ import {
   isValidFileName,
   extractRequiredSections,
   extractH1,
+  generatePrdStatusLine,
+  generatePhaseStatusLine,
 } from "../lib/doc-parser";
+import { PrdStatus, PhaseStatus, ArchiveReason } from "../lib/prd-state-machine";
+import type { PrdMeta, PhaseMeta } from "../lib/meta-store";
 
 describe("parseStatusLine", () => {
   test("规范单行状态行", () => {
@@ -152,5 +156,134 @@ describe("extractRequiredSections", () => {
     expect(missing).toContain("## 0. 目标声明");
     expect(missing).toContain("## 3. 功能需求");
     expect(missing).toContain("## 8. 验收标准");
+  });
+});
+
+describe("generatePrdStatusLine", () => {
+  const basePrdMeta: PrdMeta = {
+    id: "prd-20260716-001",
+    title: "Test PRD",
+    status: PrdStatus.Draft,
+    transitions: [],
+    phaseIds: [],
+    nextPhaseSeq: 1,
+    createdAt: "2026-07-16T10:00:00.000Z",
+    updatedAt: "2026-07-16T10:00:00.000Z",
+    filePath: "docs/prd/prd-20260716-001.md",
+    version: "v1.8.0",
+  };
+
+  test("草稿状态（无 transitions）", () => {
+    const line = generatePrdStatusLine(basePrdMeta);
+    expect(line).toBe("> 状态：草稿 | 发布日期：2026-07-16 | 版本：v1.8.0");
+  });
+
+  test("进行中状态（有 transitions）", () => {
+    const meta: PrdMeta = {
+      ...basePrdMeta,
+      status: PrdStatus.InProgress,
+      transitions: [
+        { from: null, to: PrdStatus.Draft, at: "2026-07-16T10:00:00.000Z", by: "test" },
+        { from: PrdStatus.Draft, to: PrdStatus.InProgress, at: "2026-07-16T12:00:00.000Z", by: "test" },
+      ],
+    };
+    const line = generatePrdStatusLine(meta);
+    expect(line).toBe("> 状态：进行中 | 发布日期：2026-07-16 | 版本：v1.8.0");
+  });
+
+  test("已归档状态带归档原因", () => {
+    const meta: PrdMeta = {
+      ...basePrdMeta,
+      status: PrdStatus.Archived,
+      archiveReason: ArchiveReason.Completed,
+      transitions: [
+        { from: null, to: PrdStatus.Draft, at: "2026-07-16T10:00:00.000Z", by: "test" },
+        { from: PrdStatus.InProgress, to: PrdStatus.Archived, at: "2026-07-16T18:00:00.000Z", by: "test" },
+      ],
+    };
+    const line = generatePrdStatusLine(meta);
+    expect(line).toBe("> 状态：已归档 | 发布日期：2026-07-16 | 版本：v1.8.0 | 归档原因：已完成");
+  });
+
+  test("已归档状态带已中止归档原因", () => {
+    const meta: PrdMeta = {
+      ...basePrdMeta,
+      status: PrdStatus.Archived,
+      archiveReason: ArchiveReason.Abandoned,
+      transitions: [
+        { from: null, to: PrdStatus.Draft, at: "2026-07-16T10:00:00.000Z", by: "test" },
+        { from: PrdStatus.InProgress, to: PrdStatus.Archived, at: "2026-07-16T18:00:00.000Z", by: "test" },
+      ],
+    };
+    const line = generatePrdStatusLine(meta);
+    expect(line).toBe("> 状态：已归档 | 发布日期：2026-07-16 | 版本：v1.8.0 | 归档原因：已中止");
+    const parsed = parseStatusLine(line);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.status).toBe("已归档");
+  });
+
+  test("与 parseStatusLine 可逆兼容", () => {
+    const meta: PrdMeta = {
+      ...basePrdMeta,
+      status: PrdStatus.Reviewed,
+      transitions: [
+        { from: null, to: PrdStatus.Draft, at: "2026-07-16T10:00:00.000Z", by: "test" },
+        { from: PrdStatus.PendingReview, to: PrdStatus.Reviewed, at: "2026-07-16T14:00:00.000Z", by: "test" },
+      ],
+    };
+    const line = generatePrdStatusLine(meta);
+    const parsed = parseStatusLine(line);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.status).toBe("已评审");
+    expect(parsed!.publishDate).toBe("2026-07-16");
+    expect(parsed!.version).toBe("v1.8.0");
+  });
+});
+
+describe("generatePhaseStatusLine", () => {
+  const basePhaseMeta: PhaseMeta = {
+    id: "phs-001-001",
+    parentId: "prd-20260716-001",
+    title: "Test Phase",
+    status: PhaseStatus.NotStarted,
+    seq: 1,
+    transitions: [],
+    createdAt: "2026-07-16T10:00:00.000Z",
+    updatedAt: "2026-07-16T10:00:00.000Z",
+    filePath: "docs/phase/prd-20260716-001/001-test.md",
+  };
+
+  test("未开始状态（无 transitions）", () => {
+    const line = generatePhaseStatusLine(basePhaseMeta);
+    expect(line).toBe("> 状态：未开始 | 发布日期：2026-07-16");
+  });
+
+  test("进行中状态（有 transitions）", () => {
+    const meta: PhaseMeta = {
+      ...basePhaseMeta,
+      status: PhaseStatus.InProgress,
+      transitions: [
+        { from: null, to: PhaseStatus.NotStarted, at: "2026-07-16T10:00:00.000Z", by: "test" },
+        { from: PhaseStatus.NotStarted, to: PhaseStatus.InProgress, at: "2026-07-16T11:00:00.000Z", by: "test" },
+      ],
+    };
+    const line = generatePhaseStatusLine(meta);
+    expect(line).toBe("> 状态：进行中 | 发布日期：2026-07-16");
+  });
+
+  test("与 parseStatusLine 可逆兼容", () => {
+    const meta: PhaseMeta = {
+      ...basePhaseMeta,
+      status: PhaseStatus.Completed,
+      transitions: [
+        { from: null, to: PhaseStatus.NotStarted, at: "2026-07-16T10:00:00.000Z", by: "test" },
+        { from: PhaseStatus.InProgress, to: PhaseStatus.Completed, at: "2026-07-16T16:00:00.000Z", by: "test" },
+      ],
+    };
+    const line = generatePhaseStatusLine(meta);
+    const parsed = parseStatusLine(line);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.status).toBe("已完成");
+    expect(parsed!.publishDate).toBe("2026-07-16");
   });
 });

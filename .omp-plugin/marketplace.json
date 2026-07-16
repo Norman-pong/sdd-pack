@@ -2,14 +2,14 @@
   "name": "sdd-pack",
   "owner": { "name": "norman" },
   "metadata": {
-    "description": "sdd-pack 一体化开发管理工具：SDD 技能家族(sdd-core/input/prd/phase) + 三层守门 agent(reviewer/arch-reviewer/sdd-reviewer) + 双范式 hook(SDD/OpenSpec) + 双范式 extension(/sdd-* + /openspec-*) + 双范式 CI runner",
+    "description": "sdd-pack 一体化开发管理工具：SDD 技能家族(sdd-core/input/prd/phase) + 三层守门 agent(reviewer/arch-reviewer/sdd-reviewer) + SDD extension(/sdd-*) + SDD CI runner",
     "version": "1.6.0",
     "pluginRoot": "plugins"
   },
   "plugins": [
     {
       "name": "sdd-pack",
-      "description": "SDD 一体化工具(正本) + OpenSpec hook 默认实现(可选)",
+      "description": "SDD 一体化工具(正本)",
       "source": "./sdd-pack",
       "category": "development",
       "keywords": [
@@ -17,10 +17,6 @@
         "prd",
         "phase",
         "lore",
-        "openspec",
-        "spec",
-        "change",
-        "harness",
         "gate",
         "documentation",
         "reviewer",
@@ -43,9 +39,11 @@
         ],
         "agents": ["reviewer", "arch-reviewer", "sdd-reviewer"],
         "commands": [
+          "/sdd",
           "/sdd-validate",
           "/sdd-propose",
           "/sdd-archive",
+          "/sdd-archive-phase",
           "/sdd-migrate",
           "/sdd-status",
           "/sdd-list",
@@ -55,21 +53,12 @@
           "/sdd-gate-test",
           "/sdd-gate-review",
           "/sdd-gate-precommit",
-          "/sdd-gate-commit",
-          "/openspec-init-check",
-          "/openspec-status",
-          "/openspec-validate",
-          "/openspec-list",
-          "/openspec-show",
-          "/openspec-instructions",
-          "/openspec-archive"
+          "/sdd-gate-commit"
         ],
         "hooks": []
       },
       "paradigm": {
-        "primary": "sdd",
-        "optional_alternative": "openspec",
-        "hook_choice": "hook 逻辑已合并进 extension module(ADR-015),无需单独装载;omp plugin link 后自动生效"
+        "primary": "sdd"
       },
       "reviewer_layers": {
         "layer_1_commit": { "agent": "reviewer", "blocking": true, "verdict_field": "overall_correctness" },

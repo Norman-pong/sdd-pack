@@ -5,11 +5,12 @@
  * 决策: docs/architecture/decisions.md ADR-009(替代 ADR-008 独立 CLI)
  *
  * 约束:
- * - 单文件 ≤ 400 行(phase doc T002 硬上限)
- * - 8 个 pi.registerCommand
+ * - 15 个 pi.registerCommand(1 个 /sdd 主命令 + 14 个旧 sdd-* 命令,Phase 003 统一别名)
  * - 不用 @oh-my-pi/pi-coding-agent 类型(unknown 兜底,跟 hooks/sdd/index.ts 同构)
  * - 统一 arg parser(parseArgs from lib/orchestration/parseArgs)
  * - 统一 UI adapter(notifyBySeverity)
+ * - /sdd 路由 + 4 个流转 handler 在 sdd-router.ts(ADR-018)
+ * - 5 个 gate handler 在 gate-handlers.ts
  */
 
 import {
@@ -46,39 +47,30 @@ import {
 } from "../../src/cli/lib/orchestration/parseArgs";
 import { formatHuman, formatSummary } from "../../src/cli/lib/orchestration/format";
 import type { CheckSeverity, CheckResult } from "../../src/cli/lib/validator";
-import {
-  runLint,
-  runTest,
-  runReview,
-  runPrecommit,
-  runCommit,
-} from "../../src/cli/lib/gate-runner";
-import type { GateResult } from "../../src/cli/lib/gate-config";
-import { findProjectRoot } from "../../src/cli/lib/path";
 import { stagedFiles } from "../../src/cli/lib/orchestration/git";
+import { uiOf, splitArgs, type CommandContext, type CommandUI } from "./ui-helpers";
+import { handleSdd } from "./sdd-router";
+import {
+  handleGateLint,
+  handleGateTest,
+  handleGateReview,
+  handleGatePrecommit,
+  handleGateCommit,
+} from "./gate-handlers";
+import { runReview } from "../../src/cli/lib/gate-runner";
 
 // ===== 类型兜底(unknown,跟 hooks/sdd/index.ts 同构) =====
 interface ExtensionAPI {
   registerCommand(
     name: string,
-    def: {
-      description: string;
-      handler: (args: string, ctx: unknown) => Promise<unknown> | unknown;
-    },
+    def: { description: string; handler: (args: string, ctx: unknown) => Promise<unknown> | unknown },
   ): void;
-  on(event: string, handler: (e: unknown) => void | Promise<void | ToolCallBlockResult>): void;
+  on(event: string, handler: (e: unknown) => void | Promise<unknown>): void;
   sendMessage(msg: { role: "system" | "user"; content: string }): void;
 }
 interface ToolCallBlockResult {
   block: true;
   reason: string;
-}
-interface CommandUI {
-  notify(message: string, type?: "info" | "warning" | "error"): void;
-  setWidget(key: string, content: string[]): void;
-}
-interface CommandContext {
-  ui: CommandUI;
 }
 
 // ===== 统一 UI adapter:把 ValidationResult 映射到 ctx.ui =====
@@ -95,20 +87,6 @@ function notifyBySeverity(
           ? "warn"
           : "info";
   ctx.ui.notify(formatSummary(result), level === "warn" ? "warning" : level);
-}
-
-// ===== type guard: ctx 是否含 ui =====
-function hasUI(ctx: unknown): ctx is { ui: CommandUI } {
-  if (ctx === null || typeof ctx !== "object") return false;
-  if (!("ui" in ctx)) return false;
-  const ui: unknown = ctx["ui"];
-  if (ui === null || typeof ui !== "object") return false;
-  return "notify" in ui && "setWidget" in ui;
-}
-
-// ===== helper: 类型守卫(取 ui) =====
-function uiOf(ctx: unknown): CommandContext {
-  return hasUI(ctx) ? ctx : { ui: { notify: () => {}, setWidget: () => {} } };
 }
 
 // ===== 从 hooks/sdd/index.ts 合并的 tool_call 拦截逻辑 =====
@@ -238,11 +216,6 @@ function runLoreReviewGate(): ToolCallBlockResult | null {
     };
   }
   return null;
-}
-
-// ===== arg split(omp 注入 `args: string` 而非 argv) =====
-function splitArgs(s: string): string[] {
-  return s.trim().split(/\s+/).filter(Boolean);
 }
 
 // ===== 8 个 command handlers =====
@@ -423,80 +396,12 @@ async function handleApply(args: string, ctx: unknown): Promise<unknown> {
   }
 }
 
-// ===== 5 个 gate command handlers =====
-
-function gateLevel(status: string): "info" | "warn" | "error" {
-  if (status === "fail" || status === "block") return "error";
-  if (status === "skip") return "warn";
-  return "info";
-}
-
-function gateNotify(result: GateResult, ctx: unknown): void {
-  const c = uiOf(ctx);
-  const lines: string[] = [
-    `┌─ sdd-gate: ${result.stage}`,
-    `├─ status: ${result.status}`,
-  ];
-  if (result.command) lines.push(`├─ command: ${result.command}`);
-  lines.push(`├─ exit code: ${result.exitCode}`);
-  if (result.message) {
-    for (const line of result.message.split("\n")) lines.push(`├─ ${line}`);
-  }
-  if (result.stdout) {
-    lines.push("├─ stdout:");
-    for (const line of result.stdout.trim().split("\n").slice(0, 30)) {
-      lines.push(`│  ${line}`);
-    }
-    const total = result.stdout.trim().split("\n").length;
-    if (total > 30) lines.push(`│  ... (${total - 30} more lines)`);
-  }
-  if (result.stderr) {
-    lines.push("├─ stderr:");
-    for (const line of result.stderr.trim().split("\n").slice(0, 20)) {
-      lines.push(`│  ${line}`);
-    }
-  }
-  lines.push("└─");
-  c.ui.setWidget("sdd-display", lines.join("\n").split("\n"));
-  c.ui.notify(`sdd-gate ${result.stage}: ${result.status}`, gateLevel(result.status) === "error" ? "error" : gateLevel(result.status) === "warn" ? "warning" : "info");
-}
-
-async function handleGateLint(_args: string, ctx: unknown): Promise<unknown> {
-  const result = runLint(findProjectRoot());
-  gateNotify(result, ctx);
-  return result;
-}
-
-async function handleGateTest(_args: string, ctx: unknown): Promise<unknown> {
-  const result = runTest(findProjectRoot());
-  gateNotify(result, ctx);
-  return result;
-}
-
-async function handleGateReview(args: string, ctx: unknown): Promise<unknown> {
-  const opts = parseArgs(splitArgs(args));
-  const sha = getStringOption(opts, "sha");
-  const result = runReview(findProjectRoot(), sha);
-  gateNotify(result, ctx);
-  return result;
-}
-
-async function handleGatePrecommit(_args: string, ctx: unknown): Promise<unknown> {
-  const result = runPrecommit(findProjectRoot());
-  gateNotify(result, ctx);
-  return result;
-}
-
-async function handleGateCommit(args: string, ctx: unknown): Promise<unknown> {
-  const opts = parseArgs(splitArgs(args));
-  const message = getStringOption(opts, "message");
-  const result = runCommit(findProjectRoot(), message);
-  gateNotify(result, ctx);
-  return result;
-}
-
-// ===== Extension factory: 13 个 slash command 注册 =====
+// ===== Extension factory: 15 个 slash command 注册 =====
 export default function (pi: ExtensionAPI): void {
+  pi.registerCommand("sdd", {
+    description: "SDD 主命令(ADR-018): /sdd <init|review|approve|back> [args]",
+    handler: handleSdd,
+  });
   pi.registerCommand("sdd-validate", {
     description: "校验 docs/ 文档结构 + 状态机 + 交叉引用一致性",
     handler: handleValidate,

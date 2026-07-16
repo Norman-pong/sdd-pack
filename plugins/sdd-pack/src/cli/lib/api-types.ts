@@ -153,3 +153,69 @@ export interface PhaseArchiveResult {
   errors: string[];
   warnings: string[];
 }
+
+// ===== ADR-018: PRD 前半段流转命令类型 =====
+
+/** initPrd 入参 */
+export interface InitOptions {
+  /** PRD 标题(必填) */
+  title: string;
+  /** 仅允许覆盖空草稿(Draft + transitions 为空) */
+  force?: boolean;
+  dryRun?: boolean;
+}
+
+/** initPrd 返回 */
+export interface InitResult {
+  status: "pass" | "error";
+  prdId?: string;
+  path?: string;
+  errors: string[];
+  warnings: string[];
+  next?: string;
+}
+
+/** reviewPrd 返回 */
+export interface ReviewResult {
+  status: "pass" | "warn" | "error";
+  prdId?: string;
+  from?: string;
+  to?: string;
+  errors: string[];
+  warnings: string[];
+  next?: string;
+}
+
+/** approvePrd 入参(预留 reviewer 门禁配置) */
+export interface ApproveOptions {
+  /** 跳过 reviewer 门禁(仅当 .sdd/gate.json reviewOnApprove=true 时生效) */
+  skipReviewer?: boolean;
+}
+
+/** approvePrd 返回 */
+export interface ApproveResult {
+  status: "pass" | "error";
+  prdId?: string;
+  from?: string;
+  to?: string;
+  errors: string[];
+  warnings: string[];
+  next?: string;
+}
+
+/** backPrd 入参 */
+export interface BackOptions {
+  /** 目标状态: draft=草稿, pending=待评审 */
+  to: "draft" | "pending";
+}
+
+/** backPrd 返回 */
+export interface BackResult {
+  status: "pass" | "error";
+  prdId?: string;
+  from?: string;
+  to?: string;
+  errors: string[];
+  warnings: string[];
+  next?: string;
+}

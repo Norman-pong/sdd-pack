@@ -15,9 +15,10 @@ docs/
 ├── prd/                  # 产品需求文档
 │   ├── *.md              # PRD 文件
 │   └── archive/          # 已归档 PRD
-├── phase/                # 阶段任务文档
-│   ├── *.md              # Phase 文件
-│   └── archive/          # 已归档 Phase
+├── phase/                # 阶段任务文档(按 PRD id 分组目录, ADR-018)
+│   ├── prd-<prd-id>/     # Phase 归属于对应 PRD id 子目录(1:N 关联)
+│   │   └── <seq>-<name>.md # Phase 文件
+│   └── archive/          # 已归档 Phase(整组子目录移入)
 ├── architecture/         # 架构文档
 │   ├── overview.md       # 架构总览（必须存在）
 │   └── *.md              # 专题架构文档
@@ -31,8 +32,8 @@ docs/
 | 目录            | 职责                               | 维护频率      |
 | --------------- | ---------------------------------- | ------------- |
 | `spec/`         | 结构化需求输入、口语化需求整理结果 | 立项/需求输入 |
-| `prd/`          | 产品需求、功能规格                 | 按版本/迭代   |
-| `phase/`        | 阶段任务、实施计划                 | 按阶段        |
+| `prd/`          | 产品需求文档、功能规格             | 按版本/迭代   |
+| `phase/`        | 阶段任务、实施计划                 | 按 PRD id 分组(`prd-<id>/<seq>-<name>.md`) |
 | `architecture/` | 系统设计、技术架构                 | 随系统演进    |
 | `reference/`    | 外部资料、规范文档                 | 按需更新      |
 
@@ -104,21 +105,25 @@ docs/prd/
 - ❌ `2026-06-23_User_Authentication.md`（使用了下划线和大写）
 - ❌ `PRD-001.md`（缺少日期）
 
-### 2.2 Phase 命名
+### 2.2 Phase 命名(ADR-018, v1.8.0 起)
 
-**格式**：`YYYY-MM-DD-<phase-name>.md`
+**目录格式**:`docs/phase/<prd-id>/<seq>-<phase-name>.md`
 
-**规则**：
+**规则**:
 
-- 日期与对应 PRD 一致
-- `<phase-name>` 描述阶段主题
-- Phase 与 PRD 必须一一对应
+- `<prd-id>` 是对应 PRD 的 id(如 `prd-20260716-001`),Phase 必须放在对应 PRD id 的子目录下
+- `<seq>` 是 3 位数字序号(NNN),在 PRD 内自增(`nextPhaseSeq` 由 meta.json 维护)
+- `<phase-name>` 用 kebab-case 描述阶段主题
+- Phase 与 PRD 是 **1:N 关系**(一份 PRD 可对应多份 Phase)
+- 关联通过 meta.json 的 `parentId` / `phaseIds[]` 维护,不再靠日期前缀匹配
+- Phase ID 嵌入 PRD seq 防全局碰撞(`phs-<prdSeq>-NNN`)
 
-**示例**：
+**示例**:
 
-- ✅ `2026-06-23-foundation-setup.md`（对应 `2026-06-23-foundation-setup.md` PRD）
-- ✅ `2026-06-23-api-development.md`
-- ❌ `2026-06-24-foundation-setup.md`（日期与 PRD 不一致）
+- ✅ `docs/phase/prd-20260716-001/001-foundation.md`
+- ✅ `docs/phase/prd-20260716-001/002-commands.md`
+- ❌ `docs/phase/2026-07-16-foundation.md`(扁平目录,无 PRD 归属)
+
 
 ### 2.3 Architecture 命名
 
@@ -179,13 +184,14 @@ PRD 必须包含以下章节（可调整顺序，但不可省略）：
 - 风险与约束
 - 附录
 
-### 3.3 对应 Phase
+### 3.3 对应 Phase(ADR-018, v1.8.0 起)
 
-**强制规则**：每个 PRD 必须有对应的 Phase 文档
+**强制规则**:PRD 与 Phase 是 **1:N 关系**;一份 PRD 可对应多份 Phase,通过 meta.json 的 `phaseIds[]` 维护:
 
-- PRD 和 Phase 使用相同日期前缀
-- PRD 中必须链接到对应的 Phase
-- Phase 中必须链接到对应的 PRD
+- Phase 文件必须放在 `docs/phase/<prd-id>/` 分组目录(命名见 §2.2)
+- PRD 头部 `> 对应阶段:` 段必须链接到所有 Phase
+- 每个 Phase 头部 `> 对应 PRD:` 必须回链到本 PRD
+
 
 ### 3.4 状态管理
 
@@ -233,20 +239,22 @@ Phase 必须包含以下章节：
 - 时间规划
 - 资源需求
 
-### 4.3 对应 PRD
+### 4.3 对应 PRD(ADR-018, v1.8.0 起)
 
-**强制规则**：每个 Phase 必须有对应的 PRD
+**强制规则**:每个 Phase 必须有对应的 PRD,通过 meta.json 的 `parentId` 字段维护:
 
-- Phase 头部必须链接到对应 PRD
-- Phase 任务应覆盖 PRD 中的所有功能需求
+- Phase 头部必须链接到对应 PRD(`> 对应 PRD:` 段)
+- Phase ID(`phs-<prdSeq>-NNN`)嵌入 PRD seq 防全局碰撞
+- Phase 任务应覆盖 PRD 中的所有功能需求(本 Phase 未覆盖的不视为已交付)
 
 ### 4.4 状态管理
 
-Phase 状态：
+Phase 状态(单一事实来源,PhaseStatus 4 状态,见 prd-state-machine.ts):
 
-- **未开始**：任务尚未启动
-- **进行中**：任务正在执行
-- **已完成**：任务完成并验收
+- **未开始**:任务尚未启动
+- **进行中**:任务正在执行
+- **已完成**:任务完成并验收(终态)
+- **已废弃**:任务废弃不再执行(终态)
 
 ## 5. Architecture 规范
 
@@ -429,7 +437,7 @@ echo '{
 - [ ] 使用了正确的命名格式
 - [ ] 遵循了对应文档类型的模板
 - [ ] 包含了所有必需章节
-- [ ] PRD/Phase 一一对应（如适用）
+- [ ] PRD/Phase 已建立 1:N 关联(meta.json `parentId` / `phaseIds[]`)
 - [ ] 更新了 `docs/index.md`
 - [ ] 更新了目录 `README.md`（如存在）
 - [ ] 检查了文档内链接

@@ -348,9 +348,8 @@ ADR-008 的 `sdd` bash wrapper + alias 用户在 v1.4 发布时需迁移：
 
 ## ADR-010: OpenSpec 作为 hook 默认实现 + 可选入口（修订）
 
-**状态**: Revised (2026-07-01, 原始决策 Accepted 2026-06-30)
+**状态**: Superseded by [ADR-018](#adr-018-强状态流转--metajson-事实源) (2026-07-16,v1.8.0)
 **决策人**: norman
-**触发**: OpenSpec CLI 已能提供跨 agent 的规范生命周期，而纯 prompt / skill 缺乏对研发流程和提交门禁的强约束能力。
 
 ### 决策（修订后）
 
@@ -407,7 +406,7 @@ ADR-008 的 `sdd` bash wrapper + alias 用户在 v1.4 发布时需迁移：
 
 ## ADR-011: sdd-pack 双范式架构决策
 
-**状态**: Accepted (2026-07-01)
+**状态**: Superseded by [ADR-018](#adr-018-强状态流转--metajson-事实源) (2026-07-16,v1.8.0)
 **决策人**: norman
 **触发**: [ADR-010](#adr-010-openspec-作为-hook-默认实现--可选入口修订) 走过头，sdd-pack 不应只支持 OpenSpec
 
@@ -808,4 +807,164 @@ ADR-016 只重构了 PRD 状态机。docs/ 下还有 3 类文档：
 - `api.ts` 新增 `archivePhase()` 函数
 - `validator.ts` 的 `validPhaseStatuses` 改为引用 PhaseStatus enum
 - `sdd-extension/index.ts` 新增 `sdd-archive-phase` slash command
-- hook 补 phase 写入守卫 + architecture/reference 写入提示
+
+## ADR-018: 强状态流转 + meta.json 事实源
+
+**状态**: Accepted (2026-07-16)
+**决策人**: norman
+**触发**: v1.6 / v1.7 在 omp session 内通过 LLM 自觉遵守 + 软提示维护文档状态,但实践中暴露:markdown 状态行可被任意 edit 篡改、状态机解析依赖 markdown 脆弱的多格式混排、PRD 前 4 个状态(草稿→待评审→已评审→已规划任务)完全没有命令覆盖、PRD↔Phase 关联松散。
+**影响**: 替代 v1.7 `docs/prd/2026-07-16-sdd-pack.md` 的「软门禁 + 状态行解析」路径;新建 `plugins/sdd-pack/src/cli/lib/meta-store.ts`(状态唯一事实源);`api.ts` 新增 4(Phase 001:init/review/approve/back)+ 5(Phase 002:plan/start/archive + phaseTransition + getStatusPanel)+ 2(Phase 003:sync + rebuildMeta)共 11 个强状态流转函数,辅助命令 list/why/apply/gate/validate 复用现有 api;`sdd-extension` 改用 `/sdd <subcommand>` 主命令 + 子命令路由;Phase 按 PRD ID 分组目录(`docs/phase/<prd-id>/`);OpenSpec 双范式移除;`session_start` 注入 `/sdd` 命令清单(F14)。
+
+### 背景
+
+v1.6/v1.7 暴露三类根因:
+
+1. **状态行解析脆弱**: `doc-parser.ts` 同时处理单行格式与堆叠格式,validator `checkStateMachine` 注释明确写「堆叠行跳过状态检查」(validator.ts §5);`/sdd-migrate` 命令的存在本身就是格式混乱的补救。
+2. **状态可被任意篡改**: LLM 或人可 edit `> 状态:` 行把「已归档」改回「草稿」,validator 不拦截(只校验字符串合法性,不校验迁移合法性)。
+3. **PRD 前 4 状态无命令覆盖**: 14 个 `/sdd-*` 命令只覆盖 CRUD / 查询 / 门禁,`草稿→待评审→已评审→已规划任务→进行中→已归档` 这条链没有命令强制流转,`/sdd-propose` 创建时直接写死「进行中」,跳过前 4 态。
+
+附带的 PRD↔Phase 关联问题:conventions.md §2.2 要求「Phase 与 PRD 一一对应」,但 PRD 拆多份 Phase 是常见需求;命名规范靠日期前缀匹配,无程序级关联校验;supersedes / 引用链靠 markdown 链接易断裂。
+
+### 决策
+
+7 条核心决策作为 Accepted 落地,后续 v1.9 不再回退:
+
+1. **meta.json 为状态唯一事实源**,markdown 状态行降级为展示层,由 meta.json 单向生成。`/sdd <transition>` 命令写 meta.json 后再调 `generateStatusLine(meta)` 覆盖 markdown 状态行。
+2. **全局单例 PRD**:`docs/prd/` 同时只 1 份非归档 PRD;`/sdd init` 在有活跃 PRD 时 block,`/sdd init --force` 仅覆盖空草稿(`status === Draft && transitions.length === 0`)。
+3. **`/sdd <subcommand>` 主命令体系**替代 14 个分散的 `/sdd-*` slash command。extension 注册 1 个 `/sdd` 主命令 + 子命令路由(11 个子命令);旧 14 个命令保留为 deprecated alias(v1.8.0 引入,v1.10.0 删除,见 ADR-018 §F12)。
+4. **tool_call 硬拦截状态行**: extension `pi.on("tool_call")` 检测 `write` / `edit` 指向 `docs/prd/**` 或 `docs/phase/**` 内 `> 状态:` 行 → `return { block: true, reason: "/sdd <transition> 命令强制流转" }`。`docs/index.md` 不在拦截范围。分层精确检测:write 工具 `content` 含 `^>\s*状态[：:]` 行 → block;edit 工具 `body` 行匹配 `^>\s*状态[：:]` 前缀 → block,正文「状态」一词放行。
+5. **meta.json 不进 git**: `.sdd/meta/` 加入 `.gitignore`(本地缓存);clone 后 `/sdd sync` 从 markdown 重建 meta.json(`rebuildMetaFromMarkdown`:`docs/prd/` 下唯一非归档 .md = active PRD;0 份 → null;>1 份 → block)。
+6. **Phase 按 PRD ID 分组目录**: `docs/phase/<prd-id>/<seq>-<name>.md`(吸收 OpenSpec `changes/` 目录内聚的精华);`prd-meta.phaseIds[]` 维护 1:N 关联;Phase ID 嵌入 PRD seq 防全局碰撞(`phs-<prdSeq>-NNN`,如 `phs-001-002` ≠ `phs-002-002`)。
+7. **移除 OpenSpec 双范式**(吸收 3 个精华到 SDD):
+   - **吸收精华 1**: Phase 分组目录(`docs/phase/<prd-id>/`)— OpenSpec `changes/<change-id>/` 的目录内聚设计。
+   - **吸收精华 2**: 跨文件命名空间隔离(PRD ID 作命名空间)— OpenSpec `specs/<capability>/spec.md` 的分层。
+   - **吸收精华 3**: 跨 Phase 引用强制(`> 对应阶段:` 链)— OpenSpec `tasks.md` 的引用契约。
+   - **删除**:`plugins/sdd-pack/extensions/openspec-extension/` 整个目录、`src/cli/openspec-api.ts` + test、`src/cli/openspec-api-runner.ts`、`src/cli/lib/orchestration/openspec-cli.ts` / `openspec-project.ts`、`.omp-plugin/marketplace.json` 中 OpenSpec 命令声明、extension `session_start` OpenSpec reminder。
+   - **ADR-010 / ADR-011 标记 Superseded**(被 v1.8 单范式吸收;OpenSpec 不再作为 sdd-pack 选项分发)。
+
+### 方案
+
+#### 模块拓扑(Phase 001 落地)
+
+```
+plugins/sdd-pack/
+├── src/cli/
+│   ├── api.ts                       # 11 个强状态流转函数(init/review/approve/back/plan/start/archive/phase/sync/status/list/why/apply/gate/validate)
+│   └── lib/
+│       ├── meta-store.ts            # 新增：9 个函数 + 3 个类型(PrdMeta/PhaseMeta/MetaIndex)
+│       ├── doc-parser.ts            # 新增：generatePrdStatusLine / generatePhaseStatusLine
+│       ├── prd-state-machine.ts     # 既有(ADR-016/017)
+│       └── validator.ts             # 既有(checkStateMachine 读 meta.json,F13)
+└── extensions/
+    └── sdd-extension/
+        └── index.ts                 # /sdd 主命令 + 11 个子命令 handler;tool_call 硬拦截状态行
+```
+
+#### meta.json schema(PRD §2.2.3 / §2.2.5)
+
+```typescript
+interface PrdMeta {
+  id: string;              // prd-YYYYMMDD-NNN
+  title: string;
+  status: PrdStatus;       // 6 状态
+  archiveReason?: ArchiveReason; // 仅 status===Archived
+  transitions: { from: PrdStatus | null; to: PrdStatus; at: string; by: string }[];
+  phaseIds: string[];      // 1:N 关联
+  nextPhaseSeq: number;    // 自增 Phase 序号
+  createdAt: string;       // ISO
+  updatedAt: string;       // ISO
+  filePath: string;        // docs/prd/<id>.md 相对路径
+  version: string;         // v1.8.0
+}
+
+interface PhaseMeta {
+  id: string;              // phs-<prdSeq>-NNN
+  parentId: string;        // PRD id
+  title: string;
+  status: PhaseStatus;     // 4 状态
+  seq: number;             // 在 PRD 内序号
+  transitions: { from: PhaseStatus | null; to: PhaseStatus; at: string; by: string }[];
+  createdAt: string;
+  updatedAt: string;
+  filePath: string;        // docs/phase/<prdId>/<seq>-<name>.md 相对路径
+}
+
+interface MetaIndex {
+  activePrdId: string | null;
+  prdIds: string[];       // 含已归档
+  phaseIds: string[];
+  updatedAt: string;
+}
+```
+
+#### 写入顺序约束(双写竞态防御)
+
+每次状态流转按以下顺序写,任一步失败则中止:
+
+1. 校验 `isTransitionAllowed(from, to)` 合法 → 失败 → 立即返回 error,不修改任何文件。
+2. 写 markdown(`generateStatusLine(meta) → fs.writeFileSync`)→ 失败 → 返回 error。
+3. 写 meta.json(append transition + 更新 status + bump updatedAt)→ 失败 → 返回 error + warn「meta 落后于 markdown,需 /sdd sync --fix」。
+4. 写 `.sdd/meta/index.json`(更新 activePrdId / prdIds / phaseIds)。
+
+meta.json 不进 git,所以 markdown 是唯一可审计的源;meta 失败可下次 sync 修复,不破坏工作流。
+
+#### /sdd init 全局单例 + --force 语义
+
+```typescript
+async function initPrd(opts: InitOptions): Promise<InitResult> {
+  const active = getActivePrdMeta();
+  if (active && !opts.force) {
+    return { status: "error", errors: [`已有活跃 PRD: ${active.id}(${active.status}),/sdd archive 后再 init`], warnings: [] };
+  }
+  if (active && opts.force) {
+    const isEmptyDraft = active.status === PrdStatus.Draft && active.transitions.length === 0;
+    if (!isEmptyDraft) {
+      return { status: "error", errors: [`--force 仅覆盖空草稿,当前 PRD ${active.id} 已流转`], warnings: [] };
+    }
+  }
+  // ... 创建 PRD + meta
+}
+```
+
+#### tool_call 硬拦截实现(分层精确检测,PRD §2.6.2)
+
+```typescript
+function isPrdOrPhaseFile(path: string): boolean {
+  return /\/(prd|phase)\//.test(path);
+}
+
+function touchesStatusLine(input: Record<string, unknown>, toolName: string): boolean {
+  if (!isPrdOrPhaseFile(String(input.path ?? input.filePath ?? ""))) return false;
+  if (toolName === "write") {
+    const content = String(input.content ?? "");
+    return /^>\s*状态[：:]/m.test(content);
+  }
+  if (toolName === "edit") {
+    const body = String(input.body ?? input.new_string ?? "");
+    // body 行匹配 ^>\s*状态[：:] 前缀才 block;含正文「状态」一词放行
+    return /^\+>\s*状态[：:]/m.test(body);
+  }
+  return false;
+}
+```
+
+### 替代方案(已拒绝)
+
+1. **markdown 状态行升级为规范权威 + 解析加固**(不再引入 meta.json)
+   - **拒绝原因**: 状态行可被 edit,治标不治本;解析加固只能解决格式混乱,无法阻止 LLM 直接 edit「已归档→草稿」绕过校验。
+2. **保留 14 个 `/sdd-*` 命令 + 加 alias**
+   - **拒绝原因**: 命令发现性差(LLM 需记忆 14 个名字),且 alias 增加心智负担;主命令 + 子命令路由是 omp 已有惯例(`/openspec-*` 也是同类范式)。
+3. **Phase 不分组目录,沿用 `docs/phase/<date>-<name>.md`**
+   - **拒绝原因**: 1:N PRD↔Phase 关联需程序级 ID;沿用日期命名只能靠前缀匹配,conventions.md §2.2 与 v1.8 PRD 1:N 模型冲突。
+4. **保留 OpenSpec 作为可选 hook 默认实现**
+   - **拒绝原因**: v1.8 强状态流转 + tool_call 硬拦截已涵盖 OpenSpec runtime gate 的核心能力(拦截 + 校验);双范式并存带来 14+7=21 个 slash command 维护成本,LLM 命令发现性更差;OpenSpec 精华已通过 3 条吸收进 SDD。
+5. **meta.json 进 git**
+   - **拒绝原因**: meta 是 markdown 解析产物,进 git 会产生双写竞态(commit 时 markdown 与 meta 可能不一致);不进 git + `/sdd sync` 重建是单一事实源(markdown)的更干净设计。
+
+### 后续
+
+- **Phase 001**(本 PR): meta-store + init/review/approve/back + OpenSpec 移除
+- **Phase 002**: plan/start/archive + phase 流转 + status + tool_call 硬拦截
+- **Phase 003**: 门禁嵌入流转 + validator 事实源切换(读 meta.json) + `/sdd sync` + 别名兼容 + F14 三层注入(session_start + skill + 拦截消息)
+- **conventions.md §2.2 同步更新**「Phase 与 PRD 一一对应」→「Phase 按 PRD ID 分组,1:N 关联通过 meta.json phaseIds[] 维护」
+- **追踪 issue**:v1.8.0 正式发布后回填实际迁移数据(归档了多少 PRD、迁移了多少 Phase)+ 与 conventions.md §2.2 命名规范的实际一致性验证

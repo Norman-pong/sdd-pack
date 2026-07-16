@@ -1,4 +1,4 @@
-name: openspec-gate
+name: sdd-gate
 
 on:
   pull_request:
@@ -14,6 +14,5 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun --version
       - run: bun test plugins/sdd-pack/extensions/sdd-extension/index.test.ts plugins/sdd-pack/src/cli/__tests__/api.test.ts
-      - run: bun run plugins/sdd-pack/src/cli/api-runner.ts init-check
       - run: bun run plugins/sdd-pack/src/cli/api-runner.ts validate
       - run: bun run plugins/sdd-pack/src/cli/api-runner.ts status

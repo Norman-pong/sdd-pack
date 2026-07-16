@@ -1,16 +1,16 @@
 # sdd-pack (omp marketplace plugin)
 
-sdd-pack 是 **omp 上的一体化开发管理插件**:用 SDD 范式(正本)或 OpenSpec 范式(可选)管理需求/阶段/审查/提交门禁的端到端工作流。
-提供 omp 全部 5 类资产(skills / rules / agents / extensions / hooks),通过 marketplace 装机即用。
+sdd-pack 是 **omp 上的一体化开发管理插件**:用 SDD 范式管理需求/阶段/审查/提交门禁的端到端工作流。
+提供 omp 4 类资产(skills / rules / agents / extensions),通过 marketplace 装机即用。
 
 **版本**: v1.6.0
 
 ## 0. 插件定位
 
-- **角色**: omp marketplace plugin(双范式),为使用 SDD 或 OpenSpec 流程的开发者提供"文档 + 提交 + 审查"端到端支持
-- **5 类 omp 资产齐备**: 4 skills + 5 rules + 3 agents + 2 extensions(20 slash commands)+ 2 hooks(SDD/OpenSpec 二选一)
+- **角色**: omp marketplace plugin,为使用 SDD 流程的开发者提供"文档 + 提交 + 审查"端到端支持
+- **4 类 omp 资产齐备**: 4 skills + 5 rules + 3 agents + 1 extension(15 slash commands)
 - **commit 门禁三段式**: TTSR 软门禁(rules) → commit gate 硬门禁(`/sdd-gate-*` slash) → 三层守门 agent(reviewer / arch-reviewer / sdd-reviewer)
-- **关键决策**: [ADR-009 sdd Extension 替代独立 CLI](../architecture/decisions.md) · [ADR-010 hook 改默认实现](../architecture/decisions.md) · [ADR-011 双范式架构](../architecture/decisions.md)
+- **关键决策**: [ADR-009 sdd Extension 替代独立 CLI](../architecture/decisions.md) · [ADR-018 强状态流转 + meta.json 事实源](../architecture/decisions.md)
 
 ## 0.1 omp 组件矩阵(权威清单)
 
@@ -19,8 +19,7 @@ sdd-pack 是 **omp 上的一体化开发管理插件**:用 SDD 范式(正本)或
 | Skills | `skills/sdd-core` `skills/sdd-input` `skills/sdd-prd` `skills/sdd-phase` | 主 agent 看到 description → 主动 read SKILL.md 加载流程知识 | description 触发,主 agent 自主加载 |
 | Rules | `rules/lore-protocol.md` `rules/docs-update-guard.md` `rules/lore-commit-guard.md` `rules/sdd-doc-edit-guard.md` `rules/prd-change-management.md` | TTSR 软门禁:在 tool_call 时由 hook 往消息流注入 system 提示,由主 agent 自觉遵守 | condition + scope 前缀匹配,`omp` 规则管线触发 |
 | Agents | `agents/reviewer.md` `agents/arch-reviewer.md` `agents/sdd-reviewer.md` | 独立子线程审查,产物落 `.sdd/review/<sha>.<agent>.json` | task() 手动 spawn,**不绑 commit gate** |
-| Extension | `extensions/sdd-extension/index.ts` `extensions/openspec-extension/index.ts` | 注册 `/sdd-*` 与 `/openspec-*` slash command,主 agent 在 omp 内调用 | `omp --extension <path>` 装载 |
-| Hook | `hooks/sdd/index.ts` `hooks/openspec/index.ts` | 拦截 tool_call,执行 commit gate / session_start reminder / path gate | `omp --hook <path>` 装载(SDD/OpenSpec 二选一) |
+| Extension | `extensions/sdd-extension/index.ts` | 注册 `/sdd-*` slash command + 拦截 tool_call(commit gate / session_start reminder / path gate) | `omp --extension <path>` 装载 |
 
 ## 0.2 三层守门 agent 分工
 
@@ -37,8 +36,8 @@ sdd-pack 是 **omp 上的一体化开发管理插件**:用 SDD 范式(正本)或
 | 层次 | 机制 | 提供者 |
 | --- | --- | --- |
 | 软门禁 (TTSR) | 注入 system 提示,主 agent 自觉遵守 | 5 个 rules（omp plugin link 后自动发现） |
-| 硬门禁 (程序级) | `pi.on("tool_call")` 返回 `{block: true, reason}` | `extensions/sdd-extension/index.ts`（合并自 hooks/sdd/） |
-| 硬门禁 (程序级) | `/sdd-gate-*` slash command 返回 `status: "block"` | `extensions/sdd-extension/index.ts`（13 个 command） |
+| 硬门禁 (程序级) | `pi.on("tool_call")` 返回 `{block: true, reason}` | `extensions/sdd-extension/index.ts` |
+| 硬门禁 (程序级) | `/sdd-gate-*` slash command 返回 `status: "block"` | `extensions/sdd-extension/index.ts`（15 个 command） |
 | 硬门禁 (程序级) | `gate-runner.ts` 的 5 阶段流水线(返回 `exitCode: 2`) | `src/cli/lib/gate-runner.ts` |
 
 > **没有任何 rule 是程序级硬门禁**——所有 rule 都是 TTSR。硬门禁只有 slash command 和 `gate-runner` 两类。
@@ -51,7 +50,7 @@ sdd-pack 是 **omp 上的一体化开发管理插件**:用 SDD 范式(正本)或
 # 1. 添加 marketplace
 omp plugin marketplace add Norman-pong/sdd-pack
 
-# 2. link 安装（5 类资产全部生效: skills + rules + extensions + agents 装载 + hooks 拦截）
+# 2. link 安装（4 类资产全部生效: skills + rules + extensions + agents 装载）
 omp plugin link ~/workspace/zhimingcool/sdd-pack/plugins/sdd-pack
 
 # 3. 重启 omp session
@@ -81,10 +80,10 @@ omp plugin install sdd-pack@sdd-pack
 | skills   | `sdd-core` / `sdd-input` / `sdd-prd` / `sdd-phase` (4 个)     |
 | rules    | `lore-protocol` / `docs-update-guard` / `lore-commit-guard` / `sdd-doc-edit-guard` / `prd-change-management` (5 个) |
 | agents   | `reviewer` / `arch-reviewer` / `sdd-reviewer` (3 个守门 agent) |
-| hook     | `hooks/sdd/index.ts`(commit gate + session_start reminder)    |
-| extension| `extensions/sdd-extension/index.ts`(8 个 `/sdd-*` slash command) |
+| hook     | 合并进 `extensions/sdd-extension/index.ts`(commit gate + session_start reminder) |
+| extension| `extensions/sdd-extension/index.ts`(15 个 `/sdd-*` slash command) |
 
-### 2.2 Slash Commands(8 个)
+### 2.2 Slash Commands(15 个)
 
 | 命令                                                            | 描述                                            |
 | --------------------------------------------------------------- | ----------------------------------------------- |
@@ -96,10 +95,17 @@ omp plugin install sdd-pack@sdd-pack
 | `/sdd-list [--status] [--keyword] [--type prd\|phase]`           | 带过滤的文档列表                                |
 | `/sdd-why <file>:<line> [--json]`                               | 查询 lore 决策上下文                            |
 | `/sdd-apply <prd-path> [--json]`                                | 打印 PRD 验收标准 checklist                     |
+| `/sdd <init|review|approve|back>`                               | PRD 强状态流转(ADR-018)                         |
+| `/sdd-archive-phase <phase-path>`                               | 归档 Phase(ADR-017)                             |
+| `/sdd-gate-lint`                                                | 门禁阶段1: lint(失败阻断后续)                   |
+| `/sdd-gate-test`                                                | 门禁阶段2: 功能验证测试(缺则 skip)              |
+| `/sdd-gate-review`                                              | 门禁阶段3: 检查 reviewer 产物存在且通过         |
+| `/sdd-gate-precommit`                                           | 门禁阶段4: 再跑 lint + lore 约束检查            |
+| `/sdd-gate-commit`                                              | 门禁阶段5: lore commit(--message 传 JSON)       |
 
 ### 2.3 lore commit 协议
 
-SDD hook 在 commit 时通过 `hooks/sdd/index.ts` 拦截,调用 `api.validateDocs({ staged: true })`:
+SDD 在 commit 时通过 `extensions/sdd-extension/index.ts` 拦截,调用 `api.validateDocs({ staged: true })`:
 
 - `pass` / `warn` → 放行
 - `error` → 警告(默认 severity=error)
@@ -114,86 +120,14 @@ commit message 走 `lore commit`,包含以下 trailer:
 - `Scope-risk:` 影响范围
 - `Confidence:` 信心等级
 
-## 3. OpenSpec 范式(可选 hook 默认实现)
 
-> **不装载 `hooks/openspec/index.ts` 时,仅 `/openspec-*` extension 工作(无守卫)**
+## 5. CI 集成
 
-### 3.1 资产清单
-
-| 资产类型 | 内容                                                                       |
-| -------- | -------------------------------------------------------------------------- |
-| hook     | `hooks/openspec/index.ts`(OpenSpec 守卫:session_start reminder + path gate) |
-| extension| `extensions/openspec-extension/index.ts`(7 个 `/openspec-*` slash command)  |
-
-### 3.2 Slash Commands(7 个)
-
-| 命令                                          | 描述                                                    |
-| --------------------------------------------- | ------------------------------------------------------- |
-| `/openspec-init-check`                        | 检查 openspec/ 目录初始化状态                           |
-| `/openspec-status`                            | 查看所有 change 当前状态                                |
-| `/openspec-validate`                          | 校验 change 规范 + 任务清单完整性                       |
-| `/openspec-list [--status] [--keyword]`       | 带过滤的 change 列表                                    |
-| `/openspec-show <change-id>`                  | 查看指定 change 详情                                    |
-| `/openspec-instructions <change-id>`          | 打印 change 实施步骤                                    |
-| `/openspec-archive <change-id>`               | 归档 change                                             |
-
-### 3.3 工作流
-
-```
-# 1. 检查初始化
-/openspec-init-check
-
-# 2. 创建新 change(走 OpenSpec CLI 或 openspec 目录手写)
-/openspec-list  # 看现有 change
-
-# 3. 校验 + 实施
-/openspec-validate <change-id>
-/openspec-instructions <change-id>
-
-# 4. 归档
-/openspec-archive <change-id>
-```
-
-> **OpenSpec 与 SDD 互斥装载**:同一时间只能装载 `hooks/sdd/index.ts` 或 `hooks/openspec/index.ts`,二者守卫路径不同(SDD 守 `docs/prd/`,OpenSpec 守 `openspec/changes/`)。详见 ADR-011。
-
-## 4. 双范式选择
-
-**默认推荐 SDD**(本仓库正本)。需要 OpenSpec 时切换 hook 装载:
+SDD 范式 CI 逃生通道(在不启动 omp 的场景下执行校验):
 
 ```bash
-# 切到 OpenSpec(改 alias 后 source)
-echo "alias omp='omp --hook $(pwd)/plugins/sdd-pack/hooks/openspec/index.ts'" > ~/.omp_sdd_alias
-echo "alias omp-sdd='omp --hook $(pwd)/plugins/sdd-pack/hooks/sdd/index.ts'" >> ~/.omp_sdd_alias
-source ~/.omp_sdd_alias
-
-# 用 OpenSpec 守卫启动
-omp
-
-# 或临时切回 SDD
-omp-sdd
-```
-
-| 维度       | SDD                                | OpenSpec                              |
-| ---------- | ---------------------------------- | ------------------------------------- |
-| 范式       | 文档驱动约束 + 本仓库实现          | 文档驱动约束 + 外部规范参考实现       |
-| 数据目录   | `docs/prd/` / `docs/phase/`        | `openspec/changes/` / `openspec/specs/` |
-| 守门 hook  | `hooks/sdd/index.ts`               | `hooks/openspec/index.ts`             |
-| slash 数量 | 8 `/sdd-*`                         | 7 `/openspec-*`                       |
-| API 入口   | `src/cli/api.ts`(8 export)         | `src/cli/openspec-api.ts`(7 export)   |
-| 适用范围   | sdd-pack 自家仓库开发              | 接入 OpenSpec 生态 / 跨工具协同      |
-
-## 5. CI 集成(双范式 CI runner)
-
-两个范式都有 CI 逃生通道(在不启动 omp 的场景下执行校验):
-
-```bash
-# SDD 范式
 bun run plugins/sdd-pack/src/cli/api-runner.ts validate --staged --json
 bun run plugins/sdd-pack/src/cli/api-runner.ts status --json
-
-# OpenSpec 范式
-bun run plugins/sdd-pack/src/cli/openspec-api-runner.ts validate --json
-bun run plugins/sdd-pack/src/cli/openspec-api-runner.ts status --json
 ```
 
 退出码约定:`pass=0`, `warn=0`, `error=1`, `block=2`。
@@ -210,7 +144,6 @@ jobs:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v1
       - run: bun run plugins/sdd-pack/src/cli/api-runner.ts validate --staged --json
-      - run: bun run plugins/sdd-pack/src/cli/openspec-api-runner.ts validate --json
 ```
 
 ## 6. 开发模式
@@ -223,73 +156,62 @@ omp plugin link ./plugins/sdd-pack
 # - skills/: 改 SKILL.md / references / templates
 # - rules/: 改 *.md(纯静态参考)
 # - agents/: 改 *.md agent prompt
-# - hooks/sdd/ 或 hooks/openspec/: 改 .ts 守卫逻辑
-# - extensions/: 改 slash command 注册逻辑
-# - src/cli/: 改 api.ts / openspec-api.ts / lib/
+# - extensions/: 改 slash command 注册逻辑 + tool_call 拦截
+# - src/cli/: 改 api.ts / lib/
 
 # 开发完成后
 omp plugin uninstall sdd-pack@sdd-pack
 ```
 
-**v1.5.0-alpha 调试提示**:
+**调试提示**:
 
-- hook 改动必须重启 omp 并加 `--hook` flag
 - extension 改动需重启 omp(`pi.registerCommand` 仅在装载时执行一次)
 - api 改动需同时跑测试:
 
   ```bash
-  bun test plugins/sdd-pack/  # 跨范式全测试,应 0 fail
+  bun test plugins/sdd-pack/  # 应 0 fail
   ```
 
-## 7. 迁移(v1.4.0-alpha → v1.5.0-alpha)
+## 7. 迁移
 
-### 7.1 关键变化
+### v1.6.0 → v1.8.0(规划中)
+
+- OpenSpec 双范式移除,SDD 单范式
+- `extensions/openspec-extension/` 删除,`src/cli/openspec-api.ts` 删除
+- ADR-010/011 标记 Superseded
+- hook 逻辑合并进 extension(ADR-015)
+
+### v1.4.0-alpha → v1.5.0-alpha
 
 | 维度       | v1.4.0-alpha                              | v1.5.0-alpha                                          |
 | ---------- | ----------------------------------------- | ----------------------------------------------------- |
-| hooks 装载 | `hooks/index.ts`(单文件 4+1 hook 聚合)    | `hooks/sdd/index.ts` + `hooks/openspec/index.ts`(二选一) |
-| extension  | 单 `sdd-extension`(8 `/sdd-*`)            | `sdd-extension` + `openspec-extension`(共 15 个 slash) |
-| assets     | skills/rules/agents 退役(只剩 hook)        | skills/rules/agents 恢复正本,OpenSpec 仅 hook+extension |
-| API        | `src/cli/api.ts`(SDD 8 export)             | `api.ts`(SDD 8 export)+ `openspec-api.ts`(OpenSpec 7 export) |
-| PRD 状态    | v1.4 sdd-extension PRD `已评审`            | v1.4 PRD `已替换` → 双范式总览 PRD `已发布`           |
+| hooks 装载 | `hooks/index.ts`(单文件 4+1 hook 聚合)    | 合并进 `extensions/sdd-extension/index.ts` |
+| extension  | 单 `sdd-extension`(8 `/sdd-*`)            | `sdd-extension` |
+| assets     | skills/rules/agents 退役(只剩 hook)        | skills/rules/agents 恢复正本 |
+| API        | `src/cli/api.ts`(SDD 8 export)             | `api.ts`(SDD 8 export) |
 
-### 7.2 升级步骤
+### 升级步骤
 
 ```bash
 # 1. 拉取最新 marketplace catalog
 omp plugin upgrade sdd-pack@sdd-pack
 
-# 2. 改 hook 装载路径(从单文件变成二选一)
-# 旧:
-alias omp='omp --hook $(pwd)/plugins/sdd-pack/hooks/index.ts'
-# 新(SDD 默认推荐):
-alias omp='omp --hook $(pwd)/plugins/sdd-pack/hooks/sdd/index.ts'
-# 或(OpenSpec):
-alias omp='omp --hook $(pwd)/plugins/sdd-pack/hooks/openspec/index.ts'
-source ~/.zshrc
+# 2. 重启 omp 装载新 manifest
+omp --version
 
-# 3. 重启 omp 装载新 manifest
-omp --version  # 确认 1.5.0-alpha
-
-# 4. 跑测试确认兼容
+# 3. 跑测试确认兼容
 bun test plugins/sdd-pack/  # 应 0 fail
 ```
 
-### 7.3 兼容性声明
+### 兼容性声明
 
-- **extension 接口**:`/sdd-*` 8 个命令完全兼容,无需迁移
-- **programmatic API**:`api.ts` 8 个 export 签名不变,无需迁移
-- **hook 路径**:`hooks/index.ts` → `hooks/sdd/index.ts`,需要更新 alias
-- **OpenSpec 用户**:v1.4 之前没有 OpenSpec 资产,本版本为首次引入;无需迁移,直接安装即可
+- **extension 接口**:`/sdd-*` 命令完全兼容,无需迁移
+- **programmatic API**:`api.ts` export 签名不变,无需迁移
 
-### 7.4 回滚
-
-如需回滚到 v1.4.0-alpha:
+### 回滚
 
 ```bash
-omp plugin install sdd-pack@sdd-pack@1.4.0-alpha
-# 改 alias 指向旧 hook 路径
-alias omp='omp --hook $(pwd)/plugins/sdd-pack/hooks/index.ts'
+omp plugin install sdd-pack@sdd-pack@1.6.0
 ```
 
 ## 故障排查
@@ -301,11 +223,11 @@ alias omp='omp --hook $(pwd)/plugins/sdd-pack/hooks/index.ts'
 ```bash
 omp plugin uninstall sdd-pack@sdd-pack
 omp plugin marketplace remove sdd-pack
-rm -rf ~/.omp/plugins/cache/plugins/sdd-pack___sdd-pack___1.5.0-alpha
+rm -rf ~/.omp/plugins/cache/plugins/sdd-pack___sdd-pack___1.6.0
 ```
 
 ## 版本对应
 
-- v1.4.0-alpha → v1.5.0-alpha: hook 拆分 + OpenSpec 镜像 + 双范式 PRD
+- v1.6.0 → v1.8.0(规划中): OpenSpec 移除 + 强状态流转 + meta.json 事实源 + hook 合并进 extension
 - git tag 与 plugin version 保持一致
 - 升级前建议备份 `plugins/sdd-pack/skills/sdd-*/SKILL.md` 本地修改(若有)

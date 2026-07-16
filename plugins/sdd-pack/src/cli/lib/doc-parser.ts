@@ -5,6 +5,8 @@
  */
 
 import { readFileSync, existsSync } from "fs";
+import { PrdStatus } from "./prd-state-machine";
+import type { PhaseMeta, PrdMeta } from "./meta-store";
 
 /** 解析后的状态行信息（规范单行格式） */
 export interface StatusLine {
@@ -277,4 +279,59 @@ export function extractRequiredSections(content: string): string[] {
     }
   }
   return missing;
+}
+
+
+// ===== ADR-018: meta.json → markdown 状态行生成器 =====
+
+/**
+ * 从 PrdMeta 生成规范单行状态行。
+ *
+ * 输出格式（与 parseStatusLine 可逆兼容）：
+ *   > 状态：<状态> [| 发布日期：<date>] [| 版本：<ver>]
+ *
+ * - status 为 Archived 且 archiveReason 存在时，追加归档原因到状态文本。
+ * - publishDate 取最后一次 transition 的日期（YYYY-MM-DD），无 transitions 时取 createdAt。
+ * - version 直接取 meta.version。
+ */
+export function generatePrdStatusLine(meta: PrdMeta): string {
+  const parts: string[] = [`状态：${meta.status}`];
+
+  const lastTransition = meta.transitions[meta.transitions.length - 1];
+  const dateSource = lastTransition?.at ?? meta.createdAt;
+  const publishDate = dateSource.slice(0, 10);
+  if (publishDate) {
+    parts.push(`发布日期：${publishDate}`);
+  }
+
+  if (meta.version) {
+    parts.push(`版本：${meta.version}`);
+  }
+
+  if (meta.status === PrdStatus.Archived && meta.archiveReason) {
+    parts.push(`归档原因：${meta.archiveReason}`);
+  }
+
+  return `> ${parts.join(" | ")}`;
+}
+
+/**
+ * 从 PhaseMeta 生成规范单行状态行。
+ *
+ * 输出格式（与 parseStatusLine 可逆兼容）：
+ *   > 状态：<状态> [| 发布日期：<date>]
+ *
+ * Phase 无 version 字段，故不生成版本段。
+ */
+export function generatePhaseStatusLine(meta: PhaseMeta): string {
+  const parts: string[] = [`状态：${meta.status}`];
+
+  const lastTransition = meta.transitions[meta.transitions.length - 1];
+  const dateSource = lastTransition?.at ?? meta.createdAt;
+  const publishDate = dateSource.slice(0, 10);
+  if (publishDate) {
+    parts.push(`发布日期：${publishDate}`);
+  }
+
+  return `> ${parts.join(" | ")}`;
 }

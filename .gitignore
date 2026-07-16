@@ -3,7 +3,8 @@ node_modules/
 
 # sdd-pack gate artifacts (review results, user-local config)
 .sdd/review/
-
+# sdd-pack meta.json local cache (rebuild via /sdd sync; ADR-018)
+.sdd/meta/
 # OS
 .DS_Store
 
