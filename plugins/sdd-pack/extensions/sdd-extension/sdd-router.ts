@@ -1,7 +1,8 @@
 /**
- * sdd-router.ts — /sdd 主命令路由 + 9 个流转 handler (ADR-018 Phase 001+002)
+ * sdd-router.ts — /sdd 主命令路由 + 15 个子命令 handler (ADR-018 Phase 001+002+003)
  *
- * 子命令: init, review, approve, back, plan, start, archive, phase, status
+ * 子命令: init, review, approve, back, plan, start, archive, phase, status,
+ *         sync, list, why, apply, validate, gate
  * 无状态,不做校验逻辑(校验在 api/lib 层)。
  */
 
@@ -15,6 +16,11 @@ import {
   archivePrdV2,
   phaseTransition,
   getStatusPanel,
+  syncMeta,
+  listPrds,
+  getWhy,
+  getApplyChecklist,
+  validateDocs,
   type InitOptions,
   type InitResult,
   type ReviewResult,
@@ -30,13 +36,31 @@ import {
   type PhaseTransitionOptions,
   type PhaseTransitionResult,
   type StatusPanelResult,
+  type SyncOptions,
+  type SyncResult,
+  type ListOptions,
+  type ListResult,
+  type WhyResult,
+  type ApplyResult,
+  type ValidateOptions,
+  type ValidationResult,
 } from "../../src/cli/api";
 import {
   parseArgs,
   getStringOption,
   getBoolOption,
+  getEnumOption,
 } from "../../src/cli/lib/orchestration/parseArgs";
+import { formatHuman, formatSummary } from "../../src/cli/lib/orchestration/format";
+import type { CheckSeverity } from "../../src/cli/lib/validator";
 import { uiOf, splitArgs } from "./ui-helpers";
+import {
+  handleGateLint,
+  handleGateTest,
+  handleGateReview,
+  handleGatePrecommit,
+  handleGateCommit,
+} from "./gate-handlers";
 
 // ===== 辅助: 把流转结果格式化为 widget 行 =====
 
@@ -263,6 +287,143 @@ async function handleStatus(_tokens: string[], ctx: unknown): Promise<unknown> {
   return result;
 }
 
+// ===== Phase 003: sync / list / why / apply / validate / gate handler =====
+
+async function handleSync(tokens: string[], ctx: unknown): Promise<unknown> {
+  const opts = parseArgs(tokens);
+  const options: SyncOptions = {
+    fix: getBoolOption(opts, "fix"),
+  };
+  const result: SyncResult = await syncMeta(options);
+  const c = uiOf(ctx);
+  const lines: string[] = [`┌─ sdd sync`];
+  lines.push(`├─ status: ${result.status}`);
+  if (result.mismatches.length > 0) {
+    lines.push(`├─ mismatches (${result.mismatches.length}):`);
+    for (const m of result.mismatches) {
+      lines.push(`│  ${m.filePath} [${m.kind}] meta=${m.metaStatus} md=${m.markdownStatus}`);
+    }
+  }
+  if (result.fixedCount > 0) lines.push(`├─ fixed: ${result.fixedCount}`);
+  if (result.rebuiltCount > 0) lines.push(`├─ rebuilt: ${result.rebuiltCount}`);
+  if (result.errors.length > 0) {
+    lines.push(`├─ errors:`);
+    for (const e of result.errors) lines.push(`│  ${e}`);
+  }
+  if (result.warnings.length > 0) {
+    lines.push(`├─ warnings:`);
+    for (const w of result.warnings) lines.push(`│  ${w}`);
+  }
+  lines.push("└─");
+  c.ui.setWidget("sdd-display", lines);
+  if (result.status === "pass") {
+    c.ui.notify(`meta↔markdown 一致`, "info");
+  } else if (result.status === "warn") {
+    c.ui.notify(`发现 ${result.mismatches.length} 处不一致,使用 /sdd sync --fix 修复`, "warning");
+  } else {
+    c.ui.notify(`同步失败: ${result.errors.join("; ")}`, "error");
+  }
+  return result;
+}
+
+async function handleList(tokens: string[], ctx: unknown): Promise<unknown> {
+  const opts = parseArgs(tokens);
+  const options: ListOptions = {
+    status: getStringOption(opts, "status"),
+    date: getStringOption(opts, "date"),
+    keyword: getStringOption(opts, "keyword"),
+    type: getEnumOption(opts, "type", ["prd", "phase", "spec"], "prd") as "prd" | "phase" | "spec",
+    json: getBoolOption(opts, "json"),
+  };
+  const result: ListResult = await listPrds(options);
+  const c = uiOf(ctx);
+  const lines = [`匹配: ${result.matched}`, ""];
+  for (const item of result.items) {
+    lines.push(`  ${item.date} | ${item.fileName} | ${item.status} | ${item.title}`);
+  }
+  c.ui.setWidget("sdd-display", lines.join("\n").split("\n"));
+  c.ui.notify(`列表: ${result.matched} 个匹配`, "info");
+  return result;
+}
+
+async function handleWhy(tokens: string[], ctx: unknown): Promise<unknown> {
+  const target = tokens[0] ?? "";
+  const result: WhyResult = await getWhy(target);
+  const c = uiOf(ctx);
+  if (result.error) c.ui.notify(result.error, "error");
+  else c.ui.notify(result.text || "(无输出)", "info");
+  return result;
+}
+
+async function handleApply(tokens: string[], ctx: unknown): Promise<unknown> {
+  const prdPath = tokens[0] ?? "";
+  const c = uiOf(ctx);
+  if (!prdPath) {
+    return usageError("sdd apply", "/sdd apply <prd-path>", ctx);
+  }
+  try {
+    const result: ApplyResult = await getApplyChecklist(prdPath);
+    if (result.total === 0) c.ui.notify("未找到 checklist 条目", "warning");
+    else {
+      const lines = [`验收标准: ${result.prdPath}`, ""];
+      for (const item of result.items)
+        lines.push(`  ${String(item.id).padStart(2)}. [ ] ${item.description}`);
+      lines.push(`\n总计: ${result.total} 条`);
+      c.ui.setWidget("sdd-display", lines.join("\n").split("\n"));
+      c.ui.notify(`提取 ${result.total} 条 checklist`, "info");
+    }
+    return result;
+  } catch (e) {
+    c.ui.notify(e instanceof Error ? e.message : String(e), "error");
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+async function handleValidate(tokens: string[], ctx: unknown): Promise<unknown> {
+  const opts = parseArgs(tokens);
+  const options: ValidateOptions = {
+    path: getStringOption(opts, "path"),
+    staged: getBoolOption(opts, "staged"),
+    severity: getEnumOption<CheckSeverity>(opts, "severity", ["warn", "error", "block"], "error"),
+    json: getBoolOption(opts, "json"),
+    rulesOnly: getBoolOption(opts, "rules-only"),
+    structureOnly: getBoolOption(opts, "structure-only"),
+  };
+  const result: ValidationResult = await validateDocs(options);
+  const c = uiOf(ctx);
+  c.ui.setWidget("sdd-display", formatHuman(result).split("\n"));
+  const level =
+    result.status === "block"
+      ? "error"
+      : result.status === "error"
+        ? "error"
+        : result.status === "warn"
+          ? "warn"
+          : "info";
+  c.ui.notify(formatSummary(result), level === "warn" ? "warning" : level);
+  if (result.status === "block") return { blocked: true, reason: result.errors.join("\n") };
+  return { status: result.status, errors: result.errors.length, warnings: result.warnings.length };
+}
+
+async function handleGate(tokens: string[], ctx: unknown): Promise<unknown> {
+  const stage = tokens[0] ?? "";
+  const args = tokens.slice(1).join(" ");
+  switch (stage) {
+    case "lint":
+      return handleGateLint(args, ctx);
+    case "test":
+      return handleGateTest(args, ctx);
+    case "review":
+      return handleGateReview(args, ctx);
+    case "precommit":
+      return handleGatePrecommit(args, ctx);
+    case "commit":
+      return handleGateCommit(args, ctx);
+    default:
+      return usageError("sdd gate", "/sdd gate <lint|test|review|precommit|commit> [args]", ctx);
+  }
+}
+
 // ===== /sdd 主命令路由 =====
 
 const SUBCOMMANDS: Record<string, Handler> = {
@@ -275,6 +436,12 @@ const SUBCOMMANDS: Record<string, Handler> = {
   archive: handleArchive,
   phase: handlePhase,
   status: handleStatus,
+  sync: handleSync,
+  list: handleList,
+  why: handleWhy,
+  apply: handleApply,
+  validate: handleValidate,
+  gate: handleGate,
 };
 
 export async function handleSdd(args: string, ctx: unknown): Promise<unknown> {
@@ -283,7 +450,7 @@ export async function handleSdd(args: string, ctx: unknown): Promise<unknown> {
   if (!sub) {
     const c = uiOf(ctx);
     c.ui.notify(
-      "用法: /sdd <subcommand> [args]\n子命令: init, review, approve, back, plan, start, archive, phase, status",
+      "用法: /sdd <subcommand> [args]\n子命令: init, review, approve, back, plan, start, archive, phase, status, sync, list, why, apply, validate, gate",
       "info",
     );
     return { error: "missing subcommand" };
@@ -292,7 +459,7 @@ export async function handleSdd(args: string, ctx: unknown): Promise<unknown> {
   if (!handler) {
     const c = uiOf(ctx);
     c.ui.notify(
-      `未知子命令: ${sub}\n可用: init, review, approve, back, plan, start, archive, phase, status`,
+      `未知子命令: ${sub}\n可用: init, review, approve, back, plan, start, archive, phase, status, sync, list, why, apply, validate, gate`,
       "error",
     );
     return { error: `unknown subcommand: ${sub}` };

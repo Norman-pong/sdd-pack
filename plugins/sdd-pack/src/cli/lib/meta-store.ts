@@ -367,7 +367,7 @@ function inferPrdIdFromGroupDir(phaseFilePath: string): string | null {
   return /^prd-\d{8}-\d{3}$/.test(groupDir) ? groupDir : null;
 }
 
-function inferPrdIdFromPath(filePath: string): string | null {
+export function inferPrdIdFromPath(filePath: string): string | null {
   const base = filePath.split("/").pop() ?? "";
   const m = base.match(/^(\d{4}-\d{2}-\d{2})-(.+)\.md$/);
   return m ? `prd-${m[1].replace(/-/g, "")}-001` : null;

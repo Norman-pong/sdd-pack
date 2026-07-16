@@ -8,7 +8,7 @@
  * 文件 IO 走 node:fs,不依赖 bun,不调 process.exit / console.*。
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, readdirSync } from "node:fs";
 import { resolve, relative, dirname, basename } from "node:path";
 
 import type {
@@ -40,22 +40,28 @@ import {
   listPhaseMetas,
   readPhaseMeta,
   phaseFilePath,
+  rebuildMetaFromMarkdown,
+  readPrdMeta,
+  readMetaIndex,
   type PrdMeta,
   type PhaseMeta,
 } from "./lib/meta-store";
-import { generatePrdStatusLine, generatePhaseStatusLine } from "./lib/doc-parser";
+import { generatePrdStatusLine, generatePhaseStatusLine, extractStatusLine, parseStatusLine } from "./lib/doc-parser";
 import {
   isTransitionAllowed,
   isPhaseTransitionAllowed,
   PrdStatus,
   PhaseStatus,
   ArchiveReason,
+  parseStatus,
+  parsePhaseStatus,
 } from "./lib/prd-state-machine";
 import { requireString } from "./lib/orchestration/gates";
 import { generateTemplate } from "./lib/template-engine";
 import { addPrdEntry, updateIndexEntry, indexContains } from "./lib/index-sync";
 import { validate, type ValidationConfig } from "./lib/validator";
 import { runLint, runTest, runReview } from "./lib/gate-runner";
+import type { SyncOptions, SyncResult, RebuildResult } from "./lib/api-types";
 
 /**
  * Flow 专用 validate: Draft→PendingReview 时跳过 Check #1(PRD↔Phase 双向引用),
@@ -283,9 +289,27 @@ export async function approvePrd(opts: ApproveOptions): Promise<ApproveResult> {
     if (!isTransitionAllowed(PrdStatus.PendingReview, PrdStatus.Reviewed)) {
       throw new Error("状态机非法迁移: PendingReview → Reviewed");
     }
-    // TODO(Phase 003): reviewer agent 门禁(配置驱动 .sdd/gate.json reviewOnApprove)
-    void opts;
-    const filePath = resolve(findRepoRoot(), meta.filePath);
+    // gate.json reviewOnApprove 配置驱动 reviewer 门禁
+    const repoRoot = findRepoRoot();
+    const gatePath = resolve(repoRoot, ".sdd", "gate.json");
+    let reviewOnApprove = false;
+    if (existsSync(gatePath)) {
+      try {
+        const gateConfig = JSON.parse(readFileSync(gatePath, "utf-8")) as { reviewOnApprove?: boolean };
+        reviewOnApprove = gateConfig.reviewOnApprove === true;
+      } catch {
+        // 解析失败视为未启用
+      }
+    }
+    if (reviewOnApprove && !opts.skipReviewer) {
+      const reviewResult = runReview(repoRoot);
+      if (reviewResult.status !== "pass") {
+        r.status = "error";
+        r.errors.push(`门禁 review 未通过: ${reviewResult.message ?? reviewResult.stderr}`);
+        return r;
+      }
+    }
+    const filePath = resolve(repoRoot, meta.filePath);
     const content = readFileSync(filePath, "utf-8");
     const now = new Date().toISOString();
     const updatedMeta = {
@@ -299,7 +323,7 @@ export async function approvePrd(opts: ApproveOptions): Promise<ApproveResult> {
     writeFileSync(filePath, updatedContent, "utf-8");
     writePrdMeta(updatedMeta);
     // 同步 docs/index.md 状态列
-    const indexPath = resolve(findRepoRoot(), "docs/index.md");
+    const indexPath = resolve(repoRoot, "docs/index.md");
     updateIndexEntry(indexPath, filePath, PrdStatus.Reviewed);
     r.prdId = meta.id;
     r.from = PrdStatus.PendingReview;
@@ -799,6 +823,158 @@ export async function getStatusPanel(): Promise<StatusPanelResult> {
       status: p.status,
     }));
     r.availableActions = availableActions;
+    return r;
+  } catch (e) {
+    r.status = "error";
+    r.errors.push(errMsg(e));
+    return r;
+  }
+}
+
+// ===== 10. syncMeta（ADR-018 Phase 003） =====
+
+/**
+ * 对比 meta.json 与 markdown 状态行,报告不一致;--fix 时用 meta.json 覆盖 markdown。
+ * meta.json 缺失时自动调 rebuildMetaFromMarkdown() 重建。
+ */
+export async function syncMeta(opts: SyncOptions): Promise<SyncResult> {
+  const r: SyncResult = {
+    status: "pass",
+    mismatches: [],
+    fixedCount: 0,
+    rebuiltCount: 0,
+    errors: [],
+    warnings: [],
+  };
+  try {
+    const root = findRepoRoot();
+    const idx = readMetaIndex();
+
+    // 1. 检查所有 PRD meta.json 是否存在,缺失则重建
+    let needRebuild = false;
+    for (const prdId of idx.prdIds) {
+      if (!readPrdMeta(prdId)) needRebuild = true;
+    }
+    for (const phaseId of idx.phaseIds) {
+      if (!readPhaseMeta(phaseId)) needRebuild = true;
+    }
+    // 也检查是否有 markdown 文件但 index 为空(完全无 meta)
+    const prdDocsDir = resolve(root, "docs/prd");
+    if (!needRebuild && existsSync(prdDocsDir)) {
+      const mdFiles = readdirSync(prdDocsDir).filter((f) => f.endsWith(".md"));
+      if (mdFiles.length > 0 && idx.prdIds.length === 0) needRebuild = true;
+    }
+    if (needRebuild) {
+      rebuildMetaFromMarkdown();
+      const newIdx = readMetaIndex();
+      r.rebuiltCount = newIdx.prdIds.length + newIdx.phaseIds.length;
+      r.warnings.push("meta.json 缺失,已从 markdown 重建");
+    }
+
+    // 2. 对比 PRD meta 与 markdown 状态
+    for (const prdId of idx.prdIds) {
+      const meta = readPrdMeta(prdId);
+      if (!meta) continue;
+      const filePath = resolve(root, meta.filePath);
+      if (!existsSync(filePath)) {
+        r.warnings.push(`PRD markdown 缺失: ${meta.filePath}`);
+        continue;
+      }
+      const content = readFileSync(filePath, "utf-8");
+      const statusLine = extractStatusLine(content);
+      if (!statusLine) {
+        r.warnings.push(`PRD 无状态行: ${meta.filePath}`);
+        continue;
+      }
+      const parsed = parseStatusLine(statusLine);
+      if (!parsed) {
+        r.warnings.push(`PRD 状态行解析失败: ${meta.filePath}`);
+        continue;
+      }
+      const mdStatus = parseStatus(parsed.status);
+      if (mdStatus !== meta.status) {
+        r.mismatches.push({
+          filePath: meta.filePath,
+          kind: "prd",
+          metaStatus: meta.status,
+          markdownStatus: parsed.status,
+        });
+        if (opts.fix) {
+          const newStatusLine = generatePrdStatusLine(meta);
+          const updatedContent = applyStatusLine(content, newStatusLine);
+          writeFileSync(filePath, updatedContent, "utf-8");
+          r.fixedCount++;
+        }
+      }
+    }
+
+    // 3. 对比 Phase meta 与 markdown 状态
+    for (const phaseId of idx.phaseIds) {
+      const meta = readPhaseMeta(phaseId);
+      if (!meta) continue;
+      const filePath = resolve(root, meta.filePath);
+      if (!existsSync(filePath)) {
+        r.warnings.push(`Phase markdown 缺失: ${meta.filePath}`);
+        continue;
+      }
+      const content = readFileSync(filePath, "utf-8");
+      const statusLine = extractStatusLine(content);
+      if (!statusLine) {
+        r.warnings.push(`Phase 无状态行: ${meta.filePath}`);
+        continue;
+      }
+      const parsed = parseStatusLine(statusLine);
+      if (!parsed) {
+        r.warnings.push(`Phase 状态行解析失败: ${meta.filePath}`);
+        continue;
+      }
+      const mdStatus = parsePhaseStatus(parsed.status);
+      if (mdStatus !== meta.status) {
+        r.mismatches.push({
+          filePath: meta.filePath,
+          kind: "phase",
+          metaStatus: meta.status,
+          markdownStatus: parsed.status,
+        });
+        if (opts.fix) {
+          const newStatusLine = generatePhaseStatusLine(meta);
+          const updatedContent = applyStatusLine(content, newStatusLine);
+          writeFileSync(filePath, updatedContent, "utf-8");
+          r.fixedCount++;
+        }
+      }
+    }
+
+    if (r.mismatches.length > 0 && !opts.fix) {
+      r.status = "warn";
+      r.warnings.push(`发现 ${r.mismatches.length} 处不一致,使用 --fix 修复`);
+    }
+    return r;
+  } catch (e) {
+    r.status = "error";
+    r.errors.push(errMsg(e));
+    return r;
+  }
+}
+
+// ===== 11. rebuildMeta（ADR-018 Phase 003） =====
+
+/**
+ * 从 markdown 状态行重建所有 meta.json(直接调 meta-store.rebuildMetaFromMarkdown)。
+ */
+export async function rebuildMeta(): Promise<RebuildResult> {
+  const r: RebuildResult = {
+    status: "pass",
+    prdCount: 0,
+    phaseCount: 0,
+    errors: [],
+    warnings: [],
+  };
+  try {
+    rebuildMetaFromMarkdown();
+    const idx = readMetaIndex();
+    r.prdCount = idx.prdIds.length;
+    r.phaseCount = idx.phaseIds.length;
     return r;
   } catch (e) {
     r.status = "error";

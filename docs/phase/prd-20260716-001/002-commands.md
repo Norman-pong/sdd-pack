@@ -188,6 +188,6 @@ export async function phaseTransition(opts: PhaseTransitionOptions): Promise<Pha
 - [ ] Phase 文件在分组目录 `docs/phase/<prd-id>/` 下
 - [ ] 归档后文件正确移入 archive/
 
-### 5.2 与 PRD §7 验收的对应
+### 5.2 与 PRD §8 验收的对应
 
-本 Phase 覆盖 PRD §7.1 中 plan/start/archive/phase/status 相关验收 + §7.2 门禁验收中 tool_call 拦截项。门禁嵌入流转的深度集成在 Phase 003 覆盖。
+本 Phase 覆盖 PRD §8.1 中 plan/start/archive/phase/status 相关验收 + §8.2 门禁验收中 tool_call 拦截项。门禁嵌入流转的深度集成在 Phase 003 覆盖。

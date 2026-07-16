@@ -9,7 +9,7 @@
  * - 不用 @oh-my-pi/pi-coding-agent 类型(unknown 兜底,跟 hooks/sdd/index.ts 同构)
  * - 统一 arg parser(parseArgs from lib/orchestration/parseArgs)
  * - 统一 UI adapter(notifyBySeverity)
- * - /sdd 路由 + 4 个流转 handler 在 sdd-router.ts(ADR-018)
+ * - /sdd 路由 + 15 个子命令 handler 在 sdd-router.ts(ADR-018)
  * - 5 个 gate handler 在 gate-handlers.ts
  */
 
@@ -148,6 +148,24 @@ const LORE_PROTOCOL_REMINDER = [
   "5. 本提醒来自 sdd-pack SDD 范式 extension(ADR-015,合并自 hooks/sdd/)",
 ].join("\n");
 
+const SDD_COMMAND_REMINDER = [
+  "📜 SDD 文档状态流转协议(始终生效,sdd-pack extension 注入):",
+  "",
+  "文档状态变更必须通过 /sdd 命令,禁止直接 edit 状态行:",
+  "  /sdd init <title>                        # 创建新 PRD(草稿)",
+  "  /sdd review                              # 草稿 -> 待评审",
+  "  /sdd approve                             # 待评审 -> 已评审",
+  "  /sdd plan --phase <title>                # 已评审 -> 已规划任务",
+  "  /sdd start                               # 已规划任务 -> 进行中",
+  "  /sdd archive --reason <completed|abandoned>",
+  "  /sdd back --to <draft|pending>           # 回退",
+  "  /sdd phase <start|complete|abandon>      # Phase 流转",
+  "  /sdd status                              # 状态面板",
+  "  /sdd sync [--fix]                        # meta↔markdown 同步",
+  "",
+  "状态行篡改会被 tool_call 硬拦截(block)。",
+].join("\n");
+
 const DOCS_UPDATE_HINT =
   "💡 docs-update-guard [hook]: 检测到 commit 命令。如果本次改动触及 docs/ 请确认 PRD↔Phase 双向引用已更新(skill://sdd-core)。";
 
@@ -191,6 +209,18 @@ const STATUS_LINE_BLOCK_REASON = [
   "状态行必须通过 /sdd <transition> 命令流转,不可直接 edit。",
   "可用命令: /sdd init/review/approve/plan/start/archive/back/phase/sync",
 ].join("\n");
+
+// ===== 旧命令 deprecated 警告(每次执行时) =====
+
+function deprecatedNotify(oldCmd: string, newCmd: string, ctx: unknown): void {
+  const c = uiOf(ctx);
+  c.ui.notify(`⚠️ /${oldCmd} 已废弃,请使用 /sdd ${newCmd},v1.10.0 删除`, "warning");
+}
+
+/** 把旧命令参数转发到 /sdd 子命令 */
+function forwardToSdd(subcommand: string, args: string, ctx: unknown): Promise<unknown> {
+  return handleSdd(`${subcommand} ${args}`.trim(), ctx);
+}
 
 // 向后兼容别名
 const DOC_EDIT_GUIDANCE = DOC_EDIT_GUIDANCE_DOC;
@@ -422,12 +452,15 @@ async function handleApply(args: string, ctx: unknown): Promise<unknown> {
 // ===== Extension factory: 15 个 slash command 注册 =====
 export default function (pi: ExtensionAPI): void {
   pi.registerCommand("sdd", {
-    description: "SDD 主命令(ADR-018): /sdd <init|review|approve|back> [args]",
+    description: "SDD 主命令(ADR-018): /sdd <init|review|approve|back|plan|start|archive|phase|status|sync|list|why|apply|validate|gate> [args]",
     handler: handleSdd,
   });
   pi.registerCommand("sdd-validate", {
     description: "校验 docs/ 文档结构 + 状态机 + 交叉引用一致性",
-    handler: handleValidate,
+    handler: async (args: string, ctx: unknown) => {
+      deprecatedNotify("sdd-validate", "validate", ctx);
+      return forwardToSdd("validate", args, ctx);
+    },
   });
   pi.registerCommand("sdd-propose", {
     description: "创建新 PRD(full / delta 型)",
@@ -435,7 +468,10 @@ export default function (pi: ExtensionAPI): void {
   });
   pi.registerCommand("sdd-archive", {
     description: "归档 PRD(reason: completed|replaced|abandoned)",
-    handler: handleArchive,
+    handler: async (args: string, ctx: unknown) => {
+      deprecatedNotify("sdd-archive", "archive", ctx);
+      return forwardToSdd("archive", args, ctx);
+    },
   });
   pi.registerCommand("sdd-archive-phase", {
     description: "归档 Phase(reason: completed|abandoned, ADR-017)",
@@ -447,23 +483,72 @@ export default function (pi: ExtensionAPI): void {
   });
   pi.registerCommand("sdd-status", {
     description: "所有 PRD/Phase 状态总览",
-    handler: handleStatus,
+    handler: async (args: string, ctx: unknown) => {
+      deprecatedNotify("sdd-status", "status", ctx);
+      return forwardToSdd("status", args, ctx);
+    },
   });
-  pi.registerCommand("sdd-list", { description: "带过滤的文档列表", handler: handleList });
+  pi.registerCommand("sdd-list", {
+    description: "带过滤的文档列表",
+    handler: async (args: string, ctx: unknown) => {
+      deprecatedNotify("sdd-list", "list", ctx);
+      return forwardToSdd("list", args, ctx);
+    },
+  });
   pi.registerCommand("sdd-why", {
     description: "查询 lore 决策上下文(file:line)",
-    handler: handleWhy,
+    handler: async (args: string, ctx: unknown) => {
+      deprecatedNotify("sdd-why", "why", ctx);
+      return forwardToSdd("why", args, ctx);
+    },
   });
-  pi.registerCommand("sdd-apply", { description: "打印 PRD 实施 checklist", handler: handleApply });
-  pi.registerCommand("sdd-gate-lint", { description: "门禁阶段1: lint（失败阻断后续）", handler: handleGateLint });
-  pi.registerCommand("sdd-gate-test", { description: "门禁阶段2: 功能验证测试（缺则 skip）", handler: handleGateTest });
-  pi.registerCommand("sdd-gate-review", { description: "门禁阶段3: 检查 reviewer 产物存在且通过", handler: handleGateReview });
-  pi.registerCommand("sdd-gate-precommit", { description: "门禁阶段4: 再跑 lint + lore 约束检查", handler: handleGatePrecommit });
-  pi.registerCommand("sdd-gate-commit", { description: "门禁阶段5: lore commit（--message 传 JSON）", handler: handleGateCommit });
+  pi.registerCommand("sdd-apply", {
+    description: "打印 PRD 实施 checklist",
+    handler: async (args: string, ctx: unknown) => {
+      deprecatedNotify("sdd-apply", "apply", ctx);
+      return forwardToSdd("apply", args, ctx);
+    },
+  });
+  pi.registerCommand("sdd-gate-lint", {
+    description: "门禁阶段1: lint（失败阻断后续）",
+    handler: async (args: string, ctx: unknown) => {
+      deprecatedNotify("sdd-gate-lint", "gate lint", ctx);
+      return forwardToSdd("gate lint", args, ctx);
+    },
+  });
+  pi.registerCommand("sdd-gate-test", {
+    description: "门禁阶段2: 功能验证测试（缺则 skip）",
+    handler: async (args: string, ctx: unknown) => {
+      deprecatedNotify("sdd-gate-test", "gate test", ctx);
+      return forwardToSdd("gate test", args, ctx);
+    },
+  });
+  pi.registerCommand("sdd-gate-review", {
+    description: "门禁阶段3: 检查 reviewer 产物存在且通过",
+    handler: async (args: string, ctx: unknown) => {
+      deprecatedNotify("sdd-gate-review", "gate review", ctx);
+      return forwardToSdd("gate review", args, ctx);
+    },
+  });
+  pi.registerCommand("sdd-gate-precommit", {
+    description: "门禁阶段4: 再跑 lint + lore 约束检查",
+    handler: async (args: string, ctx: unknown) => {
+      deprecatedNotify("sdd-gate-precommit", "gate precommit", ctx);
+      return forwardToSdd("gate precommit", args, ctx);
+    },
+  });
+  pi.registerCommand("sdd-gate-commit", {
+    description: "门禁阶段5: lore commit（--message 传 JSON）",
+    handler: async (args: string, ctx: unknown) => {
+      deprecatedNotify("sdd-gate-commit", "gate commit", ctx);
+      return forwardToSdd("gate commit", args, ctx);
+    },
+  });
 
-  // ===== session_start — 注入 lore protocol reminder =====
+  // ===== session_start — 注入 lore protocol + SDD command reminder =====
   pi.on("session_start", (_e) => {
     pi.sendMessage({ role: "system", content: LORE_PROTOCOL_REMINDER });
+    pi.sendMessage({ role: "system", content: SDD_COMMAND_REMINDER });
   });
 
   // ===== tool_call — commit 硬拦截 + docs/ 写入提示 =====

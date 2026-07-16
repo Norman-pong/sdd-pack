@@ -18,6 +18,7 @@ import {
   extractH1,
 } from "./doc-parser";
 import { PrdStatus, PhaseStatus, parseStatus, isTransitionAllowed } from "./prd-state-machine";
+import { readPrdMeta, inferPrdIdFromPath } from "./meta-store";
 
 /** 校验 severity */
 export type CheckSeverity = "warn" | "error" | "block";
@@ -298,38 +299,61 @@ function checkRelativeLinks(ctx: CheckContext): CheckResult {
 function checkStateMachine(ctx: CheckContext): CheckResult {
   const violations: string[] = [];
   const docsDir = ctx.docsDir;
+  const warnings: string[] = [];
 
   for (const file of [...ctx.prds, ...ctx.phases]) {
     const content = readFileSync(file, "utf-8");
     const refs = parseReferences(content);
     const bn = relative(docsDir, file);
+    const isPrd = file.includes("/prd/");
 
-    // 检查状态声明的合法性（堆叠行由 check #8 处理，这里跳过）
-    const statusLine = extractStatusLine(content);
-    if (statusLine) {
-      const stacked = parseStackedStatusLine(statusLine);
-      if (stacked) {
-        // 堆叠行跳过状态检查，check #8 会报 error
-      } else {
-        const parsed = parseStatusLine(statusLine);
-        if (parsed) {
-          const isPrd = file.includes("/prd/");
-          const validPrdStatuses = [
-            "草稿",
-            "待评审",
-            "已评审",
-            "已规划任务",
-            "进行中",
-            "已归档",
-          ];
-          const validPhaseStatuses = Object.values(PhaseStatus);
-          const validStatuses = isPrd ? validPrdStatuses : validPhaseStatuses;
-          if (!validStatuses.includes(parsed.status)) {
-            violations.push(
-              `${bn}: 状态 '${parsed.status}' 不是合法 ${isPrd ? "PRD" : "Phase"} 状态（${validStatuses.join("/")}）`,
-            );
+    // 优先从 meta.json 读取状态(ADR-018 事实源)
+    let status: string | null = null;
+    let metaSource = false;
+    if (isPrd) {
+      const metaId = inferPrdIdFromPath(bn);
+      if (metaId) {
+        const meta = readPrdMeta(metaId);
+        if (meta) {
+          status = meta.status;
+          metaSource = true;
+        }
+      }
+    }
+
+    // meta.json 缺失时 fallback 到 markdown 状态行
+    if (!metaSource) {
+      const statusLine = extractStatusLine(content);
+      if (statusLine) {
+        const stacked = parseStackedStatusLine(statusLine);
+        if (stacked) {
+          // 堆叠行跳过状态检查，check #8 会报 error
+        } else {
+          const parsed = parseStatusLine(statusLine);
+          if (parsed) {
+            status = parsed.status;
+            warnings.push(`${bn}: meta.json 缺失, fallback 到 markdown 状态行`);
           }
         }
+      }
+    }
+
+    // 检查状态声明的合法性
+    if (status) {
+      const validPrdStatuses = [
+        "草稿",
+        "待评审",
+        "已评审",
+        "已规划任务",
+        "进行中",
+        "已归档",
+      ];
+      const validPhaseStatuses = Object.values(PhaseStatus);
+      const validStatuses = isPrd ? validPrdStatuses : validPhaseStatuses;
+      if (!validStatuses.includes(status)) {
+        violations.push(
+          `${bn}: 状态 '${status}' 不是合法 ${isPrd ? "PRD" : "Phase"} 状态（${validStatuses.join("/")}）`,
+        );
       }
     }
 
@@ -562,7 +586,49 @@ function checkRequiredSections(ctx: CheckContext): CheckResult {
     message: errors.length > 0 ? errors.join("; ") : undefined,
   };
 }
+/**
+ * Check #11: 全局 PRD 单例（block）
+ * 非归档 PRD 在 docs/prd/ 下只能存在 1 份
+ */
+function checkGlobalSingleton(ctx: CheckContext): CheckResult {
+  const activePrds: string[] = [];
+  const docsDir = ctx.docsDir;
+  const prdDocsDir = resolve(docsDir, "prd");
 
+  function walk(dir: string): void {
+    if (!existsSync(dir)) return;
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const fullPath = resolve(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === "archive" || entry.name.startsWith(".")) continue;
+        walk(fullPath);
+      } else if (entry.isFile() && entry.name.endsWith(".md") && !isTemplateFile(entry.name)) {
+        const content = readFileSync(fullPath, "utf-8");
+        const statusLine = extractStatusLine(content);
+        if (!statusLine) continue;
+        const parsed = parseStatusLine(statusLine);
+        if (!parsed) continue;
+        const status = parseStatus(parsed.status);
+        if (status && status !== PrdStatus.Archived) {
+          activePrds.push(relative(docsDir, fullPath));
+        }
+      }
+    }
+  }
+
+  walk(prdDocsDir);
+
+  return {
+    ruleId: 11,
+    name: "全局 PRD 单例",
+    severity: "block",
+    passed: activePrds.length <= 1,
+    message:
+      activePrds.length > 1
+        ? `存在 ${activePrds.length} 份非归档 PRD, 仅允许 1 份活跃: ${activePrds.join(", ")}`
+        : undefined,
+  };
+}
 // ===== 校验引擎 =====
 
 /**
@@ -618,6 +684,10 @@ export function validate(config: ValidationConfig): ValidationResult {
     allChecks.push(checkStatusLineFormat(ctx));
     allChecks.push(checkArchiveFileLocation(ctx));
     allChecks.push(checkRequiredSections(ctx));
+    // 全局单例只在全量扫描时运行(不传 files 时),单文件验证时跳过
+    if (!config.files || config.files.length === 0) {
+      allChecks.push(checkGlobalSingleton(ctx));
+    }
   }
 
   // 按 severity 阈值汇总
@@ -649,3 +719,4 @@ export function validate(config: ValidationConfig): ValidationResult {
 
   return { status, errors, warnings, checks: allChecks };
 }
+

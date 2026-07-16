@@ -3,7 +3,7 @@
 sdd-pack 是 **omp 上的一体化开发管理插件**:用 SDD 范式管理需求/阶段/审查/提交门禁的端到端工作流。
 提供 omp 4 类资产(skills / rules / agents / extensions),通过 marketplace 装机即用。
 
-**版本**: v1.6.0
+**版本**: v1.8.0
 
 ## 0. 插件定位
 
@@ -174,13 +174,13 @@ omp plugin uninstall sdd-pack@sdd-pack
 
 ## 7. 迁移
 
-### v1.6.0 → v1.8.0(规划中)
+### v1.6.0 → v1.8.0
 
 - OpenSpec 双范式移除,SDD 单范式
 - `extensions/openspec-extension/` 删除,`src/cli/openspec-api.ts` 删除
 - ADR-010/011 标记 Superseded
 - hook 逻辑合并进 extension(ADR-015)
-
+- meta.json 事实源(ADR-018) + 强状态流转 + tool_call 硬拦截 + /sdd 统一命令体系
 ### v1.4.0-alpha → v1.5.0-alpha
 
 | 维度       | v1.4.0-alpha                              | v1.5.0-alpha                                          |
@@ -211,7 +211,7 @@ bun test plugins/sdd-pack/  # 应 0 fail
 ### 回滚
 
 ```bash
-omp plugin install sdd-pack@sdd-pack@1.6.0
+omp plugin install sdd-pack@sdd-pack@1.6.0  # 回滚到旧版
 ```
 
 ## 故障排查
@@ -228,6 +228,6 @@ rm -rf ~/.omp/plugins/cache/plugins/sdd-pack___sdd-pack___1.6.0
 
 ## 版本对应
 
-- v1.6.0 → v1.8.0(规划中): OpenSpec 移除 + 强状态流转 + meta.json 事实源 + hook 合并进 extension
+- v1.6.0 → v1.8.0: OpenSpec 移除 + 强状态流转 + meta.json 事实源 + hook 合并进 extension + /sdd 统一命令体系
 - git tag 与 plugin version 保持一致
 - 升级前建议备份 `plugins/sdd-pack/skills/sdd-*/SKILL.md` 本地修改(若有)

@@ -1,6 +1,6 @@
 # Phase 001: 基础设施 — meta-store + PRD 基础流转 + OpenSpec 移除
 
-> 状态:已完成 | 创建日期:2026-07-16
+> 状态：未开始 | 发布日期：2026-07-16
 > 修改记录:执行 `lore log docs/phase/prd-20260716-001/001-foundation.md`
 > 对应 PRD:[sdd-pack PRD (v1.8 强状态流转 + meta.json 事实源)](../../prd/2026-07-16-sdd-pack-v18.md)
 > 对齐版本:v1.8.0-alpha(PRD §9)
@@ -240,6 +240,6 @@ handler 做三件事:参数解析 → 调 api 函数 → UI 反馈(setWidget + n
 - [ ] ADR-010/011 Superseded + ADR-018 Accepted
 - [ ] bunx tsc --noEmit 0 errors
 
-### 5.2 与 PRD §7 验收的对应
+### 5.2 与 PRD §8 验收的对应
 
-本 Phase 覆盖 PRD §7.1 中 /sdd init/review/approve/back 相关验收 + §7.4 回归验收中 OpenSpec 删除项。plan/start/archive/phase/sync/status 在 Phase 002 覆盖,validator 切换 + 门禁嵌入在 Phase 003 覆盖。
+本 Phase 覆盖 PRD §8.1 中 /sdd init/review/approve/back 相关验收 + §8.4 回归验收中 OpenSpec 删除项。plan/start/archive/phase/sync/status 在 Phase 002 覆盖,validator 切换 + 门禁嵌入在 Phase 003 覆盖。

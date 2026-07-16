@@ -27,6 +27,8 @@ import {
   archivePrdV2,
   phaseTransition,
   getStatusPanel,
+  syncMeta,
+  rebuildMeta,
 } from "../api";
 
 // ===== validateDocs =====
@@ -541,5 +543,91 @@ describe("Phase 002 流转集成测试", () => {
     const r = await getStatusPanel();
     expect(r.status).toBe("error");
     expect(r.errors[0]).toMatch(/无活跃 PRD/);
+  });
+});
+
+// ===== syncMeta / rebuildMeta =====
+describe("syncMeta / rebuildMeta", () => {
+  const originalCwd = process.cwd();
+
+  beforeEach(() => {
+    setupFlowDirs();
+    process.chdir(FLOW_TEST_ROOT);
+  });
+
+  afterEach(() => {
+    process.chdir(originalCwd);
+    cleanupFlowDirs();
+  });
+
+  test("syncMeta 无 meta.json 时自动重建并报告 rebuiltCount", async () => {
+    // 创建 markdown 但不创建 meta.json
+    writeFileSync(
+      pathResolve(FLOW_DOCS_PRD, "2026-07-16-sync-test.md"),
+      "# Sync Test PRD\n\n> 状态：草稿\n",
+    );
+    const r = await syncMeta({});
+    expect(r.status).toBe("pass");
+    expect(r.rebuiltCount).toBeGreaterThan(0);
+    expect(r.warnings.some((w) => w.includes("meta.json 缺失"))).toBe(true);
+  });
+
+  test("syncMeta 检测 meta 与 markdown 状态不一致", async () => {
+    // 创建 markdown 状态=草稿,meta 状态=PendingReview
+    const filePath = pathResolve(FLOW_DOCS_PRD, "2026-07-16-mismatch.md");
+    writeFileSync(filePath, "# Mismatch PRD\n\n> 状态：草稿\n");
+    const meta = makeFlowPrdMeta({
+      id: "prd-20260716-001",
+      status: PrdStatus.PendingReview,
+      filePath: "docs/prd/2026-07-16-mismatch.md",
+    });
+    writePrdMeta(meta);
+    writeMetaIndex({
+      activePrdId: "prd-20260716-001",
+      prdIds: ["prd-20260716-001"],
+      phaseIds: [],
+      updatedAt: new Date().toISOString(),
+    });
+    const r = await syncMeta({});
+    expect(r.status).toBe("warn");
+    expect(r.mismatches.length).toBe(1);
+    expect(r.mismatches[0].kind).toBe("prd");
+    expect(r.mismatches[0].metaStatus).toBe(PrdStatus.PendingReview);
+    expect(r.mismatches[0].markdownStatus).toBe("草稿");
+  });
+
+  test("syncMeta --fix 用 meta.json 覆盖 markdown 状态行", async () => {
+    const filePath = pathResolve(FLOW_DOCS_PRD, "2026-07-16-fix.md");
+    writeFileSync(filePath, "# Fix PRD\n\n> 状态：草稿\n");
+    const meta = makeFlowPrdMeta({
+      id: "prd-20260716-001",
+      status: PrdStatus.PendingReview,
+      filePath: "docs/prd/2026-07-16-fix.md",
+    });
+    writePrdMeta(meta);
+    writeMetaIndex({
+      activePrdId: "prd-20260716-001",
+      prdIds: ["prd-20260716-001"],
+      phaseIds: [],
+      updatedAt: new Date().toISOString(),
+    });
+    const r = await syncMeta({ fix: true });
+    expect(r.status).toBe("pass");
+    expect(r.fixedCount).toBe(1);
+    const content = readFileSync(filePath, "utf-8");
+    expect(content).toContain("待评审");
+  });
+
+  test("rebuildMeta 从 markdown 重建 meta.json", async () => {
+    writeFileSync(
+      pathResolve(FLOW_DOCS_PRD, "2026-07-16-rebuild.md"),
+      "# Rebuild PRD\n\n> 状态：进行中\n",
+    );
+    const r = await rebuildMeta();
+    expect(r.status).toBe("pass");
+    expect(r.prdCount).toBe(1);
+    const idx = readMetaIndex();
+    expect(idx.prdIds.length).toBe(1);
+    expect(idx.activePrdId).toBe("prd-20260716-001");
   });
 });

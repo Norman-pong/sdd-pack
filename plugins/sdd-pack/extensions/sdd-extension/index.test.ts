@@ -7,7 +7,27 @@
  * 替代完整 T011(需要 omp session)的最小化验证。
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
+
+// Mock gate handlers before importing factory (prevents recursive bun test)
+mock.module("./gate-handlers", () => {
+  function gateMock(stage: string, _a: string, ctx: unknown): { status: string; stage: string } {
+    if (ctx && typeof ctx === "object" && "ui" in ctx) {
+      const ui = (ctx as Record<string, unknown>).ui;
+      if (ui && typeof ui === "object" && "notify" in ui) {
+        (ui as { notify: (t: string, l: string) => void }).notify(`gate ${stage}: pass`, "info");
+      }
+    }
+    return { status: "pass", stage };
+  }
+  return {
+    handleGateLint: (a: string, ctx: unknown) => gateMock("lint", a, ctx),
+    handleGateTest: (a: string, ctx: unknown) => gateMock("test", a, ctx),
+    handleGateReview: (a: string, ctx: unknown) => gateMock("review", a, ctx),
+    handleGatePrecommit: (a: string, ctx: unknown) => gateMock("precommit", a, ctx),
+    handleGateCommit: (a: string, ctx: unknown) => gateMock("commit", a, ctx),
+  };
+});
 
 import factory from "./index";
 import * as api from "../../src/cli/api";
@@ -193,11 +213,13 @@ describe("sdd-extension — tool_call docs/ 写入提示", () => {
 });
 
 describe("sdd-extension — session_start", () => {
-  test("触发 session_start 注入 LORE_PROTOCOL_REMINDER", async () => {
+  test("触发 session_start 注入 LORE_PROTOCOL_REMINDER + SDD_COMMAND_REMINDER", async () => {
     capturedMessages.length = 0;
     const h = getEventHandler("session_start");
     await h({});
     expect(capturedMessages.some((m) => m.content.includes("lore 提交协议"))).toBe(true);
+    expect(capturedMessages.some((m) => m.content.includes("SDD 文档状态流转协议"))).toBe(true);
+    expect(capturedMessages.some((m) => m.content.includes("/sdd sync"))).toBe(true);
   });
 });
 
@@ -279,110 +301,245 @@ describe("sdd-migrate handler", () => {
   });
 });
 
-describe("sdd-status handler", () => {
-  test("调用后 setWidget 含文档统计", async () => {
-    const { ctx, widgets, messages } = makeCtx();
+describe("sdd-status 别名(deprecated)", () => {
+  test("调用后转发到 /sdd status 并提示废弃", async () => {
+    const { ctx, messages, widgets } = makeCtx();
     const r = await getHandler("sdd-status")("", ctx);
     expect(r).toBeDefined();
-    expect(widgets.length).toBeGreaterThan(0);
-    expect(widgets[0].content.join("\n")).toMatch(/PRD: \d+, Phase: \d+/);
     expect(messages.length).toBeGreaterThan(0);
+    expect(messages[0].text).toMatch(/已废弃|status/);
+    expect(widgets.length).toBeGreaterThan(0);
+    const widgetText = widgets[0].content.join("\n");
+    expect(widgetText).toMatch(/sdd status/);
+    expect(widgetText).toMatch(/status: error/);
+    expect(widgetText).toMatch(/无活跃 PRD/);
   });
 });
 
-describe("sdd-list handler", () => {
-  test("默认 type=prd 返回 PRD 列表", async () => {
+describe("sdd-list 别名(deprecated)", () => {
+  test("转发到 /sdd list 并提示废弃", async () => {
     const { ctx, widgets, messages } = makeCtx();
     const r = await getHandler("sdd-list")("", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(messages[0].text).toMatch(/已废弃|list/);
+    expect(widgets.length).toBeGreaterThan(0);
+  });
+});
+
+describe("sdd-why 别名(deprecated)", () => {
+  test("空 args → 转发并提示废弃", async () => {
+    const { ctx, messages } = makeCtx();
+    const r = await getHandler("sdd-why")("", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(messages[0].text).toMatch(/已废弃|why/);
+  });
+});
+
+describe("sdd-apply 别名(deprecated)", () => {
+  test("空 args → 转发并提示废弃", async () => {
+    const { ctx, messages } = makeCtx();
+    const r = await getHandler("sdd-apply")("", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(messages[0].text).toMatch(/已废弃|apply/);
+  });
+});
+
+describe("sdd-validate 别名(deprecated)", () => {
+  test("转发到 /sdd validate 并提示废弃", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd-validate")("", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(messages[0].text).toMatch(/已废弃|validate/);
+    expect(widgets.length).toBeGreaterThan(0);
+  });
+});
+
+describe("sdd-gate-* 别名(deprecated)", () => {
+  test("sdd-gate-lint 转发到 /sdd gate lint 并提示废弃", async () => {
+    const { ctx, messages } = makeCtx();
+    const r = await getHandler("sdd-gate-lint")("", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(messages[0].text).toMatch(/已废弃|gate lint/);
+  });
+  test("sdd-gate-test 转发到 /sdd gate test 并提示废弃", async () => {
+    const { ctx, messages } = makeCtx();
+    const r = await getHandler("sdd-gate-test")("", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(messages[0].text).toMatch(/已废弃|gate test/);
+  });
+  test("sdd-gate-review 转发到 /sdd gate review 并提示废弃", async () => {
+    const { ctx, messages } = makeCtx();
+    const r = await getHandler("sdd-gate-review")("", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(messages[0].text).toMatch(/已废弃|gate review/);
+  });
+  test("sdd-gate-precommit 转发到 /sdd gate precommit 并提示废弃", async () => {
+    const { ctx, messages } = makeCtx();
+    const r = await getHandler("sdd-gate-precommit")("", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(messages[0].text).toMatch(/已废弃|gate precommit/);
+  });
+  test("sdd-gate-commit 转发到 /sdd gate commit 并提示废弃", async () => {
+    const { ctx, messages } = makeCtx();
+    const r = await getHandler("sdd-gate-commit")("", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(messages[0].text).toMatch(/已废弃|gate commit/);
+  });
+});
+
+describe("sdd-archive 别名(deprecated)", () => {
+  test("转发到 /sdd archive 并提示废弃", async () => {
+    const { ctx, messages } = makeCtx();
+    const r = await getHandler("sdd-archive")("--reason completed", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(messages[0].text).toMatch(/已废弃|archive/);
+  });
+});
+
+describe("/sdd sync 子命令", () => {
+  test("sync 调用 syncMeta 并 setWidget + notify", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("sync", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+  });
+  test("sync --fix 调用 syncMeta 并 setWidget", async () => {
+    const { ctx, widgets } = makeCtx();
+    const r = await getHandler("sdd")("sync --fix", ctx);
+    expect(r).toBeDefined();
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+  });
+});
+
+describe("/sdd list 子命令", () => {
+  test("默认 type=prd 返回 PRD 列表", async () => {
+    const { ctx, widgets, messages } = makeCtx();
+    const r = await getHandler("sdd")("list", ctx);
     expect(r).toBeDefined();
     expect(widgets.length).toBeGreaterThan(0);
     expect(messages[0].text).toMatch(/匹配/);
   });
 });
 
-describe("sdd-why handler", () => {
+describe("/sdd why 子命令", () => {
   test("空 args → error notify", async () => {
     const { ctx, messages } = makeCtx();
-    const r = await getHandler("sdd-why")("", ctx);
+    const r = await getHandler("sdd")("why", ctx);
     expect(r).toBeDefined();
     expect(messages.some((m) => m.level === "error")).toBe(true);
   });
 });
 
-describe("sdd-apply handler", () => {
-  test("空 args → warn notify", async () => {
+describe("/sdd apply 子命令", () => {
+  test("空 args → error notify", async () => {
     const { ctx, messages } = makeCtx();
-    const r = await getHandler("sdd-apply")("", ctx);
+    const r = await getHandler("sdd")("apply", ctx);
     expect(r).toBeDefined();
-    expect(messages.some((m) => m.level === "warn" || m.level === "error")).toBe(true);
+    expect(messages.some((m) => m.level === "error" || m.level === "warn")).toBe(true);
   });
 });
 
-describe("sdd-extension 隔离性(api 实际被调)", () => {
-  test("api.ts 的 12 个函数都从 extension 可访问", () => {
-    expect(typeof api.validateDocs).toBe("function");
-    expect(typeof api.proposePrd).toBe("function");
-    expect(typeof api.archivePrd).toBe("function");
-    expect(typeof api.migratePrd).toBe("function");
-    expect(typeof api.getStatus).toBe("function");
-    expect(typeof api.listPrds).toBe("function");
-    expect(typeof api.getWhy).toBe("function");
-    expect(typeof api.getApplyChecklist).toBe("function");
-    expect(typeof api.initPrd).toBe("function");
-    expect(typeof api.reviewPrd).toBe("function");
-    expect(typeof api.approvePrd).toBe("function");
-    expect(typeof api.backPrd).toBe("function");
+describe("/sdd validate 子命令", () => {
+  test("空 args 调用 validateDocs 并 setWidget + notify", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("validate", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(widgets.length).toBeGreaterThan(0);
+  });
+});
+
+describe("/sdd gate 子命令", () => {
+  test("缺少 stage → error + setWidget", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("gate", ctx);
+    expect(r).toBeDefined();
+    expect(messages.some((m) => m.level === "error" && m.text.includes("用法"))).toBe(true);
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+    expect(widgets[0].content.join("\n")).toContain("usage");
+  });
+  test("stage invalid → error + setWidget", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("gate invalid", ctx);
+    expect(r).toBeDefined();
+    expect(messages.some((m) => m.level === "error" && m.text.includes("用法"))).toBe(true);
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
+    expect(widgets[0].content.join("\n")).toContain("usage");
+  });
+  test("gate lint 转发到 handleGateLint", async () => {
+    const { ctx, messages } = makeCtx();
+    const r = await getHandler("sdd")("gate lint", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+  });
+});
+
+describe("/sdd status 子命令", () => {
+  test("status → setWidget + notify", async () => {
+    const { ctx, messages, widgets } = makeCtx();
+    const r = await getHandler("sdd")("status", ctx);
+    expect(r).toBeDefined();
+    expect(messages.length).toBeGreaterThan(0);
+    expect(widgets.length).toBeGreaterThan(0);
+    expect(widgets[0].key).toBe("sdd-display");
   });
 });
 
 describe("/sdd 主命令路由", () => {
-  test("空 args → 显示用法", async () => {
+  test("空 args → 显示用法(含新子命令)", async () => {
     const { ctx, messages } = makeCtx();
     const r = await getHandler("sdd")("", ctx);
     expect(r).toBeDefined();
     expect(messages.some((m) => m.text.includes("用法"))).toBe(true);
   });
-
   test("未知子命令 → error", async () => {
     const { ctx, messages } = makeCtx();
     const r = await getHandler("sdd")("unknown-sub", ctx);
     expect(r).toBeDefined();
     expect(messages.some((m) => m.level === "error" && m.text.includes("未知子命令"))).toBe(true);
   });
-
   test("init 子命令缺少 title → error + setWidget", async () => {
     const { ctx, messages, widgets } = makeCtx();
     const r = await getHandler("sdd")("init", ctx);
     expect(r).toBeDefined();
     expect(messages.some((m) => m.level === "error" && m.text.includes("用法"))).toBe(true);
-    // 缺少 title 时 error-return,但仍有 UI 反馈(setWidget + notify)
     expect(widgets.length).toBeGreaterThan(0);
     expect(widgets[0].key).toBe("sdd-display");
     expect(widgets[0].content.join("\n")).toContain("usage");
   });
-
   test("back 缺少 --to → error + setWidget(不调用 API)", async () => {
     const { ctx, messages, widgets } = makeCtx();
     const r = await getHandler("sdd")("back", ctx);
     expect(r).toBeDefined();
     expect(messages.some((m) => m.level === "error" && m.text.includes("用法"))).toBe(true);
-    // 缺少 --to 时 error-return,但仍有 UI 反馈(setWidget + notify)
     expect(widgets.length).toBeGreaterThan(0);
     expect(widgets[0].key).toBe("sdd-display");
     expect(widgets[0].content.join("\n")).toContain("usage");
   });
-
   test("back --to reviewed → error + setWidget(非法值,不调用 API)", async () => {
     const { ctx, messages, widgets } = makeCtx();
     const r = await getHandler("sdd")("back --to reviewed", ctx);
     expect(r).toBeDefined();
     expect(messages.some((m) => m.level === "error" && m.text.includes("用法"))).toBe(true);
-    // 非法 --to 值时 error-return,但仍有 UI 反馈(setWidget + notify)
     expect(widgets.length).toBeGreaterThan(0);
     expect(widgets[0].key).toBe("sdd-display");
     expect(widgets[0].content.join("\n")).toContain("usage");
   });
-
   test("back --to draft → setWidget + notify", async () => {
     const { ctx, messages, widgets } = makeCtx();
     const r = await getHandler("sdd")("back --to draft", ctx);
@@ -391,7 +548,6 @@ describe("/sdd 主命令路由", () => {
     expect(widgets.length).toBeGreaterThan(0);
     expect(widgets[0].key).toBe("sdd-display");
   });
-
   test("back --to pending → setWidget + notify", async () => {
     const { ctx, messages, widgets } = makeCtx();
     const r = await getHandler("sdd")("back --to pending", ctx);
@@ -400,7 +556,6 @@ describe("/sdd 主命令路由", () => {
     expect(widgets.length).toBeGreaterThan(0);
     expect(widgets[0].key).toBe("sdd-display");
   });
-
   test("review 子命令 → setWidget + notify", async () => {
     const { ctx, messages, widgets } = makeCtx();
     const r = await getHandler("sdd")("review", ctx);
@@ -409,7 +564,6 @@ describe("/sdd 主命令路由", () => {
     expect(widgets.length).toBeGreaterThan(0);
     expect(widgets[0].key).toBe("sdd-display");
   });
-
   test("approve 子命令 → setWidget + notify", async () => {
     const { ctx, messages, widgets } = makeCtx();
     const r = await getHandler("sdd")("approve", ctx);
@@ -417,16 +571,6 @@ describe("/sdd 主命令路由", () => {
     expect(messages.length).toBeGreaterThan(0);
     expect(widgets.length).toBeGreaterThan(0);
     expect(widgets[0].key).toBe("sdd-display");
-  });
-  test("init 子命令缺少 title → error + setWidget", async () => {
-    const { ctx, messages, widgets } = makeCtx();
-    const r = await getHandler("sdd")("init", ctx);
-    expect(r).toBeDefined();
-    expect(messages.some((m) => m.level === "error" && m.text.includes("用法"))).toBe(true);
-    // 缺少 title 时 error-return,但仍有 UI 反馈(setWidget + notify)
-    expect(widgets.length).toBeGreaterThan(0);
-    expect(widgets[0].key).toBe("sdd-display");
-    expect(widgets[0].content.join("\n")).toContain("usage");
   });
 });
 
@@ -440,16 +584,14 @@ describe("/sdd plan 子命令", () => {
     expect(widgets[0].key).toBe("sdd-display");
     expect(widgets[0].content.join("\n")).toContain("usage");
   });
-
   test("--phase <title> → setWidget + notify", async () => {
     const { ctx, messages, widgets } = makeCtx();
-    const r = await getHandler("sdd")("plan --phase \"Phase 1\"", ctx);
+    const r = await getHandler("sdd")('plan --phase "Phase 1"', ctx);
     expect(r).toBeDefined();
     expect(messages.length).toBeGreaterThan(0);
     expect(widgets.length).toBeGreaterThan(0);
     expect(widgets[0].key).toBe("sdd-display");
   });
-
   test("--link <phase-id> → setWidget + notify", async () => {
     const { ctx, messages, widgets } = makeCtx();
     const r = await getHandler("sdd")("plan --link phase-001", ctx);
@@ -481,7 +623,6 @@ describe("/sdd archive 子命令", () => {
     expect(widgets[0].key).toBe("sdd-display");
     expect(widgets[0].content.join("\n")).toContain("usage");
   });
-
   test("--reason invalid → error + setWidget", async () => {
     const { ctx, messages, widgets } = makeCtx();
     const r = await getHandler("sdd")("archive --reason invalid", ctx);
@@ -491,7 +632,6 @@ describe("/sdd archive 子命令", () => {
     expect(widgets[0].key).toBe("sdd-display");
     expect(widgets[0].content.join("\n")).toContain("usage");
   });
-
   test("--reason completed → setWidget + notify", async () => {
     const { ctx, messages, widgets } = makeCtx();
     const r = await getHandler("sdd")("archive --reason completed", ctx);
@@ -500,7 +640,6 @@ describe("/sdd archive 子命令", () => {
     expect(widgets.length).toBeGreaterThan(0);
     expect(widgets[0].key).toBe("sdd-display");
   });
-
   test("--reason abandoned → setWidget + notify", async () => {
     const { ctx, messages, widgets } = makeCtx();
     const r = await getHandler("sdd")("archive --reason abandoned", ctx);
@@ -521,7 +660,6 @@ describe("/sdd phase 子命令", () => {
     expect(widgets[0].key).toBe("sdd-display");
     expect(widgets[0].content.join("\n")).toContain("usage");
   });
-
   test("action invalid → error + setWidget", async () => {
     const { ctx, messages, widgets } = makeCtx();
     const r = await getHandler("sdd")("phase invalid", ctx);
@@ -531,7 +669,6 @@ describe("/sdd phase 子命令", () => {
     expect(widgets[0].key).toBe("sdd-display");
     expect(widgets[0].content.join("\n")).toContain("usage");
   });
-
   test("phase start → setWidget + notify", async () => {
     const { ctx, messages, widgets } = makeCtx();
     const r = await getHandler("sdd")("phase start", ctx);
@@ -540,7 +677,6 @@ describe("/sdd phase 子命令", () => {
     expect(widgets.length).toBeGreaterThan(0);
     expect(widgets[0].key).toBe("sdd-display");
   });
-
   test("phase complete → setWidget + notify", async () => {
     const { ctx, messages, widgets } = makeCtx();
     const r = await getHandler("sdd")("phase complete", ctx);
@@ -549,7 +685,6 @@ describe("/sdd phase 子命令", () => {
     expect(widgets.length).toBeGreaterThan(0);
     expect(widgets[0].key).toBe("sdd-display");
   });
-
   test("phase abandon → setWidget + notify", async () => {
     const { ctx, messages, widgets } = makeCtx();
     const r = await getHandler("sdd")("phase abandon", ctx);
@@ -558,21 +693,9 @@ describe("/sdd phase 子命令", () => {
     expect(widgets.length).toBeGreaterThan(0);
     expect(widgets[0].key).toBe("sdd-display");
   });
-
   test("phase start --id phase-001 → setWidget + notify", async () => {
     const { ctx, messages, widgets } = makeCtx();
     const r = await getHandler("sdd")("phase start --id phase-001", ctx);
-    expect(r).toBeDefined();
-    expect(messages.length).toBeGreaterThan(0);
-    expect(widgets.length).toBeGreaterThan(0);
-    expect(widgets[0].key).toBe("sdd-display");
-  });
-});
-
-describe("/sdd status 子命令", () => {
-  test("status → setWidget + notify", async () => {
-    const { ctx, messages, widgets } = makeCtx();
-    const r = await getHandler("sdd")("status", ctx);
     expect(r).toBeDefined();
     expect(messages.length).toBeGreaterThan(0);
     expect(widgets.length).toBeGreaterThan(0);
@@ -694,5 +817,50 @@ describe("sdd-extension — tool_call 状态行硬拦截", () => {
       },
     });
     expect(r).toBeUndefined();
+  });
+});
+describe("sdd-why handler", () => {
+  test("空 args → error notify", async () => {
+    const { ctx, messages } = makeCtx();
+    const r = await getHandler("sdd-why")("", ctx);
+    expect(r).toBeDefined();
+    expect(messages.some((m) => m.level === "error")).toBe(true);
+  });
+});
+
+describe("sdd-apply handler", () => {
+  test("空 args → warn notify", async () => {
+    const { ctx, messages } = makeCtx();
+    const r = await getHandler("sdd-apply")("", ctx);
+    expect(r).toBeDefined();
+    expect(messages.some((m) => m.level === "warn" || m.level === "error")).toBe(true);
+  });
+});
+
+describe("sdd-extension 隔离性(api 实际被调)", () => {
+  test("api.ts 的 14 个函数都从 extension 可访问", () => {
+    expect(typeof api.validateDocs).toBe("function");
+    expect(typeof api.proposePrd).toBe("function");
+    expect(typeof api.archivePrd).toBe("function");
+    expect(typeof api.migratePrd).toBe("function");
+    expect(typeof api.getStatus).toBe("function");
+    expect(typeof api.listPrds).toBe("function");
+    expect(typeof api.getWhy).toBe("function");
+    expect(typeof api.getApplyChecklist).toBe("function");
+    expect(typeof api.initPrd).toBe("function");
+    expect(typeof api.reviewPrd).toBe("function");
+    expect(typeof api.approvePrd).toBe("function");
+    expect(typeof api.backPrd).toBe("function");
+    expect(typeof api.syncMeta).toBe("function");
+    expect(typeof api.rebuildMeta).toBe("function");
+  });
+});
+
+describe("/sdd 主命令路由", () => {
+  test("空 args → 显示用法", async () => {
+    const { ctx, messages } = makeCtx();
+    const r = await getHandler("sdd")("", ctx);
+    expect(r).toBeDefined();
+    expect(messages.some((m) => m.text.includes("用法"))).toBe(true);
   });
 });

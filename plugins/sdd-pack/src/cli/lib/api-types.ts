@@ -307,3 +307,47 @@ export interface StatusPanelResult {
   errors: string[];
   warnings: string[];
 }
+
+// ===== ADR-018: syncMeta / rebuildMeta(Phase 003) =====
+
+/** syncMeta 入参 */
+export interface SyncOptions {
+  /** 修复不一致: 从 meta.json 生成 markdown 状态行覆盖 */
+  fix?: boolean;
+}
+
+/** 单个不一致项 */
+export interface SyncMismatch {
+  /** 文件路径(相对 repo root) */
+  filePath: string;
+  /** 类型: prd 或 phase */
+  kind: "prd" | "phase";
+  /** meta.json 中的状态 */
+  metaStatus: string;
+  /** markdown 状态行中的状态 */
+  markdownStatus: string;
+}
+
+/** syncMeta 返回 */
+export interface SyncResult {
+  status: "pass" | "warn" | "error";
+  /** 不一致项列表 */
+  mismatches: SyncMismatch[];
+  /** 修复数量(--fix 时) */
+  fixedCount: number;
+  /** 重建 meta.json 数量 */
+  rebuiltCount: number;
+  errors: string[];
+  warnings: string[];
+}
+
+/** rebuildMeta 返回 */
+export interface RebuildResult {
+  status: "pass" | "error";
+  /** 重建的 PRD 数量 */
+  prdCount: number;
+  /** 重建的 Phase 数量 */
+  phaseCount: number;
+  errors: string[];
+  warnings: string[];
+}

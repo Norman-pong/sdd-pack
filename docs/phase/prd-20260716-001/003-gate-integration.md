@@ -1,6 +1,6 @@
 # Phase 003: 门禁集成 + 迁移 + 收尾
 
-> 状态:未开始 | 创建日期:2026-07-16
+> 状态:已完成 | 创建日期:2026-07-16
 > 修改记录:执行 `lore log docs/phase/prd-20260716-001/003-gate-integration.md`
 > 对应 PRD:[sdd-pack PRD (v1.8 强状态流转 + meta.json 事实源)](../../prd/2026-07-16-sdd-pack-v18.md)
 > 对齐版本:v1.8.0 正式版(PRD §9)
@@ -60,18 +60,18 @@
 
 | 任务 ID | 任务名称 | 预估 | 依赖 | 状态 |
 |---------|---------|------|------|------|
-| T01 | 门禁嵌入流转命令(review/approve/archive/phase complete) | 30 min | P002-T07, P002-T08 | 未开始 |
-| T02 | validator 事实源切换(checkStateMachine 改读 meta.json) | 25 min | P001-T02 | 未开始 |
-| T03 | validator 新增 Check #11 全局单例校验 | 10 min | T02 | 未开始 |
-| T04 | api.ts 新增 syncMeta/rebuildMeta 函数 | 30 min | P001-T05 | 未开始 |
-| T05 | extension /sdd sync handler | 20 min | T04 | 未开始 |
-| T06 | extension /sdd list/why/apply/gate handler(归入 /sdd) | 20 min | P001-T06 | 未开始 |
-| T07 | 旧命令别名兼容(deprecated warning + 转发) | 20 min | P001-T06 | 未开始 |
-| T08 | F14 session_start 注入 SDD_COMMAND_REMINDER | 15 min | P001-T06 | 未开始 |
-| T09 | F14 sdd-core SKILL.md 更新(触发词 + 命令体系章节) | 15 min | T08 | 未开始 |
-| T10 | 存量迁移(当前 PRD /sdd sync 重建 meta.json) | 15 min | T05 | 未开始 |
-| T11 | 全链路 bun test + tsc 验证 | 15 min | T01-T10 | 未开始 |
-| T12 | docs/index.md + README.md + marketplace.json version 同步 | 15 min | T11 | 未开始 |
+| T01 | 门禁嵌入流转命令(review/approve/archive/phase complete) | 30 min | P002-T07, P002-T08 | 已完成 |
+| T02 | validator 事实源切换(checkStateMachine 改读 meta.json) | 25 min | P001-T02 | 已完成 |
+| T03 | validator 新增 Check #11 全局单例校验 | 10 min | T02 | 已完成 |
+| T04 | api.ts 新增 syncMeta/rebuildMeta 函数 | 30 min | P001-T05 | 已完成 |
+| T05 | extension /sdd sync handler | 20 min | T04 | 已完成 |
+| T06 | extension /sdd list/why/apply/gate handler(归入 /sdd) | 20 min | P001-T06 | 已完成 |
+| T07 | 旧命令别名兼容(deprecated warning + 转发) | 20 min | P001-T06 | 已完成 |
+| T08 | F14 session_start 注入 SDD_COMMAND_REMINDER | 15 min | P001-T06 | 已完成 |
+| T09 | F14 sdd-core SKILL.md 更新(触发词 + 命令体系章节) | 15 min | T08 | 已完成 |
+| T10 | 存量迁移(当前 PRD /sdd sync 重建 meta.json) | 15 min | T05 | 已完成 |
+| T11 | 全链路 bun test + tsc 验证 | 15 min | T01-T10 | 已完成 |
+| T12 | docs/index.md + README.md + marketplace.json version 同步 | 15 min | T11 | 已完成 |
 
 ### 2.2 任务详情
 
@@ -268,24 +268,24 @@ const SDD_COMMAND_REMINDER = [
 ### 5.1 验收清单
 
 **功能验收**:
-- [ ] 门禁嵌入流转(review/approve/archive/phase complete)
-- [ ] /sdd sync 检测不一致 + --fix 修复 + rebuild
-- [ ] /sdd list/why/apply/gate/validate 归入体系
-- [ ] 旧命令别名 deprecated warning
-- [ ] F14 三层注入: session_start + skill + 拦截引导
-- [ ] 存量迁移成功
+- [x] 门禁嵌入流转(review/approve/archive/phase complete) — api-flow.ts 已确认
+- [x] /sdd sync 检测不一致 + --fix 修复 + rebuild — syncMeta() 实现
+- [x] /sdd list/why/apply/gate/validate 归入体系 — sdd-router.ts handlers
+- [x] 旧命令别名 deprecated warning — deprecatedNotify 每次执行
+- [x] F14 三层注入: session_start + skill + 拦截引导 — index.ts SDD_COMMAND_REMINDER
+- [x] 存量迁移成功 — activePrdId=null(PRD已归档), .sdd/meta/ 已重建
 
-**技术验收**(PRD §7.3):
-- [ ] bun test 全部通过(含 meta-store 测试)
-- [ ] bunx tsc --noEmit 0 errors
-- [ ] /sdd sync 迁移当前活跃 PRD 成功
-- [ ] .sdd/meta/ 在 .gitignore 中
-- [ ] 旧命令别名兼容
+**技术验收**(PRD §8.3):
+- [x] bun test 全部通过(含 meta-store 测试) — 279 pass, 0 fail
+- [x] bunx tsc --noEmit 0 errors
+- [x] /sdd sync 迁移当前活跃 PRD 成功(activePrdId=null, PRD已归档)
+- [x] .sdd/meta/ 在 .gitignore 中
+- [x] 旧命令别名兼容(deprecated warning 每次执行显示)
 
-**回归验收**(PRD §7.4):
-- [ ] lore commit 流程不受影响
-- [ ] Goal Mode 续跑中 tool_call 拦截正常生效
+**回归验收**(PRD §8.4):
+- [x] lore commit 流程不受影响
+- [x] Goal Mode 续跑中 tool_call 拦截正常生效
 
-### 5.2 与 PRD §7 验收的对应
+### 5.2 与 PRD §8 验收的对应
 
-本 Phase 覆盖 PRD §7.1 中 sync/list/why/apply/gate + F14 注入 + 别名兼容验收 + §7.2 门禁验收中门禁嵌入流转项 + §7.3 全部技术验收 + §7.4 全部回归验收。是 v1.8 的收尾 Phase。
+本 Phase 覆盖 PRD §8.1 中 sync/list/why/apply/gate + F14 注入 + 别名兼容验收 + §8.2 门禁验收中门禁嵌入流转项 + §8.3 全部技术验收 + §8.4 全部回归验收。是 v1.8 的收尾 Phase。

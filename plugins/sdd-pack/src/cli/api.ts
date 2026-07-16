@@ -36,6 +36,8 @@ export {
   archivePrdV2,
   phaseTransition,
   getStatusPanel,
+  syncMeta,
+  rebuildMeta,
 } from "./api-flow";
 
 // Re-export types
@@ -73,4 +75,8 @@ export type {
   PhaseTransitionOptions,
   PhaseTransitionResult,
   StatusPanelResult,
+  SyncOptions,
+  SyncResult,
+  SyncMismatch,
+  RebuildResult,
 } from "./lib/api-types";

@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, test, beforeAll, afterAll } from "bun:test";
-import { mkdirSync, writeFileSync, rmSync, existsSync } from "fs";
+import { mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { validate, type ValidationConfig } from "../lib/validator";
 
@@ -315,13 +315,109 @@ describe("validator — 退出码映射", () => {
   });
 
   test("有 error 无 block 时 status=error", () => {
+    // 隔离测试:把其他 PRD 都归档,只剩 stacked-prd 一个非归档,避免 Check #11 block
+    const filesToArchive = [
+      resolve(TMP_DIR, "prd/2026-06-29-test-prd.md"),
+      resolve(TMP_DIR, "prd/2026-06-28-broken-prd.md"),
+      resolve(TMP_DIR, "prd/2026-06-27-incomplete-prd.md"),
+      resolve(TMP_DIR, "prd/Bad-Name-PRD.md"),
+      resolve(TMP_DIR, "prd/2026-06-26-old-prd.md"),
+      resolve(TMP_DIR, "prd/2026-06-27-new-prd.md"),
+      resolve(TMP_DIR, "prd/2026-06-25-links-prd.md"),
+    ];
+    for (const path of filesToArchive) {
+      const content = readFileSync(path, "utf-8");
+      writeFileSync(
+        path,
+        content.replace(
+          /> 状态[：:].*/,
+          "> 状态：已归档 | 归档原因：已完成",
+        ),
+      );
+    }
     const result = validate(
       makeConfig({
         severity: "error",
         files: [resolve(TMP_DIR, "prd/2026-06-24-stacked-prd.md")],
       }),
     );
+    // Check #8 堆叠状态行是 error；Check #11 已隔离
     expect(result.status).toBe("error");
+  });
+
+  test("多份非归档 PRD 触发 #11 block", () => {
+    // 恢复所有 PRD 为非归档状态
+    const filesToRestore = [
+      resolve(TMP_DIR, "prd/2026-06-29-test-prd.md"),
+      resolve(TMP_DIR, "prd/2026-06-28-broken-prd.md"),
+      resolve(TMP_DIR, "prd/2026-06-27-incomplete-prd.md"),
+      resolve(TMP_DIR, "prd/Bad-Name-PRD.md"),
+      resolve(TMP_DIR, "prd/2026-06-26-old-prd.md"),
+      resolve(TMP_DIR, "prd/2026-06-27-new-prd.md"),
+      resolve(TMP_DIR, "prd/2026-06-25-links-prd.md"),
+    ];
+    for (const path of filesToRestore) {
+      const content = readFileSync(path, "utf-8");
+      writeFileSync(
+        path,
+        content.replace(
+          /> 状态[：:].*/,
+          "> 状态：草稿",
+        ),
+      );
+    }
+    const result = validate(makeConfig());
+    const check11 = result.checks.find((c) => c.ruleId === 11);
+    expect(check11).toBeDefined();
+    expect(check11!.passed).toBe(false);
+    expect(check11!.severity).toBe("block");
+  });
+
+  test("仅 1 份非归档 PRD 通过 #11", () => {
+    // 把所有其他 PRD 改成已归档
+    const filesToArchive = [
+      resolve(TMP_DIR, "prd/2026-06-24-stacked-prd.md"),
+      resolve(TMP_DIR, "prd/2026-06-28-broken-prd.md"),
+      resolve(TMP_DIR, "prd/2026-06-27-incomplete-prd.md"),
+      resolve(TMP_DIR, "prd/Bad-Name-PRD.md"),
+      resolve(TMP_DIR, "prd/2026-06-26-old-prd.md"),
+      resolve(TMP_DIR, "prd/2026-06-27-new-prd.md"),
+      resolve(TMP_DIR, "prd/2026-06-25-links-prd.md"),
+    ];
+    for (const path of filesToArchive) {
+      const content = readFileSync(path, "utf-8");
+      writeFileSync(
+        path,
+        content.replace(
+          /> 状态[：:].*/,
+          "> 状态：已归档 | 归档原因：已完成",
+        ),
+      );
+    }
+    const result = validate(makeConfig());
+    const check11 = result.checks.find((c) => c.ruleId === 11);
+    expect(check11).toBeDefined();
+    expect(check11!.passed).toBe(true);
+  });
+
+  test("archive/ 目录下的 PRD 不参与 #11 统计", () => {
+    mkdirSync(resolve(TMP_DIR, "prd/archive"), { recursive: true });
+    writeFileSync(
+      resolve(TMP_DIR, "prd/archive/2026-06-20-archived-prd.md"),
+      [
+        "# Archived PRD",
+        "> 状态：已归档 | 归档原因：已完成",
+        "## 0. 目标声明",
+        "## 1. 背景",
+        "## 3. 功能需求",
+        "## 8. 验收标准",
+      ].join("\n"),
+    );
+    const result = validate(makeConfig());
+    const check11 = result.checks.find((c) => c.ruleId === 11);
+    expect(check11).toBeDefined();
+    // 已有 1 份非归档 PRD，archive/ 下的不计入，所以通过
+    expect(check11!.passed).toBe(true);
   });
 });
 
