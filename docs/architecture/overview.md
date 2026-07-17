@@ -5,19 +5,19 @@
 本文档描述 sdd-pack 仓库（`zhimingcool/sdd-pack`）当前架构。`sdd-pack` 是一个 omp marketplace 插件，由 **SDD 单范式资产**组成：
 
 - **静态范式**：4 个 SDD skill + 5 个 rule + 3 个守门 agent
-- **动态范式**：1 个 omp extension（15 个 /sdd-* slash command）+ hook 逻辑（合并进 extension）+ 程序化 API 层（`api.ts`）+ CI 入口（`api-runner.ts`）
+- **动态范式**：1 个 omp extension（18 个 /sdd 子命令 + 18 个 sdd_* omp tool）+ hook 逻辑（合并进 extension）+ 程序化 API 层（`api.ts`）+ CLI 入口（`bin.ts` → `bunx sdd`）+ CI 入口（`api-runner.ts`）
 - **门禁子系统**（v1.5.0 新增）：5 个 `/sdd-gate-*` slash command + gate-config + gate-runner，把 lint -> test -> review -> precommit -> commit 变为 omp slash command 结果阻断（非 OS 进程退出码，详见 [sdd-gate 架构](sdd-gate.md)）。
 
 所有资产共享同一份 `src/cli/lib/*` 核心库。
 
 ## 1. 系统定位
 
-**SDD 文档生命周期 + 三层代码质量评审 + 门禁流水线的 OMP 分发容器**。通过 omp marketplace 机制，让用户用 `omp plugin install sdd-pack@sdd-pack` 一条命令获得：SDD 技能家族（sdd-core/input/prd/phase）、lore 提交协议 hook、PRD/Phase 状态行守门、三层守门 agent、15 个 sdd slash command（含 5 个 /sdd-gate-* 门禁）、sdd 校验 hook、`bun run` 形式的 CI 入口。
+**SDD 文档生命周期 + 三层代码质量评审 + 门禁流水线的 OMP 分发容器**。通过 omp marketplace 机制，让用户用 `omp plugin install sdd-pack@sdd-pack` 一条命令获得：SDD 技能家族（sdd-core/input/prd/phase/codegen-buf-debug）、lore 提交协议 hook、PRD/Phase 状态行守门、三层守门 agent、18 个 /sdd 子命令、18 个 sdd_* omp tool（ADR-019）、sdd 校验 hook、`bunx sdd` 短命令入口（ADR-019）。
 
 ## 2. 架构原则
 
 - **静态优先 + 动态薄壳**：plugin 内容以静态 Markdown 资产（SKILL.md / rule / agent）为主；运行时逻辑集中在 `extensions/`（声明式 omp 扩展）与 `hooks/`（声明式 omp 钩子），业务逻辑下沉到 `src/cli/api.ts` 纯函数薄壳层。
-- **零副作用**（除进程内 spawnSync）：plugin 不声明 MCP servers / LSP servers / custom tools；唯一进程级副作用是 `api-runner.ts` 触发的 `bun run`。
+- **零副作用**（除进程内 spawnSync）：plugin 不声明 MCP servers / LSP servers；通过 `pi.registerTool` 声明 18 个 sdd_* omp tool（ADR-019，与 read/write/bash 同协议）；唯一进程级副作用是 `api-runner.ts` 触发的 `bun run`。
 - **路径透明**：所有路径遵循 omp 标准布局（`skills/<name>/SKILL.md`、`rules/*.md`、`agents/*.md`），extension 入口遵循 `omp.extensions` manifest 约定。
 - **单范式共享内核**：静态资产（skill/rule/agent）通过 OMP 协议分发，动态入口（extension/api-runner）通过 `src/cli/lib/*` 共享核心库（`validator.ts` / `prd-state-machine.ts` / `doc-parser.ts` / `template-engine.ts` / `lore-wrapper.ts`）。
 
@@ -33,8 +33,8 @@ graph TB
 
     Plugin --> Skills["skills/<br/>sdd-core / sdd-input / sdd-prd / sdd-phase"]
     Plugin --> Rules["rules/<br/>lore-protocol + 4 guards"]
-    Plugin --> Ext["extensions/sdd-extension/<br/>15 个 /sdd-* slash command（含 5 个 /sdd-gate-*）+ tool_call 拦截"]
-    Plugin --> Src["src/<br/>cli/api.ts + api-runner.ts + lib/"]
+    Plugin --> Ext["extensions/sdd-extension/<br/>18 个 /sdd 子命令 + 18 个 sdd_* omp tool + tool_call 拦截"]
+    Plugin --> Src["src/<br/>cli/bin.ts + api.ts + api-runner.ts + lib/"]
     Plugin --> Manifest["package.json + README.md"]
 
     Catalog -.声明.-> Plugin
@@ -51,7 +51,7 @@ graph TB
 | -------------------- | ----------------------------------- | ----------------------------------- |
 | 开发者（norman）     | 仓库根目录                          | `omp plugin link ./plugins/sdd-pack` |
 | omp 加载器           | `~/.omp/plugins/cache/...`          | 装载 skills/ + rules/ + agents/ + extension + hook |
-| CI 自动化            | `.github/` 或本地 CI                | `bun run plugins/sdd-pack/src/cli/api-runner.ts <cmd>` |
+| CI 自动化 / 外部项目  | `.github/` 或外部项目根            | `bunx sdd <cmd>`（bin.ts 入口，ADR-019）   |
 
 ### 3.3 技术栈
 

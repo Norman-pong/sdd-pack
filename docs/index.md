@@ -44,9 +44,9 @@
 
 | 文档名称                                                       | 主题                                    | 最后更新   | 说明                                                                                                          |
 | -------------------------------------------------------------- | --------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------- |
-| [架构决策记录](architecture/decisions.md)                      | ADR-001 至 ADR-018                      | 2026-07-16 | hook extension、三层守门 agent、sdd CLI 工作流（v1.3/v1.4 Superseded）、sdd Extension（v1.4+ 替代方案）、双范式架构（ADR-010/011 Superseded）、sdd-gate 门禁流水线、强状态流转 + meta.json 事实源（ADR-018） |
-| [架构总览](architecture/overview.md)                           | marketplace 仓库结构                    | 2026-07-16 | omp marketplace 仓库 + plugin 目录布局 + SDD 单范式 extension + sdd-gate 门禁子系统          |
-| [sdd-gate 门禁流水线架构](architecture/sdd-gate.md)            | 门禁流水线子系统                        | 2026-07-13 | 5 阶段 slash command（lint/test/review/precommit/commit）+ 动态 lint 注入 + review 产物契约（staged_hash 时效校验）+ 多 reviewer 支持 + hook 集成 |
+| [架构决策记录](architecture/decisions.md)                      | ADR-001 至 ADR-019                      | 2026-07-17 | hook extension、三层守门 agent、sdd CLI 工作流（v1.3/v1.4 Superseded）、sdd Extension（v1.4+ 替代方案）、双范式架构（ADR-010/011 Superseded）、sdd-gate 门禁流水线、强状态流转 + meta.json 事实源（ADR-018）、CLI bin 入口 + api-runner V2 + Check #12 扩面 + runCommit schema 扩展 + pi.registerTool（ADR-019） |
+| [架构总览](architecture/overview.md)                           | marketplace 仓库结构                    | 2026-07-17 | omp marketplace 仓库 + plugin 目录布局 + SDD 单范式 extension（18 /sdd 子命令 + 18 sdd_* omp tool）+ sdd-gate 门禁子系统 + bunx sdd CLI 入口 |
+| [sdd-gate 门禁流水线架构](architecture/sdd-gate.md)            | 门禁流水线子系统                        | 2026-07-17 | 5 阶段 slash command（lint/test/review/precommit/commit）+ 动态 lint 注入 + review 产物契约（staged_hash 时效校验）+ 多 reviewer 支持 + hook 集成 + GateResult 返回 loreId/commitHash（ADR-019，非 breaking）|
 | [sdd CLI 设计文档（已归档）](architecture/sdd-cli-design.md)   | sdd CLI 设计（Superseded）              | 2026-06-29 | ADR-008 sdd CLI 工作流设计文档，已被 ADR-009 sdd Extension 替代。仅作历史参考。                                |
 ## 参考资料（Reference）
 
@@ -66,4 +66,4 @@
 - 架构文档：4（decisions + overview + sdd-gate + sdd-cli-design 已归档）
 - 参考资料：5
 
-最后更新：2026-07-16
+最后更新：2026-07-17

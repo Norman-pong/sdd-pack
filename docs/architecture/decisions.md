@@ -968,3 +968,80 @@ function touchesStatusLine(input: Record<string, unknown>, toolName: string): bo
 - **Phase 003**: 门禁嵌入流转 + validator 事实源切换(读 meta.json) + `/sdd sync` + 别名兼容 + F14 三层注入(session_start + skill + 拦截消息)
 - **conventions.md §2.2 同步更新**「Phase 与 PRD 一一对应」→「Phase 按 PRD ID 分组,1:N 关联通过 meta.json phaseIds[] 维护」
 - **追踪 issue**:v1.8.0 正式发布后回填实际迁移数据(归档了多少 PRD、迁移了多少 Phase)+ 与 conventions.md §2.2 命名规范的实际一致性验证
+
+---
+
+## ADR-019: CLI bin 入口 + api-runner V2 映射 + Check #12 扩面 + runCommit schema 扩展 + pi.registerTool 注册 sdd tool
+
+**状态**: Accepted(2026-07-17)
+**决策人**: norman
+**触发**: sw-nvr 项目实战暴露 3 个问题:外部项目无法短命令调 sdd-pack(无 bin)、omp marketplace cache 漂移导致 slash command 失效、archivePhase 是 stub 只改状态行不移动文件。
+**影响**: package.json 加 bin 字段;api-runner.ts 扩 11 V2 + 5 gate 映射;validator Check #12 扩面校验 sdd-router ↔ api-runner 命令清单;gate-runner runCommit 返回 loreId + commitHash;extensions/sdd-extension/tools.ts 注册 18 个 sdd_* omp tool。
+
+### 背景
+
+sw-nvr session 实测暴露的 3 个问题:
+
+1. **外部项目无短命令**: sdd-pack `package.json` 无 `bin` 字段,外部项目只能 `bun run plugins/sdd-pack/src/cli/api-runner.ts <cmd>` 长前缀调用。CI 场景和人工操作都不便。
+2. **omp cache 漂移**: omp `installed_plugins.json` 仍是 1.6.0,symlink 指向 1.8.0 源码。agent 在 session 中 grep 1.6 cache 找不到 `/sdd plan` 等子命令,只能 `bun -e import` 绕路。
+3. **archivePhase 是 stub**: api-legacy.ts:377-433 只改状态行 + syncIndex(走 PRD 表格,语义错位),缺物理移动/meta 更新/PRD 回指重写/index 同步。导致 phase 归档后文件仍在原位,meta filePath 不一致。
+
+### 决策
+
+#### (a) package.json 加 bin 字段 + bin.ts CLI 入口
+
+`package.json` 加 `"bin": { "sdd": "./src/cli/bin.ts" }`,新建 `src/cli/bin.ts`(shebang `#!/usr/bin/env bun`)。外部项目 `bun add -D github:zhimingcool/sdd-pack` 或 `bun link` 后,`bunx sdd <sub>` 直接可用。
+
+#### (b) api-runner.ts 扩 V2 映射
+
+api-runner.ts switch case 从 8 个 legacy 命令扩到 11 V2(init/review/approve/back/plan/start/archive/phase/phase-archive/sync/status) + 5 gate(gate-lint/test/review/precommit/commit) + 3 legacy 保留(validate/propose/migrate)。外部 CI 场景可跑完整流转状态。头部注释约束行数 `≤ 100 行` 改 `≤ 250 行`。
+
+#### (c) Check #12 扩面校验 api-runner 命令清单
+
+PRD §3.2.4 原本以 sdd-router.ts SUBCOMMANDS 为单一事实源。扩面后 Check #12 同时校验 `sdd-router.ts SUBCOMMANDS` ↔ `api-runner.ts switch case` 两份命令清单一致。`commands.generated.json` 由 `scripts/gen-commands-json.ts` 生成,作为 Check #12 运行时数据源。
+
+**维护约定**: sdd-router/api-runner 路由变化后必须跑 `bun run gen:commands` 重新生成 commands.generated.json,否则 Check #12 报 warn。
+
+#### (d) runCommit schema 扩展(非 breaking)
+
+GateResult 加可选字段 `commitHash?: string` + `loreId?: string`。runCommit 成功后通过 `lore log --limit 1 --json` 反查最新 lore-id 填充。新增 `runCommitWithFile(repoRoot, path)` 签名读 message JSON 文件后调 runCommit。旧签名保留,非 breaking change。
+
+#### (e) pi.registerTool 注册 18 个 sdd_* omp tool
+
+omp 17.0+ 提供 `pi.registerTool` 一等公民 API。`tools.ts` 注册 18 个 sdd_* tool(17 个 api.ts 函数 + 1 个 gate 分派),与 18 个 slash command 共存,共享 `src/cli/api.ts` 单一事实源。
+
+**核心价值**: tool 通过 LLM tool-call 协议直接调用,不依赖易漂移的 marketplace cache。slash command 适合人类手动输入,tool 适合 agent LLM 调用,两者互补不互斥。
+
+### 方案
+
+```typescript
+// bin.ts 入口(#!/usr/bin/env bun)
+import { main } from "./api-runner";
+main(process.argv.slice(2));
+```
+
+```typescript
+// tools.ts registerTool(18 个 tool)
+pi.registerTool({
+  name: "sdd_init_prd",
+  description: "Initialize a new PRD draft.",
+  parameters: z.object({ title: z.string(), slug: z.string().optional() }),
+  async execute(_id, params) {
+    const { initPrd } = await import("../../src/cli/api");
+    return { content: [{ type: "text", text: JSON.stringify(await initPrd(params)) }] };
+  },
+});
+```
+
+### 替代方案(已拒绝)
+
+1. **api-runner 拆为 legacy + v2 两文件** — 违反 ADR-009「api-runner 是薄壳」原则,250 行单文件可接受。
+2. **archivePhase 自动推进非终态 phase 到终态再归档** — 违反 ADR-017(归档前 phase 应已到终态),改为报错提示用户先 phase complete/abandon。
+3. **meta 缺失时 warning 继续归档** — ADR-018 meta.json 是事实源,无 meta 的 phase 不应归档(会导致文件移动但 meta 不同步),升级为 error。
+4. **commands.generated.json 进 gitignore + 运行时生成** — 改为提交到版本控制(决策):Check #12 需在 clone 后首次 validate 即可用,gitignore 会导致跳过检查。维护约定为路由变化后跑 `bun run gen:commands` 重新生成。
+5. **PhaseStatus 加 Archived 终态** — ADR-017 定义归档是物理操作非状态迁移,加 Archived 状态是语义混淆。
+
+### 后续
+
+- **ADR-020**(待定): commands.generated.json 作为 prebuild/pre-commit 自动生成(当前手动跑 gen:commands)
+- **外部项目 omp session 验证**: registerTool 注册的 18 个 sdd_* tool 需在真实 omp session 中验证 agent 可调(本次仅 factory 加载 + execute 单元验证)
