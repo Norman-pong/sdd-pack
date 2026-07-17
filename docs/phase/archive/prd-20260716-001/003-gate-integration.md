@@ -1,8 +1,8 @@
 # Phase 003: 门禁集成 + 迁移 + 收尾
 
 > 状态:已完成 | 创建日期:2026-07-16
-> 修改记录:执行 `lore log docs/phase/prd-20260716-001/003-gate-integration.md`
-> 对应 PRD:[sdd-pack PRD (v1.8 强状态流转 + meta.json 事实源)](../../prd/2026-07-16-sdd-pack-v18.md)
+> 修改记录:执行 `lore log docs/phase/archive/prd-20260716-001/003-gate-integration.md`
+> 对应 PRD:[sdd-pack PRD (v1.8 强状态流转 + meta.json 事实源)](../../../prd/archive/2026-07-16-sdd-pack-v18.md)
 > 对齐版本:v1.8.0 正式版(PRD §9)
 > 前置依赖:[Phase 002 命令体系](002-commands.md) 全部完成
 

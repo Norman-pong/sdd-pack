@@ -10,8 +10,8 @@
 
 | 文档类型 | 最新文档                                                    | 状态     | 说明                                                                                                                                          |
 | -------- | ----------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| PRD      | [sdd-pack PRD (v1.8 强状态流转)](prd/2026-07-16-sdd-pack-v18.md) | 已归档 | v1.8: /sdd 主命令体系 + meta.json 事实源 + 全链路强状态流转 + tool_call 硬拦截 + 移除 OpenSpec 双范式 |
-| Phase    | [v1.8 强状态流转(3 Phase)](phase/prd-20260716-001/) | 已完成 | [001 基础设施](phase/prd-20260716-001/001-foundation.md) · [002 命令体系](phase/prd-20260716-001/002-commands.md) · [003 门禁集成](phase/prd-20260716-001/003-gate-integration.md) |
+| PRD      | [sdd-pack PRD (v1.8 强状态流转)](prd/archive/2026-07-16-sdd-pack-v18.md) | 已归档 | v1.8: /sdd 主命令体系 + meta.json 事实源 + 全链路强状态流转 + tool_call 硬拦截 + 移除 OpenSpec 双范式 |
+| Phase    | [v1.8 强状态流转(3 Phase)](phase/archive/prd-20260716-001/) | 已完成 | [001 基础设施](phase/archive/prd-20260716-001/001-foundation.md) · [002 命令体系](phase/archive/prd-20260716-001/002-commands.md) · [003 门禁集成](phase/archive/prd-20260716-001/003-gate-integration.md) |
 | 架构总览 | [架构总览](architecture/overview.md)                        | v1.8.0  | marketplace 仓库结构、plugin 目录布局、SDD 单范式 extension + sdd-gate 门禁子系统集成                                           |
 | 架构专题 | [sdd-gate 门禁流水线架构](architecture/sdd-gate.md)         | v1.5.0  | 5 阶段 slash command 门禁流水线（lint/test/review/precommit/commit）+ 动态 lint 注入 + review 产物契约                                       |
 
@@ -19,7 +19,7 @@
 
 | 日期                                              | 文档名称                                                              | 状态     | 对应 Phase                                              | 说明                                                                                                |
 | ------------------------------------------------- | --------------------------------------------------------------------- | -------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| [2026-07-16](prd/2026-07-16-sdd-pack-v18.md)     | [sdd-pack PRD (v1.8 强状态流转)](prd/2026-07-16-sdd-pack-v18.md)     | 已归档 | [3 Phase](phase/prd-20260716-001/)  | v1.8: /sdd 主命令体系 + meta.json 事实源 + 全链路强状态流转 + tool_call 硬拦截 + 移除 OpenSpec 双范式 |
+| [2026-07-16](prd/archive/2026-07-16-sdd-pack-v18.md)     | [sdd-pack PRD (v1.8 强状态流转)](prd/archive/2026-07-16-sdd-pack-v18.md)     | 已归档 | [3 Phase](phase/archive/prd-20260716-001/)  | v1.8: /sdd 主命令体系 + meta.json 事实源 + 全链路强状态流转 + tool_call 硬拦截 + 移除 OpenSpec 双范式 |
 | [2026-07-16](prd/archive/2026-07-16-sdd-pack.md) | [sdd-pack 总览 PRD (v1.7 整合)（已归档）](prd/archive/2026-07-16-sdd-pack.md) | 已归档 | TBD | v1.7 整合 5 个历史 PRD + 6 PrdStatus 状态机重构 - 已被 v1.8 替代 |
 | [2026-06-24](prd/archive/2026-06-24-sdd-pack.md)  | [SDD Pack (omp marketplace 插件) PRD（已归档）](prd/archive/2026-06-24-sdd-pack.md) | 已归档   | [阶段文档](phase/2026-06-24-sdd-pack.md)                | 一键安装、版本化管理、按需启用/禁用 SDD 技能家族 — 已被 v1.7 总览 PRD 整合                          |
 | [2026-06-29](prd/archive/2026-06-29-sdd-cli.md)   | [sdd CLI PRD（已归档）](prd/archive/2026-06-29-sdd-cli.md)            | 已归档   | [阶段文档](phase/2026-06-29-sdd-cli.md)（已归档）       | 独立 CLI 形态已被 [ADR-009](architecture/decisions.md#adr-009-sdd-extension替代独立-cli) Superseded |
@@ -31,9 +31,9 @@
 ## 阶段文档（Phase）
 
 | 日期                                              | 阶段名称                                                            | 状态           | 对应 PRD                                                  | 说明                                                       |
-| [2026-07-16](phase/prd-20260716-001/001-foundation.md) | [Phase 001: 基础设施](phase/prd-20260716-001/001-foundation.md) | 已完成 | [PRD](prd/2026-07-16-sdd-pack-v18.md) | meta-store + init/review/approve/back 基础流转 + OpenSpec 移除 |
-| [2026-07-16](phase/prd-20260716-001/002-commands.md) | [Phase 002: 命令体系](phase/prd-20260716-001/002-commands.md) | 已完成 | [PRD](prd/2026-07-16-sdd-pack-v18.md) | plan/start/archive + phase 流转 + status 面板 + tool_call 硬拦截 |
-| [2026-07-16](phase/prd-20260716-001/003-gate-integration.md) | [Phase 003: 门禁集成](phase/prd-20260716-001/003-gate-integration.md) | 已完成 | [PRD](prd/2026-07-16-sdd-pack-v18.md) | 门禁嵌入流转 + validator 切换 + sync + F14 注入 + 别名兼容 + 迁移 |
+| [2026-07-16](prd/archive/2026-07-16-sdd-pack-v18.md) | [Phase 001: 基础设施](phase/archive/prd-20260716-001/001-foundation.md) | 已归档 | [PRD](prd/archive/2026-07-16-sdd-pack-v18.md) | meta-store + init/review/approve/back 基础流转 + OpenSpec 移除 |
+| [2026-07-16](prd/archive/2026-07-16-sdd-pack-v18.md) | [Phase 002: 命令体系](phase/archive/prd-20260716-001/002-commands.md) | 已归档 | [PRD](prd/archive/2026-07-16-sdd-pack-v18.md) | plan/start/archive + phase 流转 + status 面板 + tool_call 硬拦截 |
+| [2026-07-16](prd/archive/2026-07-16-sdd-pack-v18.md) | [Phase 003: 门禁集成](phase/archive/prd-20260716-001/003-gate-integration.md) | 已归档 | [PRD](prd/archive/2026-07-16-sdd-pack-v18.md) | 门禁嵌入流转 + validator 切换 + sync + F14 注入 + 别名兼容 + 迁移 |
 | ------------------------------------------------- | ------------------------------------------------------------------- | -------------- | --------------------------------------------------------- | ---------------------------------------------------------- |
 | [2026-06-24](phase/archive/2026-06-24-sdd-pack.md)        | [SDD Pack 阶段文档（已归档）](phase/archive/2026-06-24-sdd-pack.md)                   | 已完成         | [PRD](prd/archive/2026-06-24-sdd-pack.md)（已归档）                         | 4 阶段：验证 → 组装 → 上线 → 完善                          |
 | [2026-06-29](phase/archive/2026-06-29-sdd-cli.md)         | [sdd CLI 阶段文档（已归档）](phase/archive/2026-06-29-sdd-cli.md)                     | 已归档 | [PRD](prd/archive/2026-06-29-sdd-cli.md)（已归档）                | 历史档案                                                   |

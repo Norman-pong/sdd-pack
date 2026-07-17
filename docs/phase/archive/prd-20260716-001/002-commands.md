@@ -1,8 +1,8 @@
 # Phase 002: 命令体系 — 剩余流转命令 + tool_call 硬拦截
 
 > 状态:已完成 | 创建日期:2026-07-16
-> 修改记录:执行 `lore log docs/phase/prd-20260716-001/002-commands.md`
-> 对应 PRD:[sdd-pack PRD (v1.8 强状态流转 + meta.json 事实源)](../../prd/2026-07-16-sdd-pack-v18.md)
+> 修改记录:执行 `lore log docs/phase/archive/prd-20260716-001/002-commands.md`
+> 对应 PRD:[sdd-pack PRD (v1.8 强状态流转 + meta.json 事实源)](../../../prd/archive/2026-07-16-sdd-pack-v18.md)
 > 对齐版本:v1.8.0-beta(PRD §9)
 > 前置依赖:[Phase 001 基础设施](001-foundation.md) 全部完成
 

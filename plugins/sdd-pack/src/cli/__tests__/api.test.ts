@@ -121,12 +121,15 @@ describe("listPrds", () => {
   });
 
   test("keyword filter narrows results on real docs", async () => {
-    const r = await listPrds({ keyword: "sdd-pack" });
+    // sdd-pack PRD 已归档至 archive/, listMdFiles 不扫 archive/
+    // 改用当前活跃 PRD 的关键词
+    const r = await listPrds({ keyword: "归档" });
     expect(r.items.length).toBeGreaterThan(0);
     for (const item of r.items) {
+      const kw = "归档";
       const hit =
-        item.title.toLowerCase().includes("sdd-pack") ||
-        item.fileName.toLowerCase().includes("sdd-pack");
+        item.title.toLowerCase().includes(kw) ||
+        item.fileName.toLowerCase().includes(kw);
       expect(hit).toBe(true);
     }
   });
