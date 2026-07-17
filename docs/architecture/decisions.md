@@ -990,7 +990,7 @@ sw-nvr session 实测暴露的 3 个问题:
 
 #### (a) package.json 加 bin 字段 + bin.ts CLI 入口
 
-`package.json` 加 `"bin": { "sdd": "./src/cli/bin.ts" }`,新建 `src/cli/bin.ts`(shebang `#!/usr/bin/env bun`)。外部项目 `bun add -D github:zhimingcool/sdd-pack` 或 `bun link` 后,`bunx sdd <sub>` 直接可用。
+`package.json` 加 `"bin": { "sdd": "./src/cli/bin.ts" }`,新建 `src/cli/bin.ts`(shebang `#!/usr/bin/env bun`)。外部项目 `bun add -D github:zhimingcool/sdd-pack` 或 `bun link` 后,`bunx sdd <sub>` 直接可用。**与 ADR-009 不冲突**:ADR-009 论证的是 omp marketplace 路径(marketplace 装载器不识别 `bin` 字段,故 v1.4 移除 bin);ADR-019 的 bin 字段仅服务外部项目 `bun add -D` / `bun link` 路径,不走 marketplace 装载。omp marketplace 路径仍由 ADR-009 主导(extension + slash command)。
 
 #### (b) api-runner.ts 扩 V2 映射
 
