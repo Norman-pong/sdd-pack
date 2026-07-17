@@ -330,7 +330,7 @@ export function runCommit(repoRoot: string, commitMessageJson?: string): GateRes
       exitCode: 2,
       message:
         "缺少 commit message。请通过 --message 传入 JSON。\n" +
-        '示例: /sdd-gate-commit --message \'{"intent":"fix: ...","trailers":{}}\'',
+        '示例: /sdd gate commit --message \'{"intent":"fix: ...","trailers":{}}\'',
     };
   }
 

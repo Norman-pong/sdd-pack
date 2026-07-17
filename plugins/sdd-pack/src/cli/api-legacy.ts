@@ -149,7 +149,7 @@ export async function proposePrd(opts: ProposeOptions): Promise<ProposeResult> {
     if (vr.status === "error" || vr.status === "block") {
       warnings.push(`创建后 validate 报错(草稿允许): ${vr.errors.join("; ")}`);
     }
-    return { status: "pass", path: filePath, errors: [], warnings, next: "下一步: /sdd-validate" };
+    return { status: "pass", path: filePath, errors: [], warnings, next: "下一步: /sdd validate" };
   } catch (e) {
     return { status: "error", errors: [errMsg(e)], warnings: [] };
   }

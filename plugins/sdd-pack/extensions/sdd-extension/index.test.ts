@@ -249,188 +249,17 @@ describe("sdd-extension — session_start", () => {
   });
 });
 
-describe("sdd-extension — 15 slash command 注册", () => {
-  test("注册 15 个 command", () => {
-    expect(captured.length).toBe(15);
-    const names = captured.map((c) => c.name).sort();
-    expect(names).toEqual([
-      "sdd",
-      "sdd-apply",
-      "sdd-archive",
-      "sdd-archive-phase",
-      "sdd-gate-commit",
-      "sdd-gate-lint",
-      "sdd-gate-precommit",
-      "sdd-gate-review",
-      "sdd-gate-test",
-      "sdd-list",
-      "sdd-migrate",
-      "sdd-propose",
-      "sdd-status",
-      "sdd-validate",
-      "sdd-why",
-    ]);
+describe("sdd-extension - 1 slash command 注册", () => {
+  test("注册 1 个 command(sdd 主命令)", () => {
+    expect(captured.length).toBe(1);
+    expect(captured[0].name).toBe("sdd");
   });
 
-  test("每个 handler 都有 description", () => {
-    for (const c of captured) {
-      expect(c.description.length).toBeGreaterThan(0);
-    }
+  test("handler 有 description", () => {
+    expect(captured[0].description.length).toBeGreaterThan(0);
   });
 });
 
-describe("sdd-validate handler", () => {
-  test("空 args 调用 validateDocs 并 setWidget + notify", async () => {
-    const { ctx, messages, widgets } = makeCtx();
-    const r = await getHandler("sdd-validate")("", ctx);
-    expect(r).toBeDefined();
-    expect(messages.length).toBeGreaterThan(0);
-    expect(widgets.length).toBeGreaterThan(0);
-  });
-
-  test("block 状态时返回 blocked", async () => {
-    // 构造非法路径 → error → 不会 block;实际 block 需要状态机违规
-    // 这里仅 smoke test 流程
-    const { ctx, messages } = makeCtx();
-    await getHandler("sdd-validate")("--path /nonexistent --severity error", ctx);
-    expect(messages.some((m) => m.level === "error")).toBe(true);
-  });
-});
-
-describe("sdd-propose handler", () => {
-  test("dry-run 模式返回 path + content", async () => {
-    const { ctx, messages } = makeCtx();
-    const r = await getHandler("sdd-propose")("--title test-smoke --dry-run", ctx);
-    expect(r).toBeDefined();
-    if (r && typeof r === "object" && "path" in r) {
-      expect((r as { path: string }).path).toBeDefined();
-    }
-    if (messages.length > 0) expect(typeof messages[0].text).toBe("string");
-  });
-});
-
-describe("sdd-archive handler", () => {
-  test("缺少 prd-path 返回 error", async () => {
-    const { ctx, messages } = makeCtx();
-    const r = await getHandler("sdd-archive")("", ctx);
-    expect(r).toBeDefined();
-    expect(messages.some((m) => m.level === "error")).toBe(true);
-  });
-});
-
-describe("sdd-migrate handler", () => {
-  test("缺少 prd-path 返回 error", async () => {
-    const { ctx, messages } = makeCtx();
-    const r = await getHandler("sdd-migrate")("", ctx);
-    expect(r).toBeDefined();
-    expect(messages.some((m) => m.level === "error")).toBe(true);
-  });
-});
-
-describe("sdd-status 别名(deprecated)", () => {
-  test("调用后转发到 /sdd status 并提示废弃", async () => {
-    const { ctx, messages, widgets } = makeCtx();
-    const r = await getHandler("sdd-status")("", ctx);
-    expect(r).toBeDefined();
-    expect(messages.length).toBeGreaterThan(0);
-    expect(messages[0].text).toMatch(/已废弃|status/);
-    expect(widgets.length).toBeGreaterThan(0);
-    const widgetText = widgets[0].content.join("\n");
-    expect(widgetText).toMatch(/sdd status/);
-    expect(widgetText).toMatch(/status: error/);
-    expect(widgetText).toMatch(/无活跃 PRD/);
-  });
-});
-
-describe("sdd-list 别名(deprecated)", () => {
-  test("转发到 /sdd list 并提示废弃", async () => {
-    const { ctx, widgets, messages } = makeCtx();
-    const r = await getHandler("sdd-list")("", ctx);
-    expect(r).toBeDefined();
-    expect(messages.length).toBeGreaterThan(0);
-    expect(messages[0].text).toMatch(/已废弃|list/);
-    expect(widgets.length).toBeGreaterThan(0);
-  });
-});
-
-describe("sdd-why 别名(deprecated)", () => {
-  test("空 args → 转发并提示废弃", async () => {
-    const { ctx, messages } = makeCtx();
-    const r = await getHandler("sdd-why")("", ctx);
-    expect(r).toBeDefined();
-    expect(messages.length).toBeGreaterThan(0);
-    expect(messages[0].text).toMatch(/已废弃|why/);
-  });
-});
-
-describe("sdd-apply 别名(deprecated)", () => {
-  test("空 args → 转发并提示废弃", async () => {
-    const { ctx, messages } = makeCtx();
-    const r = await getHandler("sdd-apply")("", ctx);
-    expect(r).toBeDefined();
-    expect(messages.length).toBeGreaterThan(0);
-    expect(messages[0].text).toMatch(/已废弃|apply/);
-  });
-});
-
-describe("sdd-validate 别名(deprecated)", () => {
-  test("转发到 /sdd validate 并提示废弃", async () => {
-    const { ctx, messages, widgets } = makeCtx();
-    const r = await getHandler("sdd-validate")("", ctx);
-    expect(r).toBeDefined();
-    expect(messages.length).toBeGreaterThan(0);
-    expect(messages[0].text).toMatch(/已废弃|validate/);
-    expect(widgets.length).toBeGreaterThan(0);
-  });
-});
-
-describe("sdd-gate-* 别名(deprecated)", () => {
-  test("sdd-gate-lint 转发到 /sdd gate lint 并提示废弃", async () => {
-    const { ctx, messages } = makeCtx();
-    const r = await getHandler("sdd-gate-lint")("", ctx);
-    expect(r).toBeDefined();
-    expect(messages.length).toBeGreaterThan(0);
-    expect(messages[0].text).toMatch(/已废弃|gate lint/);
-  });
-  test("sdd-gate-test 转发到 /sdd gate test 并提示废弃", async () => {
-    const { ctx, messages } = makeCtx();
-    const r = await getHandler("sdd-gate-test")("", ctx);
-    expect(r).toBeDefined();
-    expect(messages.length).toBeGreaterThan(0);
-    expect(messages[0].text).toMatch(/已废弃|gate test/);
-  });
-  test("sdd-gate-review 转发到 /sdd gate review 并提示废弃", async () => {
-    const { ctx, messages } = makeCtx();
-    const r = await getHandler("sdd-gate-review")("", ctx);
-    expect(r).toBeDefined();
-    expect(messages.length).toBeGreaterThan(0);
-    expect(messages[0].text).toMatch(/已废弃|gate review/);
-  });
-  test("sdd-gate-precommit 转发到 /sdd gate precommit 并提示废弃", async () => {
-    const { ctx, messages } = makeCtx();
-    const r = await getHandler("sdd-gate-precommit")("", ctx);
-    expect(r).toBeDefined();
-    expect(messages.length).toBeGreaterThan(0);
-    expect(messages[0].text).toMatch(/已废弃|gate precommit/);
-  });
-  test("sdd-gate-commit 转发到 /sdd gate commit 并提示废弃", async () => {
-    const { ctx, messages } = makeCtx();
-    const r = await getHandler("sdd-gate-commit")("", ctx);
-    expect(r).toBeDefined();
-    expect(messages.length).toBeGreaterThan(0);
-    expect(messages[0].text).toMatch(/已废弃|gate commit/);
-  });
-});
-
-describe("sdd-archive 别名(deprecated)", () => {
-  test("转发到 /sdd archive 并提示废弃", async () => {
-    const { ctx, messages } = makeCtx();
-    const r = await getHandler("sdd-archive")("--reason completed", ctx);
-    expect(r).toBeDefined();
-    expect(messages.length).toBeGreaterThan(0);
-    expect(messages[0].text).toMatch(/已废弃|archive/);
-  });
-});
 
 describe("/sdd sync 子命令", () => {
   test("sync 调用 syncMeta 并 setWidget + notify", async () => {
@@ -843,23 +672,6 @@ describe("sdd-extension — tool_call 状态行硬拦截", () => {
       },
     });
     expect(r).toBeUndefined();
-  });
-});
-describe("sdd-why handler", () => {
-  test("空 args → error notify", async () => {
-    const { ctx, messages } = makeCtx();
-    const r = await getHandler("sdd-why")("", ctx);
-    expect(r).toBeDefined();
-    expect(messages.some((m) => m.level === "error")).toBe(true);
-  });
-});
-
-describe("sdd-apply handler", () => {
-  test("空 args → warn notify", async () => {
-    const { ctx, messages } = makeCtx();
-    const r = await getHandler("sdd-apply")("", ctx);
-    expect(r).toBeDefined();
-    expect(messages.some((m) => m.level === "warn" || m.level === "error")).toBe(true);
   });
 });
 

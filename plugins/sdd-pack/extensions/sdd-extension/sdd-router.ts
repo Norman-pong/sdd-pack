@@ -21,6 +21,9 @@ import {
   getWhy,
   getApplyChecklist,
   validateDocs,
+  proposePrd,
+  migratePrd,
+  archivePhase,
   type InitOptions,
   type InitResult,
   type ReviewResult,
@@ -44,6 +47,12 @@ import {
   type ApplyResult,
   type ValidateOptions,
   type ValidationResult,
+  type ProposeOptions,
+  type ProposeResult,
+  type MigrateOptions,
+  type MigrateResult,
+  type PhaseArchiveOptions,
+  type PhaseArchiveResult,
 } from "../../src/cli/api";
 import {
   parseArgs,
@@ -424,6 +433,70 @@ async function handleGate(tokens: string[], ctx: unknown): Promise<unknown> {
   }
 }
 
+// ===== propose / migrate / phase-archive (从旧 sdd-* 命令统一迁移) =====
+
+async function handlePropose(tokens: string[], ctx: unknown): Promise<unknown> {
+  const opts = parseArgs(tokens);
+  const options: ProposeOptions = {
+    spec: getStringOption(opts, "spec"),
+    supersedes: getStringOption(opts, "supersedes"),
+    title: getStringOption(opts, "title"),
+    type: getEnumOption(opts, "type", ["full", "delta"], "full") as "full" | "delta",
+    dryRun: getBoolOption(opts, "dry-run"),
+  };
+  const result: ProposeResult = await proposePrd(options);
+  const c = uiOf(ctx);
+  if (result.status === "pass" && result.path) {
+    c.ui.notify(`已创建: ${result.path}\n${result.next ?? ""}`, "info");
+  } else {
+    c.ui.notify(`创建失败: ${result.errors.join("; ")}`, "error");
+  }
+  return result;
+}
+
+async function handleMigrateCmd(tokens: string[], ctx: unknown): Promise<unknown> {
+  const opts = parseArgs(tokens);
+  const pos = opts.positional[0];
+  if (!pos) {
+    const c = uiOf(ctx);
+    c.ui.notify("用法: /sdd migrate <prd-path> [--dry-run] [--no-backup]", "error");
+    return { error: "missing prd-path" };
+  }
+  const options: MigrateOptions = {
+    prdPath: pos,
+    dryRun: getBoolOption(opts, "dry-run"),
+    noBackup: getBoolOption(opts, "no-backup"),
+  };
+  const result: MigrateResult = await migratePrd(options);
+  const c = uiOf(ctx);
+  if (result.status === "pass")
+    c.ui.notify(`迁移完成: 解析 ${result.parsedEntries} 个版本`, "info");
+  else c.ui.notify(`迁移失败: ${result.errors.join("; ")}`, "error");
+  return result;
+}
+
+async function handlePhaseArchive(tokens: string[], ctx: unknown): Promise<unknown> {
+  const opts = parseArgs(tokens);
+  const pos = opts.positional[0];
+  if (!pos) {
+    const c = uiOf(ctx);
+    c.ui.notify("用法: /sdd phase-archive <phase-path> --reason <completed|abandoned> [--dry-run] [--no-commit]", "error");
+    return { error: "missing phase-path" };
+  }
+  const reason = getEnumOption(opts, "reason", ["completed", "abandoned"], "completed") as "completed" | "abandoned";
+  const options: PhaseArchiveOptions = {
+    phasePath: pos,
+    reason,
+    dryRun: getBoolOption(opts, "dry-run"),
+    noCommit: getBoolOption(opts, "no-commit"),
+  };
+  const result: PhaseArchiveResult = await archivePhase(options);
+  const c = uiOf(ctx);
+  if (result.status === "pass") c.ui.notify(`Phase 归档完成: ${pos} (${reason})`, "info");
+  else c.ui.notify(`Phase 归档失败: ${result.errors.join("; ")}`, "error");
+  return result;
+}
+
 // ===== /sdd 主命令路由 =====
 
 const SUBCOMMANDS: Record<string, Handler> = {
@@ -435,14 +508,19 @@ const SUBCOMMANDS: Record<string, Handler> = {
   start: handleStart,
   archive: handleArchive,
   phase: handlePhase,
+  "phase-archive": handlePhaseArchive,
   status: handleStatus,
   sync: handleSync,
   list: handleList,
   why: handleWhy,
   apply: handleApply,
   validate: handleValidate,
+  propose: handlePropose,
+  migrate: handleMigrateCmd,
   gate: handleGate,
 };
+
+const SUBCOMMAND_LIST = "init, review, approve, back, plan, start, archive, phase, phase-archive, status, sync, list, why, apply, validate, propose, migrate, gate";
 
 export async function handleSdd(args: string, ctx: unknown): Promise<unknown> {
   const tokens = splitArgs(args);
@@ -450,7 +528,7 @@ export async function handleSdd(args: string, ctx: unknown): Promise<unknown> {
   if (!sub) {
     const c = uiOf(ctx);
     c.ui.notify(
-      "用法: /sdd <subcommand> [args]\n子命令: init, review, approve, back, plan, start, archive, phase, status, sync, list, why, apply, validate, gate",
+      `用法: /sdd <subcommand> [args]\n子命令: ${SUBCOMMAND_LIST}`,
       "info",
     );
     return { error: "missing subcommand" };
@@ -459,11 +537,10 @@ export async function handleSdd(args: string, ctx: unknown): Promise<unknown> {
   if (!handler) {
     const c = uiOf(ctx);
     c.ui.notify(
-      `未知子命令: ${sub}\n可用: init, review, approve, back, plan, start, archive, phase, status, sync, list, why, apply, validate, gate`,
+      `未知子命令: ${sub}\n可用: ${SUBCOMMAND_LIST}`,
       "error",
     );
     return { error: `unknown subcommand: ${sub}` };
   }
-  // 传递 token[] 保留引号边界(如 --title "My PRD" 中的空格)
   return handler(tokens.slice(1), ctx);
 }

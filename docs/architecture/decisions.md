@@ -831,7 +831,7 @@ v1.6/v1.7 暴露三类根因:
 
 1. **meta.json 为状态唯一事实源**,markdown 状态行降级为展示层,由 meta.json 单向生成。`/sdd <transition>` 命令写 meta.json 后再调 `generateStatusLine(meta)` 覆盖 markdown 状态行。
 2. **全局单例 PRD**:`docs/prd/` 同时只 1 份非归档 PRD;`/sdd init` 在有活跃 PRD 时 block,`/sdd init --force` 仅覆盖空草稿(`status === Draft && transitions.length === 0`)。
-3. **`/sdd <subcommand>` 主命令体系**替代 14 个分散的 `/sdd-*` slash command。extension 注册 1 个 `/sdd` 主命令 + 子命令路由(11 个子命令);旧 14 个命令保留为 deprecated alias(v1.8.0 引入,v1.10.0 删除,见 ADR-018 §F12)。
+3. **`/sdd <subcommand>` 主命令体系**替代 14 个分散的 `/sdd-*` slash command。extension 注册 1 个 `/sdd` 主命令 + 子命令路由(18 个子命令);旧 14 个 deprecated alias 已于 v1.8.0 移除(clean cutover,原计划 v1.10.0 删除,提前执行)。
 4. **tool_call 硬拦截状态行**: extension `pi.on("tool_call")` 检测 `write` / `edit` 指向 `docs/prd/**` 或 `docs/phase/**` 内 `> 状态:` 行 → `return { block: true, reason: "/sdd <transition> 命令强制流转" }`。`docs/index.md` 不在拦截范围。分层精确检测:write 工具 `content` 含 `^>\s*状态[：:]` 行 → block;edit 工具 `body` 行匹配 `^>\s*状态[：:]` 前缀 → block,正文「状态」一词放行。
 5. **meta.json 不进 git**: `.sdd/meta/` 加入 `.gitignore`(本地缓存);clone 后 `/sdd sync` 从 markdown 重建 meta.json(`rebuildMetaFromMarkdown`:`docs/prd/` 下唯一非归档 .md = active PRD;0 份 → null;>1 份 → block)。
 6. **Phase 按 PRD ID 分组目录**: `docs/phase/<prd-id>/<seq>-<name>.md`(吸收 OpenSpec `changes/` 目录内聚的精华);`prd-meta.phaseIds[]` 维护 1:N 关联;Phase ID 嵌入 PRD seq 防全局碰撞(`phs-<prdSeq>-NNN`,如 `phs-001-002` ≠ `phs-002-002`)。

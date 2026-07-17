@@ -137,9 +137,9 @@ echo '{
 
 ### 模板来源（代码内联生成）
 
-模板由 `sdd-propose` CLI 命令（`src/cli/lib/template-engine.ts`）在代码内联生成，**不依赖项目内 `_template.md` 文件**。`references/templates.md` 仅作为技能自身参考，展示模板的结构和字段说明。
+模板由 `/sdd propose` CLI 命令（`src/cli/lib/template-engine.ts`）在代码内联生成，**不依赖项目内 `_template.md` 文件**。`references/templates.md` 仅作为技能自身参考，展示模板的结构和字段说明。
 
-创建文档时，用 `sdd propose` 命令生成基础框架，然后按用户需求调整内容。
+创建文档时，用 `/sdd propose` 命令生成基础框架，然后按用户需求调整内容。
 
 ### 场景 1：创建新 PRD 框架
 

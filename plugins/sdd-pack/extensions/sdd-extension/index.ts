@@ -5,33 +5,16 @@
  * 决策: docs/architecture/decisions.md ADR-009(替代 ADR-008 独立 CLI)
  *
  * 约束:
- * - 15 个 pi.registerCommand(1 个 /sdd 主命令 + 14 个旧 sdd-* 命令,Phase 003 统一别名)
+ * - 1 个 pi.registerCommand(/sdd 主命令,ADR-018 统一入口,旧 sdd-* 别名已移除)
  * - 不用 @oh-my-pi/pi-coding-agent 类型(unknown 兜底,跟 hooks/sdd/index.ts 同构)
- * - 统一 arg parser(parseArgs from lib/orchestration/parseArgs)
- * - /sdd 路由 + 15 个子命令 handler 在 sdd-router.ts(ADR-018)
+ * - /sdd 路由 + 18 个子命令 handler 在 sdd-router.ts(ADR-018)
  */
 
 import {
   validateDocs,
-  proposePrd,
-  migratePrd,
-  archivePhase,
-  type ProposeOptions,
-  type MigrateOptions,
-  type ProposeResult,
-  type MigrateResult,
-  type PhaseArchiveOptions,
-  type PhaseArchiveResult,
 } from "../../src/cli/api";
-import {
-  parseArgs,
-  getStringOption,
-  getBoolOption,
-  getEnumOption,
-} from "../../src/cli/lib/orchestration/parseArgs";
 import type { CheckSeverity } from "../../src/cli/lib/validator";
 import { stagedFiles } from "../../src/cli/lib/orchestration/git";
-import { uiOf, splitArgs } from "./ui-helpers";
 import { handleSdd } from "./sdd-router";
 import { runReview } from "../../src/cli/lib/gate-runner";
 
@@ -132,15 +115,15 @@ const DOCS_UPDATE_HINT =
 const LORE_COMMIT_BLOCK_REASON = [
   "🚫 lore-commit-guard [hook]: 请走 sdd-gate 门禁流水线:",
   "",
-  "   编码 -> /sdd-gate-lint -> /sdd-gate-test -> reviewer -> /sdd-gate-review -> /sdd-gate-precommit -> /sdd-gate-commit",
+  "   编码 -> /sdd gate lint -> /sdd gate test -> reviewer -> /sdd gate review -> /sdd gate precommit -> /sdd gate commit",
   "",
   "   依次执行:",
-  "   1. /sdd-gate-lint         # lint 门禁(block=exit 2, fail=exit 1)",
-  "   2. /sdd-gate-test         # 功能验证(可选,缺则 skip)",
+  "   1. /sdd gate lint         # lint 门禁(block=exit 2, fail=exit 1)",
+  "   2. /sdd gate test         # 功能验证(可选,缺则 skip)",
   "   3. spawn reviewer agent    # 审查 staged diff,写 .sdd/review/staged.json",
-  "   4. /sdd-gate-review       # 检查 review 产物(缺则 block)",
-  "   5. /sdd-gate-precommit    # 再跑 lint + lore 约束检查",
-  '   6. /sdd-gate-commit --message \'{"intent":"...","trailers":{}}\'',
+  "   4. /sdd gate review       # 检查 review 产物(缺则 block)",
+  "   5. /sdd gate precommit    # 再跑 lint + lore 约束检查",
+  '   6. /sdd gate commit --message \'{"intent":"...","trailers":{}}\'',
   "",
   "   裸 `git commit` / 裸 `lore commit` 都会绕过门禁,禁止直接使用。",
   "   lint 命令在 .sdd/gate.json 配置;无配置时自动检测项目类型(vp check / cargo clippy / go vet 等)。",
@@ -156,7 +139,7 @@ const DOC_EDIT_GUIDANCE_DOC = [
 
 const DOC_EDIT_GUIDANCE_PHASE = [
   "📝 sdd-doc-edit-guard [hook]: 检测到写 docs/phase/ 目录。",
-  "   Phase 写入请走 skill://sdd-phase 流程。Phase 归档用 /sdd-archive-phase（ADR-017）。",
+  "   Phase 写入请走 skill://sdd-phase 流程。Phase 归档用 /sdd phase-archive（ADR-017）。",
 ].join("\n");
 
 const DOC_EDIT_GUIDANCE_ARCH_REF = [
@@ -169,18 +152,6 @@ const STATUS_LINE_BLOCK_REASON = [
   "状态行必须通过 /sdd <transition> 命令流转,不可直接 edit。",
   "可用命令: /sdd init/review/approve/plan/start/archive/back/phase/sync",
 ].join("\n");
-
-// ===== 旧命令 deprecated 警告(每次执行时) =====
-
-function deprecatedNotify(oldCmd: string, newCmd: string, ctx: unknown): void {
-  const c = uiOf(ctx);
-  c.ui.notify(`⚠️ /${oldCmd} 已废弃,请使用 /sdd ${newCmd},v1.10.0 删除`, "warning");
-}
-
-/** 把旧命令参数转发到 /sdd 子命令 */
-function forwardToSdd(subcommand: string, args: string, ctx: unknown): Promise<unknown> {
-  return handleSdd(`${subcommand} ${args}`.trim(), ctx);
-}
 
 // --- 辅助函数 ---
 
@@ -222,168 +193,16 @@ function runLoreReviewGate(): ToolCallBlockResult | null {
   if (result.status === "block") {
     return {
       block: true,
-      reason: `🚫 sdd-gate-review 硬拦截:\n${result.message ?? "reviewer 产物缺失或未通过"}`,
+      reason: `🚫 /sdd gate review 硬拦截:\n${result.message ?? "reviewer 产物缺失或未通过"}`,
     };
   }
   return null;
 }
-// ===== 3 个遗留 command handlers(propose/archivePhase/migrate, apply 已删除) =====
-
-async function handlePropose(args: string, ctx: unknown): Promise<unknown> {
-  const opts = parseArgs(splitArgs(args));
-  const options: ProposeOptions = {
-    spec: getStringOption(opts, "spec"),
-    supersedes: getStringOption(opts, "supersedes"),
-    title: getStringOption(opts, "title"),
-    type: getEnumOption(opts, "type", ["full", "delta"], "full") as "full" | "delta",
-    dryRun: getBoolOption(opts, "dry-run"),
-  };
-  const result: ProposeResult = await proposePrd(options);
-  const c = uiOf(ctx);
-  if (result.status === "pass" && result.path) {
-    c.ui.notify(`已创建: ${result.path}\n${result.next ?? ""}`, "info");
-  } else {
-    c.ui.notify(`创建失败: ${result.errors.join("; ")}`, "error");
-  }
-  return result;
-}
-
-async function handleArchivePhase(args: string, ctx: unknown): Promise<unknown> {
-  const opts = parseArgs(splitArgs(args));
-  const pos = opts.positional[0];
-  if (!pos) {
-    const c = uiOf(ctx);
-    c.ui.notify("用法: /sdd-archive-phase <phase-path> --reason <completed|abandoned> [--dry-run] [--no-commit]", "error");
-    return { error: "missing phase-path" };
-  }
-  const reason = getEnumOption(opts, "reason", ["completed", "abandoned"], "completed") as "completed" | "abandoned";
-  const options: PhaseArchiveOptions = {
-    phasePath: pos,
-    reason,
-    dryRun: getBoolOption(opts, "dry-run"),
-    noCommit: getBoolOption(opts, "no-commit"),
-  };
-  const result: PhaseArchiveResult = await archivePhase(options);
-  const c = uiOf(ctx);
-  if (result.status === "pass") c.ui.notify(`Phase 归档完成: ${pos} (${reason})`, "info");
-  else c.ui.notify(`Phase 归档失败: ${result.errors.join("; ")}`, "error");
-  return result;
-}
-
-async function handleMigrate(args: string, ctx: unknown): Promise<unknown> {
-  const opts = parseArgs(splitArgs(args));
-  const pos = opts.positional[0];
-  if (!pos) {
-    const c = uiOf(ctx);
-    c.ui.notify("用法: /sdd-migrate <prd-path> [--dry-run] [--no-backup]", "error");
-    return { error: "missing prd-path" };
-  }
-  const options: MigrateOptions = {
-    prdPath: pos,
-    dryRun: getBoolOption(opts, "dry-run"),
-    noBackup: getBoolOption(opts, "no-backup"),
-  };
-  const result: MigrateResult = await migratePrd(options);
-  const c = uiOf(ctx);
-  if (result.status === "pass")
-    c.ui.notify(`迁移完成: 解析 ${result.parsedEntries} 个版本`, "info");
-  else c.ui.notify(`迁移失败: ${result.errors.join("; ")}`, "error");
-  return result;
-}
 
 export default function (pi: ExtensionAPI): void {
   pi.registerCommand("sdd", {
-    description: "SDD 主命令(ADR-018): /sdd <init|review|approve|back|plan|start|archive|phase|status|sync|list|why|apply|validate|gate> [args]",
+    description: "SDD 主命令(ADR-018): /sdd <init|review|approve|back|plan|start|archive|phase|phase-archive|status|sync|list|why|apply|validate|propose|migrate|gate> [args]",
     handler: handleSdd,
-  });
-  pi.registerCommand("sdd-validate", {
-    description: "校验 docs/ 文档结构 + 状态机 + 交叉引用一致性",
-    handler: async (args: string, ctx: unknown) => {
-      deprecatedNotify("sdd-validate", "validate", ctx);
-      return forwardToSdd("validate", args, ctx);
-    },
-  });
-  pi.registerCommand("sdd-propose", {
-    description: "创建新 PRD(full / delta 型)",
-    handler: handlePropose,
-  });
-  pi.registerCommand("sdd-archive", {
-    description: "归档 PRD(reason: completed|replaced|abandoned)",
-    handler: async (args: string, ctx: unknown) => {
-      deprecatedNotify("sdd-archive", "archive", ctx);
-      return forwardToSdd("archive", args, ctx);
-    },
-  });
-  pi.registerCommand("sdd-archive-phase", {
-    description: "归档 Phase(reason: completed|abandoned, ADR-017)",
-    handler: handleArchivePhase,
-  });
-  pi.registerCommand("sdd-migrate", {
-    description: "状态行堆叠清理 -> 单行 + CHANGELOG",
-    handler: handleMigrate,
-  });
-  pi.registerCommand("sdd-status", {
-    description: "所有 PRD/Phase 状态总览",
-    handler: async (args: string, ctx: unknown) => {
-      deprecatedNotify("sdd-status", "status", ctx);
-      return forwardToSdd("status", args, ctx);
-    },
-  });
-  pi.registerCommand("sdd-list", {
-    description: "带过滤的文档列表",
-    handler: async (args: string, ctx: unknown) => {
-      deprecatedNotify("sdd-list", "list", ctx);
-      return forwardToSdd("list", args, ctx);
-    },
-  });
-  pi.registerCommand("sdd-why", {
-    description: "查询 lore 决策上下文(file:line)",
-    handler: async (args: string, ctx: unknown) => {
-      deprecatedNotify("sdd-why", "why", ctx);
-      return forwardToSdd("why", args, ctx);
-    },
-  });
-  pi.registerCommand("sdd-apply", {
-    description: "打印 PRD 实施 checklist",
-    handler: async (args: string, ctx: unknown) => {
-      deprecatedNotify("sdd-apply", "apply", ctx);
-      return forwardToSdd("apply", args, ctx);
-    },
-  });
-  pi.registerCommand("sdd-gate-lint", {
-    description: "门禁阶段1: lint（失败阻断后续）",
-    handler: async (args: string, ctx: unknown) => {
-      deprecatedNotify("sdd-gate-lint", "gate lint", ctx);
-      return forwardToSdd("gate lint", args, ctx);
-    },
-  });
-  pi.registerCommand("sdd-gate-test", {
-    description: "门禁阶段2: 功能验证测试（缺则 skip）",
-    handler: async (args: string, ctx: unknown) => {
-      deprecatedNotify("sdd-gate-test", "gate test", ctx);
-      return forwardToSdd("gate test", args, ctx);
-    },
-  });
-  pi.registerCommand("sdd-gate-review", {
-    description: "门禁阶段3: 检查 reviewer 产物存在且通过",
-    handler: async (args: string, ctx: unknown) => {
-      deprecatedNotify("sdd-gate-review", "gate review", ctx);
-      return forwardToSdd("gate review", args, ctx);
-    },
-  });
-  pi.registerCommand("sdd-gate-precommit", {
-    description: "门禁阶段4: 再跑 lint + lore 约束检查",
-    handler: async (args: string, ctx: unknown) => {
-      deprecatedNotify("sdd-gate-precommit", "gate precommit", ctx);
-      return forwardToSdd("gate precommit", args, ctx);
-    },
-  });
-  pi.registerCommand("sdd-gate-commit", {
-    description: "门禁阶段5: lore commit（--message 传 JSON）",
-    handler: async (args: string, ctx: unknown) => {
-      deprecatedNotify("sdd-gate-commit", "gate commit", ctx);
-      return forwardToSdd("gate commit", args, ctx);
-    },
   });
 
   // ===== session_start — 注入 lore protocol + SDD command reminder =====
@@ -409,7 +228,7 @@ export default function (pi: ExtensionAPI): void {
         return {
           block: true,
           reason:
-            "🚫 lore-commit-guard [hook] 禁止 `git commit`(任意 flag):\n`git commit` 绕过 lore trailer + SDD 上下文,本插件硬拦截。\n请改用 `lore commit`(或先跑 `/sdd-gate-lint` -> reviewer -> `/sdd-gate-commit` 流水线)。",
+            "🚫 lore-commit-guard [hook] 禁止 `git commit`(任意 flag):\n`git commit` 绕过 lore trailer + SDD 上下文,本插件硬拦截。\n请改用 `lore commit`(或先跑 `/sdd gate lint` -> reviewer -> `/sdd gate commit` 流水线)。",
         };
       }
 
