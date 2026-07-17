@@ -177,31 +177,6 @@ export function parseReferences(content: string): CrossReferences {
   return refs;
 }
 
-/**
- * 解析 PRD 回指行（> 对应阶段: [name](path)）
- */
-export function parsePrdBackRef(filePath: string): string | null {
-  const content = readFileContent(filePath);
-  const match = content.match(/^>?\s*对应阶段[：:]\s*\[([^\]]*)\]\(([^)]+)\)/m);
-  return match?.[2] ?? null;
-}
-
-/**
- * 解析 Phase 回指行（> 对应 PRD: [name](path)）
- */
-export function parsePhaseBackRef(filePath: string): string | null {
-  const content = readFileContent(filePath);
-  const match = content.match(/^>?\s*对应 PRD[：:]\s*\[([^\]]*)\]\(([^)]+)\)/m);
-  return match?.[2] ?? null;
-}
-
-/**
- * 提取 supersedes 链（> 替代: 和 > 已被:）
- */
-export function extractSupersedesChain(filePath: string): CrossReferences {
-  const content = readFileContent(filePath);
-  return parseReferences(content);
-}
 
 /**
  * 解析完整文档元数据
@@ -244,13 +219,6 @@ export function isValidFileName(filename: string): boolean {
   return /^\d{4}-\d{2}-\d{2}-[a-z0-9]+(-[a-z0-9]+)*\.md$/.test(filename);
 }
 
-/**
- * 从文件名提取日期
- */
-export function extractDateFromFilename(filename: string): string | null {
-  const match = filename.match(/^(\d{4}-\d{2}-\d{2})-/);
-  return match?.[1] ?? null;
-}
 
 /**
  * 从文件内容提取 H1 标题

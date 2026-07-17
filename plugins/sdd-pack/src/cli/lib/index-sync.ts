@@ -7,56 +7,6 @@
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { resolve, relative, basename, dirname } from "path";
 
-/** 索引条目 */
-export interface IndexEntry {
-  date: string;
-  name: string;
-  path: string;
-  status: string;
-  linkText: string;
-}
-
-/**
- * 解析 index.md 的 PRD 表格
- * 返回表格行数组（简单字符串行，不做完整 markdown AST 解析）
- */
-export function parsePrdTable(indexPath: string): string[] {
-  const content = readFileSync(indexPath, "utf-8");
-  const lines = content.split("\n");
-
-  let inPrdTable = false;
-  let inPhaseTable = false;
-  const prdRows: string[] = [];
-  const phaseRows: string[] = [];
-
-  for (const line of lines) {
-    // 检测表格开始
-    if (line.includes("## 产品需求文档（PRD）")) {
-      inPrdTable = true;
-      inPhaseTable = false;
-      continue;
-    }
-    if (line.includes("## 阶段文档（Phase）")) {
-      inPrdTable = false;
-      inPhaseTable = true;
-      continue;
-    }
-    if (line.startsWith("## ")) {
-      inPrdTable = false;
-      inPhaseTable = false;
-    }
-
-    if (inPrdTable && line.startsWith("|")) {
-      prdRows.push(line);
-    }
-    if (inPhaseTable && line.startsWith("|")) {
-      phaseRows.push(line);
-    }
-  }
-
-  return prdRows;
-}
-
 /**
  * 在 index.md 的 PRD 表格中添加新条目
  */
@@ -111,27 +61,36 @@ export function addPrdEntry(
 }
 
 /**
- * 更新 index.md 中某文件的条目行
+ * 更新 index.md 中某文件的条目行(状态列;newPath 提供时同步重写链接目标)
  */
 export function updateIndexEntry(
   indexPath: string,
   targetFile: string,
   newStatus: string,
+  newPath?: string,
 ): boolean {
   if (!existsSync(indexPath)) return false;
 
   const content = readFileSync(indexPath, "utf-8");
   const bn = basename(targetFile);
+  // 新链接目标(相对 index.md 所在目录)
+  const newLink = newPath ? relative(dirname(indexPath), newPath) : null;
 
   const lines = content.split("\n");
   let updated = false;
 
   for (let i = 0; i < lines.length; i++) {
     if (lines[i].includes(bn) && lines[i].startsWith("|")) {
-      // 将状态列（第 3 列）替换为新状态
       const cols = lines[i].split("|");
       if (cols.length >= 4) {
+        // 更新状态列(第 3 列)
         cols[3] = ` ${newStatus} `;
+        // 移动后重写链接目标(日期列 + 名称列的相对路径)
+        if (newLink) {
+          for (let c = 1; c <= 2; c++) {
+            cols[c] = cols[c].replace(/\]\([^)]+\)/g, `](${newLink})`);
+          }
+        }
         lines[i] = cols.join("|");
         updated = true;
       }

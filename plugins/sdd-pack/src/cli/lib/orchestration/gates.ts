@@ -31,12 +31,6 @@ export function currentStatusOf(prdPath: string): PrdStatus | null {
   return parseStatus(parsed.status);
 }
 
-/** 目标路径不冲突检测(供 propose 前置) */
-export function assertNoConflict(filePath: string): void {
-  if (existsSync(filePath)) {
-    throw new Error(`目标文件已存在: ${filePath}`);
-  }
-}
 
 /** 必需的字符串参数;为空抛错 */
 export function requireString(value: string | undefined, name: string): string {
@@ -46,11 +40,3 @@ export function requireString(value: string | undefined, name: string): string {
   return value;
 }
 
-
-/** --supersedes 指向的旧 PRD 必须是 已归档 状态（ADR-016：已完成/已中止 已合并入 已归档 子态） */
-export function assertSupersedesArchived(prdPath: string): void {
-  const status = currentStatusOf(prdPath);
-  if (status !== PrdStatus.Archived) {
-    throw new Error(`--supersedes 目标必须为"已归档"状态,实际: ${status ?? "(无法解析)"}`);
-  }
-}

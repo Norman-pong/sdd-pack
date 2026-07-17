@@ -300,7 +300,8 @@ export function rebuildMetaFromMarkdown(): void {
       const m = pid.match(/^phs-\d{3}-(\d{3})$/);
       return m ? Math.max(acc, parseInt(m[1], 10)) : acc;
     }, 0);
-    writePrdMeta({ ...meta, phaseIds, nextPhaseSeq: maxSeq });
+    // nextPhaseSeq 必须是下一个可用 seq(maxSeq + 1),否则下次 plan 会覆盖已有 Phase
+    writePrdMeta({ ...meta, phaseIds, nextPhaseSeq: maxSeq + 1 });
   }
 
   writeMetaIndex({

@@ -7,7 +7,10 @@
  * 替代完整 T011(需要 omp session)的最小化验证。
  */
 
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, mock, test, beforeAll, afterAll } from "bun:test";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { resolve } from "node:path";
 
 // Mock gate handlers before importing factory (prevents recursive bun test)
 mock.module("./gate-handlers", () => {
@@ -84,6 +87,29 @@ function makeCtx() {
 }
 
 factory(mockPi as Parameters<typeof factory>[0]);
+
+// ===== 测试隔离: 状态流转子命令会写 docs/ 与 .sdd/meta,必须在临时仓库中运行 =====
+// 防止污染真实仓库(beforeAll 建最小 docs/prd + index.md + meta 目录,chdir 进去)
+const ORIGINAL_CWD = process.cwd();
+let TEST_REPO = "";
+
+beforeAll(() => {
+  TEST_REPO = realpathSync(mkdtempSync(resolve(tmpdir(), "sdd-ext-test-")));
+  mkdirSync(resolve(TEST_REPO, "docs", "prd"), { recursive: true });
+  mkdirSync(resolve(TEST_REPO, "docs", "phase"), { recursive: true });
+  mkdirSync(resolve(TEST_REPO, ".sdd", "meta", "prd"), { recursive: true });
+  mkdirSync(resolve(TEST_REPO, ".sdd", "meta", "phase"), { recursive: true });
+  writeFileSync(
+    resolve(TEST_REPO, "docs", "index.md"),
+    `# 项目文档索引\n\n## 产品需求文档（PRD）\n\n| 日期 | 文档名称 | 状态 | 对应 Phase | 说明 |\n| ---- | -------- | ---- | ---------- | ---- |\n\n## 阶段文档（Phase）\n\n| 日期 | 阶段名称 | 状态 | 对应 PRD | 说明 |\n| ---- | -------- | ---- | -------- | ---- |\n`,
+  );
+  process.chdir(TEST_REPO);
+});
+
+afterAll(() => {
+  process.chdir(ORIGINAL_CWD);
+  if (TEST_REPO) rmSync(TEST_REPO, { recursive: true, force: true });
+});
 
 function getHandler(name: string): CapturedCommand["handler"] {
   const c = captured.find((x) => x.name === name);

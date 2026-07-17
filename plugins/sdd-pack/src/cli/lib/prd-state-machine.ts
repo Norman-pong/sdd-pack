@@ -99,13 +99,6 @@ export function getAllowedTransitions(from: PrdStatus): PrdStatus[] {
 }
 
 /**
- * 获取某状态的所有非法目标状态
- */
-export function getForbiddenTransitions(from: PrdStatus): PrdStatus[] {
-  return Array.from(TRANSITION_MATRIX[from]?.forbidden ?? []);
-}
-
-/**
  * 判断是否为终态（无出边）
  */
 export function isTerminalStatus(status: PrdStatus): boolean {

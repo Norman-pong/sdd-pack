@@ -1,7 +1,7 @@
 /**
  * validator.ts — SDD 文档校验引擎
  *
- * 10 项检查，分级 severity: warn / error / block
+ * 11 项检查，分级 severity: warn / error / block
  * 对应 docs-check.sh 超集 + 状态机校验 + 补充检查
  */
 
@@ -17,7 +17,7 @@ import {
   extractRequiredSections,
   extractH1,
 } from "./doc-parser";
-import { PrdStatus, PhaseStatus, parseStatus, isTransitionAllowed } from "./prd-state-machine";
+import { PrdStatus, PhaseStatus, parseStatus } from "./prd-state-machine";
 import { readPrdMeta, inferPrdIdFromPath } from "./meta-store";
 
 /** 校验 severity */
@@ -64,12 +64,19 @@ function collectDocsFiles(docsDir: string): { prds: string[]; phases: string[]; 
     const fullPath = resolve(docsDir, dir);
     if (!existsSync(fullPath)) return;
 
-    for (const entry of readdirSync(fullPath)) {
-      if (!entry.endsWith(".md")) continue;
-      const filePath = resolve(fullPath, entry);
-      if (!statSync(filePath).isFile()) continue;
-      all.push(filePath);
-    }
+    // 递归扫描: ADR-018 Phase 分组目录 docs/phase/<prd-id>/*.md 必须覆盖
+    const walk = (d: string) => {
+      for (const entry of readdirSync(d, { withFileTypes: true })) {
+        const p = resolve(d, entry.name);
+        if (entry.isDirectory()) {
+          if (entry.name.startsWith(".")) continue;
+          walk(p);
+        } else if (entry.isFile() && entry.name.endsWith(".md")) {
+          all.push(p);
+        }
+      }
+    };
+    walk(fullPath);
   };
 
   scanDir("prd");

@@ -7,18 +7,17 @@
 
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
-import { existsSync } from "node:fs";
-
-/** `git diff --cached --name-only` 的输出文件列表(绝对路径) */
+/** `git diff --cached --name-only` 的输出文件列表(绝对路径,基于仓库根解析,cwd 无关) */
 export function stagedFiles(): string[] {
-  if (!existsSync(resolve(".git"))) return [];
-  const r = spawnSync("git", ["diff", "--cached", "--name-only"]);
+  const root = repoRoot();
+  if (!root) return [];
+  const r = spawnSync("git", ["diff", "--cached", "--name-only"], { cwd: root });
   const out = r.stdout?.toString().trim() ?? "";
   if (!out) return [];
   return out
     .split("\n")
     .filter((f) => f.startsWith("docs/") && f.endsWith(".md"))
-    .map((f) => resolve(f));
+    .map((f) => resolve(root, f));
 }
 
 /** `git rev-parse --show-toplevel` — 仓库根 */

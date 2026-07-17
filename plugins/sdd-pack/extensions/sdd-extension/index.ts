@@ -182,9 +182,6 @@ function forwardToSdd(subcommand: string, args: string, ctx: unknown): Promise<u
   return handleSdd(`${subcommand} ${args}`.trim(), ctx);
 }
 
-// 向后兼容别名
-const DOC_EDIT_GUIDANCE = DOC_EDIT_GUIDANCE_DOC;
-
 // --- 辅助函数 ---
 
 // 提取 effective severity(环境变量 SDD_VALIDATE_SEVERITY)

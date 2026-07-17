@@ -23,11 +23,6 @@ export function listMdFiles(dir: string): string[] {
     });
 }
 
-/** 文件名是否符合 YYYY-MM-DD-<slug>.md */
-const NAME_RE = /^\d{4}-\d{2}-\d{2}-[a-z0-9]+(-[a-z0-9]+)*\.md$/;
-export function isNamedDocFile(filename: string): boolean {
-  return NAME_RE.test(filename);
-}
 
 /** 从文件路径提取日期前缀(YYYY-MM-DD) */
 export function dateFromPath(filePath: string): string {

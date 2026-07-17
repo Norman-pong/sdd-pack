@@ -2,8 +2,8 @@
  * api-flow.ts — PRD 流转命令(ADR-018 F2/F3/F4/F5/F6/F7/F8/F9/F11)
  *
  * 从 api.ts 抽离,解决 api.ts ≤300 行硬约束。
- * 9 个 export 函数: initPrd / reviewPrd / approvePrd / backPrd /
- *   planPrd / startPrd / archivePrdV2 / phaseTransition / getStatusPanel。
+ * 11 个 export 函数: initPrd / reviewPrd / approvePrd / backPrd /
+ *   planPrd / startPrd / archivePrdV2 / phaseTransition / getStatusPanel / syncMeta / rebuildMeta。
  * 每个函数 ≤ 80 行(不含类型与 import)。
  * 文件 IO 走 node:fs,不依赖 bun,不调 process.exit / console.*。
  */
@@ -29,6 +29,7 @@ import type {
   StatusPanelResult,
 } from "./lib/api-types";
 import { applyStatusLine } from "./lib/orchestration/archive-ops";
+import { rewriteMovedDocLinks } from "./lib/orchestration/doc-links";
 import { findRepoRoot } from "./lib/path";
 import {
   writePrdMeta,
@@ -246,21 +247,8 @@ export async function reviewPrd(): Promise<ReviewResult> {
     // 规范语言 warn(不 block) + validator warnings 合并
     r.warnings.push(...checkNormativeLanguage(content));
     r.warnings.push(...vr.warnings);
-    // 写入顺序: markdown → meta.json → index.json
-    const now = new Date().toISOString();
-    const updatedMeta = {
-      ...meta,
-      status: PrdStatus.PendingReview,
-      transitions: appendTransition(meta, PrdStatus.PendingReview, "/sdd review"),
-      updatedAt: now,
-    };
-    const newStatusLine = generatePrdStatusLine(updatedMeta);
-    const updatedContent = applyStatusLine(content, newStatusLine);
-    writeFileSync(filePath, updatedContent, "utf-8");
-    writePrdMeta(updatedMeta);
-    // 同步 docs/index.md 状态列
-    const indexPath = resolve(findRepoRoot(), "docs/index.md");
-    updateIndexEntry(indexPath, filePath, PrdStatus.PendingReview);
+    // 写入顺序: markdown → meta.json → index.json(复用 syncPrdStatus)
+    syncPrdStatus(meta, PrdStatus.PendingReview, "/sdd review");
     r.prdId = meta.id;
     r.from = PrdStatus.Draft;
     r.to = PrdStatus.PendingReview;
@@ -309,22 +297,7 @@ export async function approvePrd(opts: ApproveOptions): Promise<ApproveResult> {
         return r;
       }
     }
-    const filePath = resolve(repoRoot, meta.filePath);
-    const content = readFileSync(filePath, "utf-8");
-    const now = new Date().toISOString();
-    const updatedMeta = {
-      ...meta,
-      status: PrdStatus.Reviewed,
-      transitions: appendTransition(meta, PrdStatus.Reviewed, "/sdd approve"),
-      updatedAt: now,
-    };
-    const newStatusLine = generatePrdStatusLine(updatedMeta);
-    const updatedContent = applyStatusLine(content, newStatusLine);
-    writeFileSync(filePath, updatedContent, "utf-8");
-    writePrdMeta(updatedMeta);
-    // 同步 docs/index.md 状态列
-    const indexPath = resolve(repoRoot, "docs/index.md");
-    updateIndexEntry(indexPath, filePath, PrdStatus.Reviewed);
+    syncPrdStatus(meta, PrdStatus.Reviewed, "/sdd approve");
     r.prdId = meta.id;
     r.from = PrdStatus.PendingReview;
     r.to = PrdStatus.Reviewed;
@@ -364,21 +337,7 @@ export async function backPrd(opts: BackOptions): Promise<BackResult> {
         return r;
       }
     }
-    const content = readFileSync(filePath, "utf-8");
-    const now = new Date().toISOString();
-    const updatedMeta = {
-      ...meta,
-      status: toStatus,
-      transitions: appendTransition(meta, toStatus, `/sdd back --to ${opts.to}`),
-      updatedAt: now,
-    };
-    const newStatusLine = generatePrdStatusLine(updatedMeta);
-    const updatedContent = applyStatusLine(content, newStatusLine);
-    writeFileSync(filePath, updatedContent, "utf-8");
-    writePrdMeta(updatedMeta);
-    // 同步 docs/index.md 状态列
-    const indexPath = resolve(findRepoRoot(), "docs/index.md");
-    updateIndexEntry(indexPath, filePath, toStatus);
+    syncPrdStatus(meta, toStatus, `/sdd back --to ${opts.to}`);
     r.prdId = meta.id;
     r.from = meta.status;
     r.to = toStatus;
@@ -393,14 +352,15 @@ export async function backPrd(opts: BackOptions): Promise<BackResult> {
 
 // ===== 5. planPrd（ADR-018 F5） =====
 
-/** 生成 Phase markdown 内容 */
-function generatePhaseMarkdown(title: string, prdId: string, seq: number): string {
+/** 生成 Phase markdown 内容(prdRelLink 为 Phase 指向 PRD 的相对链接) */
+function generatePhaseMarkdown(title: string, prdId: string, seq: number, prdRelLink: string): string {
   const today = todayStr();
+  const prdName = prdId;
   return `# Phase ${String(seq).padStart(3, "0")}: ${title}
 
 > 状态：未开始
 > 创建日期：${today}
-> 对应 PRD：${prdId}
+> 对应 PRD：[${prdName}](${prdRelLink})
 
 ---
 
@@ -460,7 +420,10 @@ export async function planPrd(opts: PlanOptions): Promise<PlanResult> {
       };
 
       // 写入顺序: markdown → meta.json
-      writeFileSync(absPath, generatePhaseMarkdown(opts.phase, meta.id, seq), "utf-8");
+      // Phase 指向 PRD 的相对链接(从 Phase 所在目录解析)
+      const prdAbs = resolve(findRepoRoot(), meta.filePath);
+      const phaseToPrd = relative(dir, prdAbs);
+      writeFileSync(absPath, generatePhaseMarkdown(opts.phase, meta.id, seq, phaseToPrd), "utf-8");
       writePhaseMeta(phaseMeta);
 
       // 更新 PRD meta: phaseIds 追加 + nextPhaseSeq 递增
@@ -485,6 +448,22 @@ export async function planPrd(opts: PlanOptions): Promise<PlanResult> {
     // 更新 PRD meta: status=Planned
     const updatedMeta = syncPrdStatus(meta, PrdStatus.Planned, "/sdd plan");
 
+    // 更新 PRD markdown 的 对应阶段 回指链接(TBD → 实际 Phase;多 Phase 时追加且去重)
+    if (phasePath) {
+      const prdAbs = resolve(findRepoRoot(), meta.filePath);
+      const phaseAbs = resolve(findRepoRoot(), phasePath);
+      const prdToPhase = relative(dirname(prdAbs), phaseAbs);
+      const phaseName = basename(phasePath, ".md");
+      const link = `[${phaseName}](${prdToPhase})`;
+      const content = readFileSync(prdAbs, "utf-8");
+      const updated = content.replace(/^(>\s*对应阶段[：:])(.*)$/m, (_all, prefix: string, rest: string) => {
+        if (rest.includes(link)) return `${prefix}${rest}`;
+        // TBD 占位 → 直接替换;已有链接 → 追加
+        const cleaned = rest.replace(/TBD.*$/, "").trim();
+        return cleaned ? `${prefix} ${cleaned} ${link}` : `${prefix} ${link}`;
+      });
+      if (updated !== content) writeFileSync(prdAbs, updated, "utf-8");
+    }
     r.prdId = meta.id;
     r.from = PrdStatus.Reviewed;
     r.to = PrdStatus.Planned;
@@ -628,11 +607,47 @@ export async function archivePrdV2(opts: ArchiveOptionsV2): Promise<ArchiveResul
         if (!existsSync(phaseArchiveParent)) mkdirSync(phaseArchiveParent, { recursive: true });
         renameSync(phaseGroupDir, phaseArchiveDir);
       }
+
+      // 更新 meta.filePath 到归档位置并回写(保持 meta 与磁盘一致)
+      const finalMeta: PrdMeta = { ...updatedMeta, filePath: movedTo };
+      writePrdMeta(finalMeta);
+
+      // 构建 old→new 绝对路径映射(PRD + 所有 Phase),供链接重写时把已移动目标指到新位置
+      const pathMap = new Map<string, string>();
+      pathMap.set(filePath, dest); // PRD old abs → new abs
+      const phases = listPhaseMetas(meta.id);
+      for (const p of phases) {
+        pathMap.set(
+          resolve(repoRoot, p.filePath),
+          resolve(repoRoot, p.filePath.replace(`docs/phase/${meta.id}/`, `docs/phase/archive/${meta.id}/`)),
+        );
+      }
+
+      // 重写 PRD 内部链接(自身下移一层 + 目标可能也移动)
+      rewriteMovedDocLinks(dest, dirname(filePath), dirname(dest), pathMap);
+
+      // 更新所有 Phase meta.filePath + 重写 Phase 内部链接
+      for (const p of phases) {
+        const oldPhaseAbs = resolve(repoRoot, p.filePath);
+        const newPhaseRel = p.filePath.replace(
+          `docs/phase/${meta.id}/`,
+          `docs/phase/archive/${meta.id}/`,
+        );
+        const newPhaseAbs = resolve(repoRoot, newPhaseRel);
+        writePhaseMeta({
+          ...p,
+          filePath: newPhaseRel,
+          updatedAt: new Date().toISOString(),
+        });
+        if (existsSync(newPhaseAbs)) {
+          rewriteMovedDocLinks(newPhaseAbs, dirname(oldPhaseAbs), dirname(newPhaseAbs), pathMap);
+        }
+      }
     }
 
-    // 更新 index.md
+    // 更新 index.md(归档后用新路径,确保链接指向 archive/)
     const indexPath = resolve(repoRoot, "docs/index.md");
-    updateIndexEntry(indexPath, filePath, PrdStatus.Archived);
+    updateIndexEntry(indexPath, filePath, PrdStatus.Archived, movedTo ? resolve(repoRoot, movedTo) : undefined);
 
     r.prdId = meta.id;
     r.from = meta.status;
