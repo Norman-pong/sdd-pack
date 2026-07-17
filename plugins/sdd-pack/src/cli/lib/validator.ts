@@ -512,50 +512,38 @@ function checkStatusLineFormat(ctx: CheckContext): CheckResult {
  */
 function checkArchiveFileLocation(ctx: CheckContext): CheckResult {
   const warnings: string[] = [];
-  const docsDir = ctx.docsDir;
-  const archiveDir = resolve(docsDir, "prd/archive");
-  const prdDir = resolve(docsDir, "prd");
 
-  // 检查 archive 下的文件状态是否为 已归档
-  if (existsSync(archiveDir)) {
-    for (const entry of readdirSync(archiveDir)) {
-      if (!entry.endsWith(".md")) continue;
-      const archivePath = resolve(archiveDir, entry);
-      if (!statSync(archivePath).isFile()) continue;
+  // 遍历 ctx.prds（受 config.files scoping 控制）而非 readdirSync 全量扫描
+  // 这样 validate({files:[specificPrd]}) 时只检查指定 PRD
+  for (const prdPath of ctx.prds) {
+    const prdAbs = resolve(ctx.docsDir, prdPath);
+    if (!existsSync(prdAbs)) continue;
+    const name = basename(prdAbs);
+    if (isTemplateFile(name)) continue;
 
-      const content = readFileSync(archivePath, "utf-8");
-      const statusLine = extractStatusLine(content);
-      if (statusLine) {
-        const parsed = parseStatusLine(statusLine);
-        if (parsed && parsed.status !== "已归档") {
-          warnings.push(
-            `archive/${entry}: 归档目录下文件状态应为 '已归档'，当前为 '${parsed.status}'`,
-          );
-        } else if (!parsed) {
-          const stacked = parseStackedStatusLine(statusLine);
-          if (!stacked) {
-            warnings.push(`archive/${entry}: 无法解析状态行`);
-          }
+    const content = readFileSync(prdAbs, "utf-8");
+    const statusLine = extractStatusLine(content);
+    if (!statusLine) continue;
+
+    const parsed = parseStatusLine(statusLine);
+    const isInArchive = prdAbs.includes("/archive/");
+    const relPath = relative(ctx.docsDir, prdAbs);
+
+    if (!parsed) {
+      if (isInArchive) {
+        const stacked = parseStackedStatusLine(statusLine);
+        if (!stacked) {
+          warnings.push(`${relPath}: 无法解析状态行`);
         }
       }
+      continue;
     }
-  }
 
-  // 检查 prd/ 下是否有已归档但未移动的文件
-  if (existsSync(prdDir)) {
-    for (const entry of readdirSync(prdDir)) {
-      if (!entry.endsWith(".md") || isTemplateFile(entry)) continue;
-      const prdPath = resolve(prdDir, entry);
-      if (!statSync(prdPath).isFile()) continue;
-
-      const content = readFileSync(prdPath, "utf-8");
-      const statusLine = extractStatusLine(content);
-      if (statusLine) {
-        const parsed = parseStatusLine(statusLine);
-        if (parsed && parsed.status === "已归档") {
-          warnings.push(`prd/${entry}: 状态为 '已归档' 但仍在 prd/ 目录下，应移至 archive/`);
-        }
-      }
+    if (isInArchive && parsed.status !== "已归档") {
+      warnings.push(`${relPath}: 归档目录下文件状态应为 '已归档'，当前为 '${parsed.status}'`);
+    }
+    if (!isInArchive && parsed.status === "已归档") {
+      warnings.push(`${relPath}: 状态为 '已归档' 但仍在 prd/ 目录下，应移至 archive/`);
     }
   }
 
@@ -658,9 +646,11 @@ export function validate(config: ValidationConfig): ValidationResult {
   let allMdFiles: string[];
 
   if (config.files && config.files.length > 0) {
-    prds = config.files.filter((f) => f.includes("/prd/"));
-    phases = config.files.filter((f) => f.includes("/phase/"));
-    allMdFiles = [...config.files];
+    // resolve relative paths against docsDir, 避免 allMdFiles 混用相对/绝对路径导致 ENOENT
+    const resolved = config.files.map((f) => resolve(docsDir, f));
+    prds = resolved.filter((f) => f.includes("/prd/"));
+    phases = resolved.filter((f) => f.includes("/phase/"));
+    allMdFiles = [...resolved];
 
     // 还需要所有 md 文件做链接检查
     for (const f of collectAllMdFiles(docsDir)) {

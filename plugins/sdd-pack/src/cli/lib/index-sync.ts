@@ -85,10 +85,13 @@ export function updateIndexEntry(
       if (cols.length >= 4) {
         // 更新状态列(第 3 列)
         cols[3] = ` ${newStatus} `;
-        // 移动后重写链接目标(日期列 + 名称列的相对路径)
+        // 移动后重写链接目标: 全列扫描,只替换含旧文件名的链接
+        // 旧代码只查列 1-2 且替换列内所有链接 -> 漏列 4 的 PRD 链接 + 误改 Phase 链接
         if (newLink) {
-          for (let c = 1; c <= 2; c++) {
-            cols[c] = cols[c].replace(/\]\([^)]+\)/g, `](${newLink})`);
+          const escapedBn = bn.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const linkPattern = new RegExp(`\\]\\([^)]*${escapedBn}[^)]*\\)`, "g");
+          for (let c = 1; c < cols.length; c++) {
+            cols[c] = cols[c].replace(linkPattern, `](${newLink})`);
           }
         }
         lines[i] = cols.join("|");
