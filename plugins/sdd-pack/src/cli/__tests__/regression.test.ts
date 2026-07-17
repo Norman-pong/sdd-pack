@@ -309,6 +309,37 @@ describe("plan/archive 流转一致性", () => {
     expect(phasePrdLink).not.toBeNull();
     expect(existsSync(resolve(dirname(phaseAbs2), phasePrdLink![1]))).toBe(true);
   });
+
+  test("archivePrdV2 --reason abandoned 也移动文件 + validator Check #9 通过", async () => {
+    const initR = await initPrd({ title: "Abandon Move" });
+    await reviewPrd();
+    await approvePrd({});
+    const planR = await planPrd({ phase: "Foundation" });
+    await phaseTransition({ action: "start", id: planR.phaseId! });
+
+    const archR = await archivePrdV2({ reason: "abandoned" });
+    expect(archR.status).toBe("pass");
+    // abandoned 也应移动文件(ADR-016: Archived=文件已移入 archive/)
+    expect(archR.movedTo).toBeDefined();
+
+    const meta = readPrdMeta(initR.prdId!)!;
+    expect(meta.filePath).toMatch(/docs\/prd\/archive\//);
+    expect(existsSync(resolve(ROOT, meta.filePath))).toBe(true);
+    // Phase 分组目录也移动
+    expect(existsSync(resolve(ROOT, "docs", "phase", "archive", initR.prdId!))).toBe(true);
+    // validator Check #9(归档文件位置)不应再报"已归档但仍在 prd/"
+    const v = validate({
+      docsDir: resolve(ROOT, "docs"),
+      severity: "warn",
+      rulesOnly: false,
+      structureOnly: false,
+    });
+    const c9 = v.checks.find((c) => c.ruleId === 9);
+    expect(c9!.passed).toBe(true);
+    // 归档后可立即 init 新 PRD
+    const n = await initPrd({ title: "Next" });
+    expect(n.status).toBe("pass");
+  });
 });
 
 // ===== 5. generatePhaseId 全局唯一 =====

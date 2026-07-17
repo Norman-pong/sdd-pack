@@ -590,9 +590,10 @@ export async function archivePrdV2(opts: ArchiveOptionsV2): Promise<ArchiveResul
     // 写入 meta.json
     writePrdMeta(updatedMeta);
 
-    // completed: 移动文件到 archive/
+    // 归档(completed/abandoned 都移动文件到 archive/;ADR-016: Archived=文件已移入 archive/)
+    // 差异仅在门禁(completed 有 lint/test/review + Phase 全完成检查),移动与一致性处理两者一致
     let movedTo: string | undefined;
-    if (opts.reason === "completed") {
+    {
       const archiveDir = resolve(dirname(filePath), "archive");
       if (!existsSync(archiveDir)) mkdirSync(archiveDir, { recursive: true });
       const dest = resolve(archiveDir, basename(filePath));
