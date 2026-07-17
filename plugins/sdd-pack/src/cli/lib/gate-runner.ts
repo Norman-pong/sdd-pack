@@ -33,7 +33,7 @@ export interface ReviewArtifact {
   /** ISO 时间戳 */
   timestamp: string;
   /** reviewer verdict */
-  overall_correctness: "correct" | "correct-with-debt" | "incorrect";
+  overall_correctness: "correct" | "correct-with-debt" | "incorrect_with_minor_defects" | "incorrect";
   /** 审查者（reviewer / arch-reviewer / sdd-reviewer） */
   reviewer: string;
   /** staged diff 的 hash（防旧产物复用：runReview 会比对当前 staged hash） */
@@ -209,8 +209,8 @@ export function runReview(repoRoot: string, sha?: string): GateResult {
       continue;
     }
 
-    if (artifact.overall_correctness === "incorrect") {
-      failed.push(`${reviewer}: verdict=incorrect`);
+    if (artifact.overall_correctness === "incorrect" || artifact.overall_correctness === "incorrect_with_minor_defects") {
+      failed.push(`${reviewer}: verdict=${artifact.overall_correctness}`);
     }
   }
 

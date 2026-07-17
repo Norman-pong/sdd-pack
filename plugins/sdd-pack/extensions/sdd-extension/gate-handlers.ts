@@ -10,6 +10,7 @@ import {
   runReview,
   runPrecommit,
   runCommit,
+  runCommitWithFile,
 } from "../../src/cli/lib/gate-runner";
 import type { GateResult } from "../../src/cli/lib/gate-config";
 import { findProjectRoot } from "../../src/cli/lib/path";
@@ -87,8 +88,11 @@ export async function handleGatePrecommit(_args: string, ctx: unknown): Promise<
 
 export async function handleGateCommit(args: string, ctx: unknown): Promise<unknown> {
   const opts = parseArgs(splitArgs(args));
+  const messageFile = getStringOption(opts, "message-file");
   const message = getStringOption(opts, "message");
-  const result = runCommit(findProjectRoot(), message);
+  const result = messageFile
+    ? runCommitWithFile(findProjectRoot(), messageFile)
+    : runCommit(findProjectRoot(), message);
   gateNotify(result, ctx);
   return result;
 }

@@ -441,56 +441,43 @@ bun run scripts/gen-commands-json.ts
 
 ---
 
-## 附录 A：gate-runner bypass 代码模板（每次提交复用）
+## 附录 A：正确提交流程（走 /sdd gate commit）
 
-omp 的 lore-commit-guard hook 会拦截 bash 里的 `git commit` / `lore commit`，要求走 sdd gate 流水线。但 gate 流水线的 staged_hash 时效校验容易死循环（review 产物写入时间与 commit 时间有差）。
+omp 的 lore-commit-guard hook 拦截 bash 里直接调用的 `git commit` / `lore commit`（目的是阻止 agent 绕过门禁）。提交的正确入口是 `/sdd gate commit` slash command 或 `sdd_gate` tool——它们走 `handleGateCommit` → `runCommit` → `spawnSync("lore", ["commit"])`，整个链路在 omp runtime 的 slash command / tool 层完成，不经过 bash tool_call handler。
 
-**可靠路径**：用 gate-runner 的 `writeReviewArtifact` + `runCommit` API（`spawnSync` 内部调 lore commit，不经 omp bash hook）。
-
-### 标准模板
+### 标准流程
 
 ```sh
-cd plugins/sdd-pack
-HEAD_SHA=$(git rev-parse --short HEAD)
-HEAD_SHA="$HEAD_SHA" bun -e '
-import { writeReviewArtifact, runCommit } from "./src/cli/lib/gate-runner";
-const repoRoot = process.env.HOME + "/workspace/zhimingcool/sdd-pack";
-const sha = process.env.HEAD_SHA;  // 用 env 传参,bun -e 的 process.argv 索引与 node 不同
-writeReviewArtifact(repoRoot, {
-  commit_sha: sha,
-  timestamp: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
-  overall_correctness: "correct",
-  reviewer: "self-review",
-  staged_hash: "",
-});
-const result = runCommit(repoRoot, JSON.stringify({
-  intent: "...",
-  body: "...",
-  trailers: {
-    Constraint: ["..."],
-    Confidence: "high",
-    "Scope-risk": "narrow",
-    Reversibility: "clean",
-    Tested: ["..."],
-    "Not-tested": ["..."],
-  },
-}));
-console.log("status:", result.status, "loreId:", result.loreId, "commitHash:", result.commitHash?.slice(0,7));
-'
+# 1. lint 门禁
+/sdd gate lint
+
+# 2. 功能验证(可选)
+/sdd gate test
+
+# 3. spawn 真实 reviewer agent 审查 staged diff
+#    产物路径: .sdd/review/staged.reviewer.json
+#    必须用 reviewer: "reviewer"(不是 "self-review")
+#    staged_hash 不能留空(留空 = 绕过时效校验 = 违规)
+
+# 4. 检查 review 产物
+/sdd gate review
+
+# 5. 再跑 lint + lore 约束检查
+/sdd gate precommit
+
+# 6. 提交(唯一入口)
+/sdd gate commit --message '{"intent":"...","trailers":{...}}'
 ```
 
-### 关键点
+### 关键约束
 
-- **SHA 传参用 env 不用 argv**——`bun -e` 的 `process.argv` 索引与 node 不同，`process.argv[2]` 取不到第三个参数。用 `HEAD_SHA="$SHA" bun -e '... process.env.HEAD_SHA ...'`。
-- **commit_sha 用 HEAD SHA**——omp hook 期望 review 产物按 HEAD SHA 命名（`.sdd/review/<sha>.self-review.json`）。用 `"staged"` 在纯代码提交时不触发 docs-update-guard，但 stage 了 docs/ 时会被拦。
-- **writeReviewArtifact 的 staged_hash 留空**——绕过时效校验。这不是作弊，是绕过 omp hook 的死循环（review 本身已做）。
-- **runCommit 内部 spawnSync**——不经 omp bash hook，所以 lore-commit-guard 拦不到。
+- **reviewer 字段必须是真实 reviewer agent**（`reviewer: "reviewer"`）。`self-review` 是 ADR-020 前的灰色地带，本次起视为违规。
+- **reviewer 产物必须通过 writeReviewArtifact 写入**——禁止 agent 直接手写 `.sdd/review/*.json`（历史 self-review 的真正绕过路径）。writeReviewArtifact 在 staged_hash 为空时自动填充。
+- **不要在 bash 里调 runCommit / writeReviewArtifact**。这两个 API 是 `/sdd gate` slash command 内部使用，agent 直接调用会绕过门禁。
 
-### 坑：产物文件名 `undefined`
+### 历史教训
 
-如果 SHA 没传进去（argv 取错），会生成 `undefined.self-review.json`，commit 时 hook 找不到对应 SHA 的产物。删掉 undefined 产物重跑。
-
----
+sdd-pack 自身仓库早期开发时（commit 4402762..f2654fc），因不熟悉 `/sdd gate commit` 入口，用 self-review + 留空 staged_hash 的组合绕过门禁。这 4 个 commit 经 audit reviewer 真实审查（2026-07-18，overall_correctness: incorrect_with_minor_defects——核心代码质量可用，但有 P1/P2/P3 findings）确认代码可用，但门禁流程违规。ADR-020 起严格执行真实 reviewer。
 
 ## 附录 B：bunx sdd CLI 端到端验证流程
 
@@ -561,7 +548,7 @@ bunx sdd validate --json | jq '.checks[] | select(.severity=="error") | .passed'
 | 决策 | 要点 | 坑关联 |
 |---|---|---|
 | (a) bin.ts CLI 入口 | 外部项目 `bunx sdd <cmd>`；不走 omp marketplace | 无 |
-| (b) api-runner V2 映射 | 11 V2 + 5 gate case，CI 可跑完整流转 | 坑 9 |
+| (b) api-runner V2 映射 | 11 V2 + 5 gate stage（加上 `gate` 分派共 6 case），CI 可跑完整流转 | 坑 9 |
 | (c) Check #12 扩面 | sdd-router ↔ api-runner 双向校验 | 坑 9 |
 | (d) runCommit schema 扩展 | GateResult 加 loreId/commitHash（非 breaking） | 坑 8 |
 | (e) pi.registerTool 18 tool | 绕过 cache 漂移，agent 直调 | 坑 1, 2, 3 |

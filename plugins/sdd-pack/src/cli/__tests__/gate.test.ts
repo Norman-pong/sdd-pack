@@ -276,6 +276,22 @@ describe("runReview", () => {
     rmSync(root, { recursive: true });
   });
 
+  test("fails when artifact verdict is incorrect_with_minor_defects", () => {
+    const root = makeTmpProject(makeVitePlusProject);
+    const artifact: ReviewArtifact = {
+      commit_sha: "staged",
+      timestamp: new Date().toISOString(),
+      overall_correctness: "incorrect_with_minor_defects",
+      reviewer: "reviewer",
+      staged_hash: "",
+    };
+    writeReviewArtifact(root, artifact);
+    const result = runReview(root, "staged");
+    expect(result.status).toBe("fail");
+    expect(result.exitCode).toBe(1);
+    rmSync(root, { recursive: true });
+  });
+
   test("passes with correct-with-debt verdict", () => {
     const root = makeTmpProject(makeVitePlusProject);
     const artifact: ReviewArtifact = {

@@ -75,9 +75,9 @@ graph TB
 | rules               | 5 个 rule（lore 协议 + 4 个守门）            | `plugins/sdd-pack/rules/*.md`                                 |
 | 三层守门 agent      | reviewer / arch-reviewer / sdd-reviewer    | `plugins/sdd-pack/agents/{reviewer,arch-reviewer,sdd-reviewer}.md` |
 | docs-check.sh       | 文档结构校验脚本（sdd-core 引用）            | `plugins/sdd-pack/skills/sdd-core/references/docs-check.sh`   |
-| sdd-extension       | 15 个 `/sdd-*` slash command（8 文档 + 5 门禁 + 1 主命令 + 1 archive-phase） | `plugins/sdd-pack/extensions/sdd-extension/index.ts`          |
+| sdd-extension       | 1 个 `/sdd` 主命令 + 18 个子命令（SUBCOMMANDS 路由表）+ pi.registerTool 注册 18 个 `sdd_*` omp tool | `plugins/sdd-pack/extensions/sdd-extension/{index,sdd-router,tools}.ts` |
 | hooks               | 合并进 `extensions/sdd-extension/index.ts`（commit gate + session_start reminder + path gate） |
-| sdd-api             | 8 个程序化纯函数                           | `plugins/sdd-pack/src/cli/api.ts`                             |
+| sdd-api             | 20 个 re-export（api-legacy + api-flow 合并入口） | `plugins/sdd-pack/src/cli/api.ts`                             |
 | api-runner          | `bun run` CI 入口                          | `plugins/sdd-pack/src/cli/api-runner.ts`                      |
 | **gate-config**     | gate.json 读取 + 项目类型自动检测          | `plugins/sdd-pack/src/cli/lib/gate-config.ts`                 |
 | **gate-runner**     | 5 阶段门禁执行器                           | `plugins/sdd-pack/src/cli/lib/gate-runner.ts`                 |
