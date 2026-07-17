@@ -200,6 +200,7 @@ import {
   type PhaseMeta,
 } from "../lib/meta-store";
 import { PrdStatus, PhaseStatus, ArchiveReason } from "../lib/prd-state-machine";
+import { findRepoRoot } from "../lib/path";
 
 const FLOW_TEST_ROOT = pathResolve(import.meta.dir, "../../.test-tmp-api-flow");
 const FLOW_DOCS_PRD = pathResolve(FLOW_TEST_ROOT, "docs/prd");
@@ -406,6 +407,57 @@ describe("Phase 002 流转集成测试", () => {
     expect(prdMeta!.status).toBe(PrdStatus.Planned);
     expect(prdMeta!.phaseIds).toContain(r.phaseId!);
     expect(prdMeta!.nextPhaseSeq).toBe(2);
+  });
+
+  test("planPrd 回填 PRD markdown: TBD 占位 → 单一链接", async () => {
+    const initR = await initPrd({ title: "TBD Fill Test" });
+    await reviewPrd();
+    await approvePrd({});
+    const r = await planPrd({ phase: "Foundation" });
+    expect(r.status).toBe("pass");
+    // 验证 PRD markdown 顶部 对应阶段 行
+    const prdAbs = resolve(findRepoRoot(), initR.path!);
+    const prdContent = readFileSync(prdAbs, "utf-8");
+    const phaseLine = prdContent.match(/^>\s*对应阶段[：:].*$/m)?.[0] ?? "";
+    expect(phaseLine).not.toMatch(/TBD/);
+    expect(phaseLine).not.toMatch(/\[.*\[/); // 双 [
+    const linkMatches = phaseLine.match(/\[[^\]]+\]\([^)]+\)/g) ?? [];
+    expect(linkMatches.length).toBe(1); // 恰好一个 markdown 链接
+  });
+
+  test("planPrd 回填 PRD markdown: 已有链接 → 追加且去重", async () => {
+    const initR = await initPrd({ title: "Append Fill Test" });
+    await reviewPrd();
+    await approvePrd({});
+    // 第一次 plan → 产生 001-foundation.md
+    await planPrd({ phase: "Phase Alpha" });
+    const prdAbs = resolve(findRepoRoot(), initR.path!);
+    const prdContent1 = readFileSync(prdAbs, "utf-8");
+    const line1 = prdContent1.match(/^>\s*对应阶段[：:].*$/m)?.[0] ?? "";
+    const linkCount1 = (line1.match(/\[[^\]]+\]\([^)]+\)/g) ?? []).length;
+    expect(linkCount1).toBe(1);
+  });
+
+  test("planPrd 回填 PRD markdown: 老格式占位链接 → 整段替换为新链接", async () => {
+    // sw-nvr 真实场景: PRD 第 5 行已被手动转为 `[TBD - 待 sdd-phase 补全](../phase/...)` 链接占位
+    const initR = await initPrd({ title: "Legacy Link Placeholder" });
+    const prdAbs = resolve(findRepoRoot(), initR.path!);
+    const original = readFileSync(prdAbs, "utf-8");
+    const withLegacyPlaceholder = original.replace(
+      /^>\s*对应阶段[：:].*$/m,
+      "> 对应阶段：[TBD - 待 sdd-phase 补全](../phase/legacy.md)",
+    );
+    writeFileSync(prdAbs, withLegacyPlaceholder, "utf-8");
+    await reviewPrd();
+    await approvePrd({});
+    const r = await planPrd({ phase: "Foundation" });
+    expect(r.status).toBe("pass");
+    const updated = readFileSync(prdAbs, "utf-8");
+    const phaseLine = updated.match(/^>\s*对应阶段[：:].*$/m)?.[0] ?? "";
+    expect(phaseLine).not.toMatch(/TBD/);
+    expect(phaseLine).not.toMatch(/\[.*\[/);
+    const linkMatches = phaseLine.match(/\[[^\]]+\]\([^)]+\)/g) ?? [];
+    expect(linkMatches.length).toBe(1);
   });
 
   test("planPrd --link 关联已有 Phase", async () => {

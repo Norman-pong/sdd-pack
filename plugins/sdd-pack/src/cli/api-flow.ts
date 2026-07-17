@@ -458,8 +458,11 @@ export async function planPrd(opts: PlanOptions): Promise<PlanResult> {
       const content = readFileSync(prdAbs, "utf-8");
       const updated = content.replace(/^(>\s*对应阶段[：:])(.*)$/m, (_all, prefix: string, rest: string) => {
         if (rest.includes(link)) return `${prefix}${rest}`;
-        // TBD 占位 → 直接替换;已有链接 → 追加
-        const cleaned = rest.replace(/TBD.*$/, "").trim();
+        // TBD 占位 → 整段删除（裸文本或 markdown 链接占位）；已有链接保留原样避免误剥前导 `[`
+        const hasTbd = /TBD/.test(rest);
+        const cleaned = hasTbd
+          ? rest.replace(/\[TBD[^\]]*\]\([^)]*\)/, "").replace(/TBD.*$/, "").trim()
+          : rest.trim();
         return cleaned ? `${prefix} ${cleaned} ${link}` : `${prefix} ${link}`;
       });
       if (updated !== content) writeFileSync(prdAbs, updated, "utf-8");
