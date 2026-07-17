@@ -69,7 +69,7 @@ function collectDocsFiles(docsDir: string): { prds: string[]; phases: string[]; 
       for (const entry of readdirSync(d, { withFileTypes: true })) {
         const p = resolve(d, entry.name);
         if (entry.isDirectory()) {
-          if (entry.name.startsWith(".")) continue;
+        if (entry.name.startsWith(".") || entry.name === "archive") continue;
           walk(p);
         } else if (entry.isFile() && entry.name.endsWith(".md")) {
           all.push(p);
@@ -102,7 +102,7 @@ function collectAllMdFiles(docsDir: string): string[] {
     if (!existsSync(dir)) return;
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const fullPath = resolve(dir, entry.name);
-      if (entry.isDirectory() && !entry.name.startsWith(".") && entry.name !== "node_modules") {
+    if (entry.isDirectory() && !entry.name.startsWith(".") && entry.name !== "node_modules" && entry.name !== "archive") {
         walk(fullPath);
       } else if (entry.isFile() && entry.name.endsWith(".md")) {
         files.push(fullPath);
@@ -121,6 +121,8 @@ interface CheckContext {
   prds: string[];
   phases: string[];
   allMdFiles: string[];
+  /** 要扫描链接的文件（config.files 提供时仅含 scoped 文件，否则 = allMdFiles） */
+  targetFiles: string[];
 }
 
 /**
@@ -257,7 +259,7 @@ function checkIndexCoverage(ctx: CheckContext): CheckResult {
 function checkRelativeLinks(ctx: CheckContext): CheckResult {
   const broken: string[] = [];
 
-  for (const file of ctx.allMdFiles) {
+  for (const file of ctx.targetFiles) {
     // 跳过 .working 目录
     if (file.includes("/.working/")) continue;
 
@@ -644,6 +646,7 @@ export function validate(config: ValidationConfig): ValidationResult {
   let prds: string[];
   let phases: string[];
   let allMdFiles: string[];
+  let targetFiles: string[];
 
   if (config.files && config.files.length > 0) {
     // resolve relative paths against docsDir, 避免 allMdFiles 混用相对/绝对路径导致 ENOENT
@@ -656,14 +659,17 @@ export function validate(config: ValidationConfig): ValidationResult {
     for (const f of collectAllMdFiles(docsDir)) {
       if (!allMdFiles.includes(f)) allMdFiles.push(f);
     }
+    // scoped: 只扫描指定文件的链接，不扫全量
+    targetFiles = [...resolved];
   } else {
     const collected = collectDocsFiles(docsDir);
     prds = collected.prds;
     phases = collected.phases;
     allMdFiles = collectAllMdFiles(docsDir);
+    targetFiles = [...allMdFiles];
   }
 
-  const ctx: CheckContext = { docsDir, prds, phases, allMdFiles };
+  const ctx: CheckContext = { docsDir, prds, phases, allMdFiles, targetFiles };
 
   const allChecks: CheckResult[] = [];
 
