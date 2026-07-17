@@ -199,6 +199,7 @@ interface ToolDefinition<TParams, TDetails> {
 - Tool 是 **LLM 触发**（agent 在 turn 中自动调用）
 - Command 是 **用户触发**（`/name` 由用户输入）
 - sdd-pack 选用 Command（不暴露 Tool）—— 避免 LLM 在无人工确认时调用破坏性操作
+  - > **⚠️ 已被 [ADR-019(e)](../architecture/decisions.md#adr-019) 修订（2026-07-17）**：v1.4 的"只 Command 不 Tool"决策被反向修订。原因是 omp marketplace cache 漂移导致 slash command 在外部项目失效（详见 [经验文档](omp-slash-command-and-tool.md#坑-1)），而 `pi.registerTool` 注册的 tool 不依赖 cache。现为 **18 slash command + 18 sdd_* tool 共存**，共享 `src/cli/api.ts` 单一事实源。
 
 ### 2.3 ExtensionContext 接口（Command/Event 共用）
 
@@ -433,6 +434,7 @@ pi.registerCommand("sdd-validate", {
 
 **sdd-pack 决策**：仅用 Command，不暴露 Tool（`sdd-archive` 等破坏性操作应有人工确认）。
 
+> **⚠️ 已被 [ADR-019(e)](../architecture/decisions.md#adr-019) 修订（2026-07-17）**：现为 18 slash command + 18 sdd_* tool 共存。Tool 注册不替代 Command，两者互补——Command 适合人类输入，Tool 绕过 cache 漂移供 agent 调用。详见 [经验文档](omp-slash-command-and-tool.md)。
 ---
 
 ## 7. omp 生态参考项目
@@ -502,8 +504,14 @@ graph TB
 | 输出 UI 主体   | `setWidget` 多行 + `notify` 单行摘要 | 仅 notify（限一行）            | 校验结果 >10 行需 widget 呈现                       |
 | CI 路径        | `bun run src/cli/api-runner.ts` 薄壳 | 维护第二个 CLI                 | slash command 不能 CI 化，薄壳即可                  |
 
----
+> **⚠️ 部分决策已被 [ADR-019](../architecture/decisions.md#adr-019) 修订（2026-07-17）**：
+> - **扩展形态**：bin 字段重新引入，但仅服务外部项目 `bun add -D`/`bunx sdd` 路径，**不走 omp marketplace 装载**（与 ADR-009 不冲突，详见 [ADR-019(a) 场景限定](../architecture/decisions.md#adr-019)）
+> - **Tool 是否暴露**：从"不暴露"修订为"18 slash command + 18 sdd_* tool 共存"——cache 漂移暴露了 slash command 的脆弱性（详见 [经验文档 坑 1](omp-slash-command-and-tool.md#坑-1)）
+> - **CI 路径**：新增 `bunx sdd <cmd>` 短命令入口（bin.ts），`api-runner.ts` 薄壳保留
+>
+> 其余决策（command 注册数从 8→18、入口 manifest、hook 保留、输出 UI）不变。
 
+---
 ## 10. 相关文档索引
 
 | 文档                                  | 路径                                                                         | 关系                             |

@@ -52,7 +52,8 @@
 
 | [参考资料索引](reference/README.md) | omp 文档索引 | 2026-06-30 | omp marketplace / skills / rules / task agent / extension API 官方文档链接 |
 | [omp Task Agent 机制](reference/omp-task-agent.md) | agent 机制参考 | 2026-06-25 | agent 发现/合并/装载/执行约束，三层守门 agent 运行时依据 |
-| [Omp Extension API](reference/omp-extension-api.md) | extension API 参考 | 2026-06-30 | omp extension / slash command / UI / manifest 摘要,sdd-extension 实施期一手参考 |
+| [Omp Extension API](reference/omp-extension-api.md) | extension API 参考 | 2026-07-17 | omp extension / slash command / tool / UI / manifest 摘要;§2.2/§6.4/§9 已加 ADR-019 修订标注(command+tool 共存) |
+| [omp Slash Command + Tool 共存经验](reference/omp-slash-command-and-tool.md) | 实战经验 | 2026-07-17 | slash command 与 pi.registerTool 的机制对比 + 9 个实战坑(cache 漂移/zod 注入/状态机/测试污染/lore commit 拦截) |
 | [OpenSpec Harness 参考](reference/openspec-harness.md) | OpenSpec 规范 | 2026-07-01 | OpenSpec 文档驱动约束规范 — 本仓库 OpenSpec 范式依据（已归档，v1.8.0 移除）                            |
 | [OMP Verification](reference/omp-verification.md) | omp 装载实证 | 2026-07-01 | omp marketplace / extension / hook 装载路径实测记录                          |
 
@@ -64,6 +65,6 @@
 - Phase 总数：7（含 2 个已归档/已替换 + 2 个已完成/已发布 + 3 个已完成/v1.8）
 - PRD 总数：5（含 2 个已替换 + 3 个已发布）
 - 架构文档：4（decisions + overview + sdd-gate + sdd-cli-design 已归档）
-- 参考资料：5
+- 参考资料：6
 
 最后更新：2026-07-17
