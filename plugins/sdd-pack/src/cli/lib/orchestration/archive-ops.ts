@@ -44,6 +44,37 @@ export function moveToArchive(prdPath: string): string {
   return dest;
 }
 
+/**
+ * Phase 归档目标路径（ADR-019 Step 3a）
+ * 输入 phase doc 路径（如 docs/phase/<prdId>/001-foo.md）
+ * 返回 docs/phase/archive/<prdId>/<basename>
+ * 路径不可解析出 prdId 时 fallback 到 docs/phase/archive/<basename>
+ * 注意：与 archivePrdV2 第 7 步目标路径一致（docs/phase/archive/<prdId>/），二者可叠加
+ */
+export function archivePhaseDestPath(phasePath: string): string {
+  const bn = basename(phasePath);
+  // 路径形如 .../docs/phase/<prdId>/<phaseFile>.md；解 prdId
+  const segs = phasePath.split("/");
+  const phaseIdx = segs.lastIndexOf("phase");
+  if (phaseIdx >= 0 && phaseIdx + 1 < segs.length - 1) {
+    const prdId = segs[phaseIdx + 1];
+    return resolve(dirname(phasePath), "..", "archive", prdId, bn);
+  }
+  // fallback：无 prdId 子目录
+  return resolve(dirname(phasePath), "..", "archive", bn);
+}
+
+/**
+ * 移动文件到指定目标路径（并创建 dir）；返回新路径
+ * 与 moveToArchive 区别：调用方指定 dest（用于 phase 归档目标）
+ */
+export function moveToArchiveWithDest(srcPath: string, destPath: string): string {
+  const dir = dirname(destPath);
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  renameSync(srcPath, destPath);
+  return destPath;
+}
+
 /** reason=replaced 时:给旧 PRD 加 > 已被: 反向引用 */
 export function appendReplacedByRef(content: string, newPrdPath: string): string {
   if (content.includes("> 已被:")) return content;

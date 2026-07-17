@@ -626,6 +626,53 @@ function checkGlobalSingleton(ctx: CheckContext): CheckResult {
         : undefined,
   };
 }
+/**
+ * Check #12: 命令清单漂移校验（ADR-019 §3.2.4 扩面）
+ * 比对 sdd-router.ts SUBCOMMANDS + api-runner.ts switch case 两份命令清单一致。
+ * 数据源：src/cli/lib/orchestration/commands.generated.json（由 scripts/gen-commands-json.ts 生成）
+ * 规则：
+ *   - subcommands ⊆ apiRunnerCases（sdd-router 有的 api-runner 必须有）
+ *   - apiRunnerCases - subcommands ⊆ allowedExtraInRunner（api-runner 多出的只能是预定义的）
+ */
+function checkCommandListDrift(_ctx: CheckContext): CheckResult {
+  const generatedPath = resolve(import.meta.dir, "orchestration/commands.generated.json");
+  if (!existsSync(generatedPath)) {
+    return {
+      ruleId: 12,
+      name: "命令清单漂移",
+      severity: "warn",
+      passed: true,
+      message: "commands.generated.json 不存在，跳过（先跑 bun run scripts/gen-commands-json.ts）",
+    };
+  }
+  const data = JSON.parse(readFileSync(generatedPath, "utf-8")) as {
+    subcommands: string[];
+    apiRunnerCases: string[];
+    allowedExtraInRunner: string[];
+  };
+  const subSet = new Set(data.subcommands);
+  const runnerSet = new Set(data.apiRunnerCases);
+  const allowed = new Set(data.allowedExtraInRunner);
+
+  const missingInRunner = data.subcommands.filter((s) => !runnerSet.has(s));
+  const extraInRunner = data.apiRunnerCases.filter((s) => !subSet.has(s) && !allowed.has(s));
+
+  const problems: string[] = [];
+  if (missingInRunner.length > 0) {
+    problems.push(`api-runner 缺失: ${missingInRunner.join(", ")}`);
+  }
+  if (extraInRunner.length > 0) {
+    problems.push(`api-runner 多出(未在 allowedExtraInRunner): ${extraInRunner.join(", ")}`);
+  }
+
+  return {
+    ruleId: 12,
+    name: "命令清单漂移",
+    severity: "warn",
+    passed: problems.length === 0,
+    message: problems.length > 0 ? problems.join("; ") : undefined,
+  };
+}
 // ===== 校验引擎 =====
 
 /**
@@ -692,6 +739,8 @@ export function validate(config: ValidationConfig): ValidationResult {
       allChecks.push(checkGlobalSingleton(ctx));
     }
   }
+    // Check #12 在全量扫描时运行（不传 files 或非 rulesOnly），命令清单漂移与文档内容无关
+    if (!config.rulesOnly) allChecks.push(checkCommandListDrift(ctx));
 
   // 按 severity 阈值汇总
   const severityOrder: CheckSeverity[] = ["warn", "error", "block"];

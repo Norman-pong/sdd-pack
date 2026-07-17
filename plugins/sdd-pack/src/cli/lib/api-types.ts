@@ -160,6 +160,8 @@ export interface PhaseArchiveResult {
 export interface InitOptions {
   /** PRD 标题(必填) */
   title: string;
+  /** 覆盖自动生成的 slug（ASCII kebab-case）；ADR-019 §3.2.3 */
+  slug?: string;
   /** 仅允许覆盖空草稿(Draft + transitions 为空) */
   force?: boolean;
   dryRun?: boolean;

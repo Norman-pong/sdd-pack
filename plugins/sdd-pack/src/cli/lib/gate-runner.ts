@@ -308,6 +308,7 @@ export function runPrecommit(repoRoot: string): GateResult {
 /**
  * 阶段 5: commit
  * 调 lore commit，commit message JSON 通过参数传入。
+ * ADR-019 Step 10: 成功后反查 Lore-id + commitHash 填入 GateResult（非 breaking，旧调用方不需改）。
  */
 export function runCommit(repoRoot: string, commitMessageJson?: string): GateResult {
   if (!isLoreAvailable()) {
@@ -341,13 +342,70 @@ export function runCommit(repoRoot: string, commitMessageJson?: string): GateRes
     maxBuffer: 10 * 1024 * 1024,
   });
 
-  return {
+  const status: GateResult["status"] = r.status === 0 ? "pass" : "fail";
+  const result: GateResult = {
     stage: "commit",
-    status: r.status === 0 ? "pass" : "fail",
+    status,
     stdout: r.stdout ?? "",
     stderr: r.stderr ?? "",
     exitCode: r.status ?? 1,
   };
+
+  // 成功后反查 commitHash + Lore-id（ADR-019 Step 10）
+  // 策略：commit 成功后该 commit 一定是 lore log 最新一条；通过 git rev-parse HEAD + lore log --limit 1 --json 反查
+  if (status === "pass") {
+    try {
+      const hashR = spawnSync("git", ["rev-parse", "HEAD"], {
+        cwd: repoRoot,
+        encoding: "utf-8",
+      });
+      if (hashR.status === 0) result.commitHash = (hashR.stdout ?? "").trim();
+    } catch {
+      // git rev-parse 失败不阻塞 commit 结果
+    }
+    try {
+      const logR = spawnSync("lore", ["log", "--limit", "1", "--json"], {
+        cwd: repoRoot,
+        encoding: "utf-8",
+        maxBuffer: 10 * 1024 * 1024,
+      });
+      if (logR.status === 0) {
+        const parsed = JSON.parse(logR.stdout ?? "") as {
+          results?: Array<{ lore_id?: string; commit?: string }>;
+        };
+        const latest = parsed.results?.[0];
+        // 确认是本次 commit（hash 前 7 位匹配）
+        if (latest?.lore_id && (!result.commitHash || latest.commit?.startsWith(result.commitHash.slice(0, 7)))) {
+          result.loreId = latest.lore_id;
+        }
+      }
+    } catch {
+      // lore log 反查失败不阻塞 commit 结果
+    }
+  }
+
+  return result;
+}
+
+/**
+ * ADR-019 Step 10b: 从文件路径读 commit message JSON 再调 runCommit
+ * 避免 bash 中多行 JSON 字符串的 shell escape 问题
+ */
+export function runCommitWithFile(repoRoot: string, commitMessagePath: string): GateResult {
+  let message: string;
+  try {
+    message = readFileSync(commitMessagePath, "utf-8");
+  } catch (e) {
+    return {
+      stage: "commit",
+      status: "block",
+      stdout: "",
+      stderr: String(e),
+      exitCode: 2,
+      message: `无法读取 commit message 文件: ${commitMessagePath}`,
+    };
+  }
+  return runCommit(repoRoot, message);
 }
 
 // ===== review 产物写入（供 reviewer agent 调用） =====

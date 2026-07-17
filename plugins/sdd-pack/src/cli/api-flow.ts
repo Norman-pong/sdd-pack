@@ -8,8 +8,8 @@
  * 文件 IO 走 node:fs,不依赖 bun,不调 process.exit / console.*。
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, readdirSync } from "node:fs";
-import { resolve, relative, dirname, basename } from "node:path";
+import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, readdirSync, rmdirSync } from "node:fs";
+import {resolve, relative, dirname, basename, sep} from "node:path";
 
 import type {
   InitOptions,
@@ -159,6 +159,7 @@ export async function initPrd(opts: InitOptions): Promise<InitResult> {
       type: "full",
       title,
       date: today,
+      slug: opts.slug,
     });
     const filePath = activePrd
       ? resolve(findRepoRoot(), activePrd.filePath)
@@ -523,6 +524,20 @@ export async function startPrd(): Promise<StartResult> {
 
 // ===== 7. archivePrdV2（ADR-018 F7） =====
 
+
+// ===== ADR-019 测试钩子：允许测试注入 renameSync 失败 =====
+// 计数 + 触发点都走 globalThis，避免跨测试累积污染
+function renameSyncWithTestHook(src: string, dest: string): void {
+  const g = globalThis as Record<string, unknown>;
+  if (typeof g.__SDD_TEST_RENAME_COUNT !== "number") g.__SDD_TEST_RENAME_COUNT = 0;
+  g.__SDD_TEST_RENAME_COUNT = (g.__SDD_TEST_RENAME_COUNT as number) + 1;
+  const injectAt = g.__SDD_TEST_INJECT_RENAME_FAIL;
+  if (typeof injectAt === "number" && g.__SDD_TEST_RENAME_COUNT === injectAt) {
+    throw new Error(`注入失败: renameSync 第 ${injectAt} 次调用（测试钩子）`);
+  }
+  return renameSync(src, dest);
+}
+
 export async function archivePrdV2(opts: ArchiveOptionsV2): Promise<ArchiveResultV2> {
   const r: ArchiveResultV2 = { status: "pass", errors: [], warnings: [] };
   try {
@@ -583,42 +598,78 @@ export async function archivePrdV2(opts: ArchiveOptionsV2): Promise<ArchiveResul
       updatedAt: now,
     };
 
-    // 更新 markdown 状态行
+    // ===== ADR-019 §3.2.1: 归档原子化（快照 + 逆序回滚）=====
     const filePath = resolve(repoRoot, meta.filePath);
-    const content = readFileSync(filePath, "utf-8");
-    const newStatusLine = generatePrdStatusLine(updatedMeta);
-    const updatedContent = applyStatusLine(content, newStatusLine);
-    writeFileSync(filePath, updatedContent, "utf-8");
+    // 快照可变状态（PRD meta + Phase metas + index.md + PRD markdown）
+    const indexPath = resolve(repoRoot, "docs/index.md");
+    const snapshot = {
+      prdMetaRaw: readFileSync(resolve(repoRoot, ".sdd/meta/prd", `${meta.id}.json`), "utf-8"),
+      phaseMetasRaw: listPhaseMetas(meta.id).map((p) => ({
+        id: p.id,
+        raw: readFileSync(resolve(repoRoot, ".sdd/meta/phase", `${p.id}.json`), "utf-8"),
+      })),
+      indexRaw: existsSync(indexPath) ? readFileSync(indexPath, "utf-8") : null,
+      prdMarkdownRaw: readFileSync(filePath, "utf-8"),
+      phaseMarkdownsRaw: listPhaseMetas(meta.id).map((p) => ({
+        id: p.id,
+        abs: resolve(repoRoot, p.filePath),
+        raw: existsSync(resolve(repoRoot, p.filePath)) ? readFileSync(resolve(repoRoot, p.filePath), "utf-8") : null,
+      })),
+    };
+    const fileMoves: Array<{ from: string; to: string }> = [];
 
-    // 写入 meta.json
-    writePrdMeta(updatedMeta);
-
-    // 归档(completed/abandoned 都移动文件到 archive/;ADR-016: Archived=文件已移入 archive/)
-    // 差异仅在门禁(completed 有 lint/test/review + Phase 全完成检查),移动与一致性处理两者一致
-    let movedTo: string | undefined;
-    {
+    try {
       const archiveDir = resolve(dirname(filePath), "archive");
       if (!existsSync(archiveDir)) mkdirSync(archiveDir, { recursive: true });
       const dest = resolve(archiveDir, basename(filePath));
-      renameSync(filePath, dest);
-      movedTo = relative(repoRoot, dest);
+      renameSyncWithTestHook(filePath, dest);
+      fileMoves.push({ from: filePath, to: dest });
+      let movedTo = relative(repoRoot, dest);
 
-      // 移动 Phase 分组目录
+      // 移动 Phase 分组目录（处理 phase 已先归档的情况）
       const phaseGroupDir = resolve(repoRoot, "docs", "phase", meta.id);
+      let phaseGroupMoved = false;
+      let phaseArchiveDir: string | null = null;
       if (existsSync(phaseGroupDir)) {
-        const phaseArchiveDir = resolve(repoRoot, "docs", "phase", "archive", meta.id);
-        const phaseArchiveParent = dirname(phaseArchiveDir);
-        if (!existsSync(phaseArchiveParent)) mkdirSync(phaseArchiveParent, { recursive: true });
-        renameSync(phaseGroupDir, phaseArchiveDir);
+        phaseArchiveDir = resolve(repoRoot, "docs", "phase", "archive", meta.id);
+        const phaseGroupEntries = readdirSync(phaseGroupDir);
+        if (phaseGroupEntries.length === 0) {
+          // phase 目录为空（phase 已先归档）：直接删除空目录，不移动
+          rmdirSync(phaseGroupDir);
+          phaseGroupMoved = true; // 标记已处理，跳过后续 phase meta 批量重写
+        } else {
+          const phaseArchiveParent = dirname(phaseArchiveDir);
+          if (!existsSync(phaseArchiveParent)) mkdirSync(phaseArchiveParent, { recursive: true });
+          if (existsSync(phaseArchiveDir)) {
+            // 目标已存在（部分 phase 已先归档）：合并源文件到目标，再删空源目录
+            for (const entry of phaseGroupEntries) {
+              const from = resolve(phaseGroupDir, entry);
+              const to = resolve(phaseArchiveDir, entry);
+              renameSyncWithTestHook(from, to);
+              fileMoves.push({ from, to });
+            }
+            rmdirSync(phaseGroupDir);
+          } else {
+            renameSyncWithTestHook(phaseGroupDir, phaseArchiveDir);
+            fileMoves.push({ from: phaseGroupDir, to: phaseArchiveDir });
+          }
+          phaseGroupMoved = true;
+        }
       }
+
+      // 更新 PRD markdown 状态行（在归档后的新位置）
+      const newStatusLine = generatePrdStatusLine(updatedMeta);
+      let prdContent = readFileSync(dest, "utf-8");
+      prdContent = applyStatusLine(prdContent, newStatusLine);
+      writeFileSync(dest, prdContent, "utf-8");
 
       // 更新 meta.filePath 到归档位置并回写(保持 meta 与磁盘一致)
       const finalMeta: PrdMeta = { ...updatedMeta, filePath: movedTo };
       writePrdMeta(finalMeta);
 
-      // 构建 old→new 绝对路径映射(PRD + 所有 Phase),供链接重写时把已移动目标指到新位置
+      // 构建 old→new 绝对路径映射
       const pathMap = new Map<string, string>();
-      pathMap.set(filePath, dest); // PRD old abs → new abs
+      pathMap.set(filePath, dest);
       const phases = listPhaseMetas(meta.id);
       for (const p of phases) {
         pathMap.set(
@@ -627,7 +678,7 @@ export async function archivePrdV2(opts: ArchiveOptionsV2): Promise<ArchiveResul
         );
       }
 
-      // 重写 PRD 内部链接(自身下移一层 + 目标可能也移动)
+      // 重写 PRD 内部链接
       rewriteMovedDocLinks(dest, dirname(filePath), dirname(dest), pathMap);
 
       // 更新所有 Phase meta.filePath + 重写 Phase 内部链接
@@ -647,18 +698,77 @@ export async function archivePrdV2(opts: ArchiveOptionsV2): Promise<ArchiveResul
           rewriteMovedDocLinks(newPhaseAbs, dirname(oldPhaseAbs), dirname(newPhaseAbs), pathMap);
         }
       }
+
+      // 更新 index.md(归档后用新路径,确保链接指向 archive/)
+      updateIndexEntry(indexPath, filePath, PrdStatus.Archived, resolve(repoRoot, movedTo));
+
+      // ===== ADR-019 §3.2.2: 归档后自检（Check #9 + 四要素断言，失败也回滚）=====
+      const selfCheckErrors: string[] = [];
+      // 断言 1: PRD 已移到 archive/
+      if (!dest.includes(`${sep}archive${sep}`) && !dest.endsWith(`${sep}archive`)) {
+        selfCheckErrors.push(`PRD 未移到 archive/: ${dest}`);
+      }
+      // 断言 2: meta.filePath 与磁盘一致
+      if (finalMeta.filePath !== movedTo) {
+        selfCheckErrors.push(`meta.filePath(${finalMeta.filePath}) ≠ 磁盘位置(${movedTo})`);
+      }
+      // 断言 3: index.md 已更新（用 basename 查）
+      const indexAfter = readFileSync(indexPath, "utf-8");
+      const prdBn = basename(filePath);
+      const indexLine = indexAfter.split("\n").find((l) => l.includes(prdBn) && l.startsWith("|"));
+      if (!indexLine || !indexLine.includes("archive/")) {
+        selfCheckErrors.push(`index.md 链接未指向 archive/: ${indexLine ?? "(未找到)"}`);
+      }
+      if (selfCheckErrors.length > 0) {
+        throw new Error(`归档后自检失败: ${selfCheckErrors.join("; ")}`);
+      }
+
+      r.prdId = meta.id;
+      r.from = meta.status;
+      r.to = PrdStatus.Archived;
+      r.movedTo = movedTo;
+      r.next = "归档完成,可执行 /sdd init 创建新 PRD";
+      return r;
+    } catch (rollbackErr) {
+      // 逆序回滚：先 rename 回去，再用快照还原被覆盖写的文件
+      for (let i = fileMoves.length - 1; i >= 0; i--) {
+        const { from, to } = fileMoves[i];
+        try {
+          if (existsSync(to) && !existsSync(from)) renameSync(to, from);
+        } catch {
+          // 回滚本身失败：忽略，继续尝试其他还原
+        }
+      }
+      // 还原快照
+      try {
+        writeFileSync(resolve(repoRoot, ".sdd/meta/prd", `${meta.id}.json`), snapshot.prdMetaRaw, "utf-8");
+      } catch {}
+      for (const pm of snapshot.phaseMetasRaw) {
+        try {
+          writeFileSync(resolve(repoRoot, ".sdd/meta/phase", `${pm.id}.json`), pm.raw, "utf-8");
+        } catch {}
+      }
+      if (snapshot.indexRaw !== null) {
+        try {
+          writeFileSync(indexPath, snapshot.indexRaw, "utf-8");
+        } catch {}
+      }
+      try {
+        writeFileSync(filePath, snapshot.prdMarkdownRaw, "utf-8");
+      } catch {}
+      for (const pm of snapshot.phaseMarkdownsRaw) {
+        if (pm.raw !== null) {
+          try {
+            writeFileSync(pm.abs, pm.raw, "utf-8");
+          } catch {}
+        }
+      }
+      r.status = "error";
+      r.errors.push(
+        `归档失败已回滚: ${rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr)}`,
+      );
+      return r;
     }
-
-    // 更新 index.md(归档后用新路径,确保链接指向 archive/)
-    const indexPath = resolve(repoRoot, "docs/index.md");
-    updateIndexEntry(indexPath, filePath, PrdStatus.Archived, movedTo ? resolve(repoRoot, movedTo) : undefined);
-
-    r.prdId = meta.id;
-    r.from = meta.status;
-    r.to = PrdStatus.Archived;
-    r.movedTo = movedTo;
-    r.next = "归档完成,可执行 /sdd init 创建新 PRD";
-    return r;
   } catch (e) {
     r.status = "error";
     r.errors.push(errMsg(e));

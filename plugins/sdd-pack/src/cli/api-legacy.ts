@@ -8,7 +8,7 @@
  */
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync, statSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { resolve, dirname, relative } from "node:path";
 import { spawnSync } from "node:child_process";
 
 import type {
@@ -54,8 +54,14 @@ import {
   appendSupersedesRef,
   syncIndex,
   mergeDelta,
+  archivePhaseDestPath,
+  moveToArchiveWithDest,
 } from "./lib/orchestration/archive-ops";
 import { findRepoRoot } from "./lib/path";
+import { readPhaseMeta, writePhaseMeta, readMetaIndex, type PhaseMeta } from "./lib/meta-store";
+import { isPhaseTransitionAllowed } from "./lib/prd-state-machine";
+import { rewriteMovedDocLinks } from "./lib/orchestration/doc-links";
+import { updateIndexEntry } from "./lib/index-sync";
 
 function errMsg(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
@@ -376,10 +382,9 @@ export async function getApplyChecklist(prdPath: string): Promise<ApplyResult> {
 
 // ===== 9. archivePhase（ADR-017） =====
 
-/** Phase 归档状态行（ADR-017: completed→已完成, abandoned→已废弃） */
-function buildPhaseArchiveStatusLine(reason: "completed" | "abandoned", today: string): string {
-  const label = reason === "completed" ? PhaseStatus.Completed : PhaseStatus.Abandoned;
-  return `> 状态：${label} | 归档日期：${today}`;
+/** Phase 归档状态行（ADR-017: 已完成/已废弃 + 归档日期） */
+function buildPhaseArchiveStatusLine(status: PhaseStatus, today: string): string {
+  return `> 状态：${status} | 归档日期：${today}`;
 }
 
 export async function archivePhase(opts: PhaseArchiveOptions): Promise<PhaseArchiveResult> {
@@ -393,31 +398,126 @@ export async function archivePhase(opts: PhaseArchiveOptions): Promise<PhaseArch
     warnings: [],
   };
   try {
-    const phasePath = requireFile(resolve(findRepoRoot(), opts.phasePath));
+    const repoRoot = findRepoRoot();
+    const phasePathAbs = requireFile(resolve(repoRoot, opts.phasePath));
     const reason = opts.reason;
-    if (opts.dryRun) {
-      r.operations.push(`(dry-run) 状态行 → ${reason}`);
+
+    // Step 1: 通过 filePath 反查 phase meta（meta id 是 phs-NNN-NNN 格式，与文件名不同）
+    const phaseBn = phasePathAbs.split("/").pop() ?? "";
+    const phaseRel = phasePathAbs.replace(repoRoot, "").replace(/^\//, "");
+    const metaIndex = readMetaIndex();
+    let meta: PhaseMeta | null = null;
+    for (const pid of metaIndex.phaseIds) {
+      const m = readPhaseMeta(pid);
+      if (m && (m.filePath === phaseRel || m.filePath === opts.phasePath)) {
+        meta = m;
+        break;
+      }
+    }
+    if (meta) {
+      // ADR-017: Completed/Abandoned 是终态，归档是物理操作不是状态迁移
+      // 校验：phase 必须已达终态（Completed/Abandoned）才能归档
+      // reason 只决定归档标签（已完成|归档日期 vs 已废弃|归档日期），不触发状态迁移
+      const isTerminal =
+        meta.status === PhaseStatus.Completed || meta.status === PhaseStatus.Abandoned;
+      if (!isTerminal) {
+        r.status = "error";
+        r.errors.push(
+          `phase ${meta.id} 当前状态 "${meta.status}" 非终态，归档前必须先执行 /sdd phase ${reason === "completed" ? "complete" : "abandon"}`,
+        );
+        return r;
+      }
+      // 如果当前状态与 reason 不一致，用 reason 作为归档标签（语义上 reason=abandoned 标记废弃归档）
+      // 但不改变 meta.status——ADR-017 终态无出边
+    } else {
+      // meta 缺失：ADR-018 meta.json 是事实源，无 meta 的 phase 不应归档（会导致文件移动但 meta 不同步）
+      r.status = "error";
+      r.errors.push(`未找到 phase meta: ${phaseRel}，无法安全归档（meta.json 是事实源，缺失 meta 意味着 phase 未经 sdd 流程创建）`);
       return r;
     }
-    const content = readFileSync(phasePath, "utf-8");
-    const newLine = buildPhaseArchiveStatusLine(reason, todayStr());
+    if (opts.dryRun) {
+      r.operations.push(
+        `(dry-run) 状态行 → ${reason}`,
+        `(dry-run) 物理移动 → archive/`,
+        `(dry-run) meta.filePath 更新`,
+        `(dry-run) PRD 回指链接重写`,
+        `(dry-run) index.md phase 表更新`,
+      );
+      return r;
+    }
+
+    // Step 2: 改状态行（用 meta.status，而非 reason——ADR-017 终态为准）
+    const content = readFileSync(phasePathAbs, "utf-8");
+    const lineStatus = meta?.status ?? (reason === "completed" ? PhaseStatus.Completed : PhaseStatus.Abandoned);
+    const newLine = buildPhaseArchiveStatusLine(lineStatus, todayStr());
     const updated = applyStatusLine(content, newLine);
     r.statusLineUpdated = updated !== content;
-    writeFileSync(phasePath, updated, "utf-8");
-    r.operations.push(`状态行更新 → ${reason === "completed" ? "已完成" : "已废弃"}`);
-    r.indexSynced = syncIndex(
-      resolve(findRepoRoot(), "docs/index.md"),
-      phasePath,
-      reason === "completed" ? "completed" : "abandoned",
-      phasePath.split("/").pop()?.replace(/\.md$/, "") ?? "",
-    );
+    writeFileSync(phasePathAbs, updated, "utf-8");
+    r.operations.push(`状态行更新 → ${lineStatus} | 归档日期：${todayStr()}`);
+
+    // Step 3: 物理移动到 archive/
+    const newPathAbs = moveToArchiveWithDest(phasePathAbs, archivePhaseDestPath(phasePathAbs));
+    r.operations.push(`物理移动 → ${newPathAbs.replace(repoRoot, "")}`);
+
+    // Step 4: 更新 phase meta.filePath 指向新路径
+    if (meta) {
+      const newRel = newPathAbs.replace(repoRoot, "").replace(/^\//, "");
+      writePhaseMeta({ ...meta, filePath: newRel });
+      r.operations.push(`meta.filePath 更新 → ${newRel}`);
+    }
+
+    // Step 5: 重写 PRD 对应阶段链接（phase 文件移动后，内部相对链接也要修）
+    const oldDir = dirname(phasePathAbs);
+    const newDir = dirname(newPathAbs);
+    rewriteMovedDocLinks(newPathAbs, oldDir, newDir);
+    // 修 PRD 的 "> 对应阶段:" 链接（basename 不变，相对路径变了）
+    const activePrd = readFileSync(resolve(repoRoot, ".sdd/meta/index.json"), "utf-8");
+    let prdId: string | null = null;
+    try {
+      const idx = JSON.parse(activePrd) as { activePrdId?: string | null };
+      prdId = idx.activePrdId ?? null;
+    } catch {
+      // ignore parse error
+    }
+    if (prdId) {
+      const prdMetaPath = resolve(repoRoot, ".sdd/meta/prd", `${prdId}.json`);
+      if (existsSync(prdMetaPath)) {
+        const prdMetaRaw = readFileSync(prdMetaPath, "utf-8");
+        const prdMeta = JSON.parse(prdMetaRaw) as { filePath?: string };
+        if (prdMeta.filePath) {
+          const prdAbs = resolve(repoRoot, prdMeta.filePath);
+          if (existsSync(prdAbs)) {
+            let prdContent = readFileSync(prdAbs, "utf-8");
+            const oldLinkRegex = new RegExp(
+              `\\]\\([^)]*${phaseBn.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\)`,
+              "g",
+            );
+            // 用 relative 计算 prd -> 新 phase 的相对路径
+            const relLink = relative(dirname(prdAbs), newPathAbs);
+            if (oldLinkRegex.test(prdContent)) {
+              prdContent = prdContent.replace(oldLinkRegex, `](${relLink})`);
+              writeFileSync(prdAbs, prdContent, "utf-8");
+              r.operations.push(`PRD 对应阶段链接重写 → ${relLink}`);
+            }
+          }
+        }
+      }
+    }
+
+    // Step 6: 更新 index.md phase 表格（复用通用 updateIndexEntry，按 basename 匹配）
+    const indexPath = resolve(repoRoot, "docs/index.md");
+    const statusLabel = reason === "completed" ? "已完成" : "已废弃";
+    r.indexSynced = updateIndexEntry(indexPath, phaseBn, statusLabel, newPathAbs);
+    if (r.indexSynced) r.operations.push(`index.md phase 表更新 → ${statusLabel}`);
+
+    // Step 7: lore commit（保留）
     if (!opts.noCommit) {
       if (isLoreAvailable()) {
-        const trailer = buildTrailer("archive", `归档 Phase: ${phasePath} (${reason})`, "docs", [
-          phasePath,
+        const trailer = buildTrailer("archive", `归档 Phase: ${opts.phasePath} (${reason})`, "docs", [
+          opts.phasePath,
         ]);
         const lr = await loreCommit(
-          `archive-phase(${reason}): ${phasePath.split("/").pop()}`,
+          `archive-phase(${reason}): ${phaseBn}`,
           trailer,
         );
         r.loreCommitted = lr.success;

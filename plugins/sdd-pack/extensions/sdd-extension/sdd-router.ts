@@ -1,8 +1,8 @@
 /**
- * sdd-router.ts — /sdd 主命令路由 + 15 个子命令 handler (ADR-018 Phase 001+002+003)
+ * sdd-router.ts — /sdd 主命令路由 + 18 个子命令 handler (ADR-018 Phase 001+002+003)
  *
- * 子命令: init, review, approve, back, plan, start, archive, phase, status,
- *         sync, list, why, apply, validate, gate
+ * 子命令: init, review, approve, back, plan, start, archive, phase, phase-archive,
+ *         status, sync, list, why, apply, validate, propose, migrate, gate
  * 无状态,不做校验逻辑(校验在 api/lib 层)。
  */
 

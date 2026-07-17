@@ -19,6 +19,31 @@ description: |
 
 本技能管理一套完整的软件开发文档体系，包括需求文档（PRD）、阶段任务（Phase）、架构文档（Architecture）、参考资料（Reference），以及索引和贡献指南。
 
+## 插件版本探测（ADR-019）
+
+调用 `/sdd <sub>` 命令前，若遇到"未知子命令"或命令行为与文档不符，可能是 omp marketplace cache 漂移（cache 仍是旧版本，而 symlink 指向新源码）：
+
+```sh
+# 1. 查 omp 锁文件版本
+cat ~/.omp/plugins/omp-plugins.lock.json
+# 2. 查 symlink 真实指向
+readlink ~/.omp/plugins/node_modules/sdd-pack
+# 3. 版本不一致时刷新 cache
+omp plugin install sdd-pack --force
+```
+
+外部项目（非 sdd-pack 仓库自身）优先用 `bunx sdd <sub>` 真命令（ADR-019 bin 入口），不依赖 omp cache。
+
+## 项目类型前置识别
+
+遇到不熟悉的项目类型时，**先读项目骨架再行动**，不要凭通用经验推断：
+
+- **vite-plus + buf 项目**（如 sw-nvr）：先读 `package.json#scripts.genApi` + `protoFiles/bin/*/gen-api.sh` 确认 codegen 工具链存在；API 客户端由 `genApi`/`buf generate` 自动生成（含 get/post/put/delete/patch 5 种方法），**禁止手写 stub**
+- **Elysia + Eden Treaty 项目**：API 类型从 server workspace 的 App 类型自动推导，**禁止手写 API 类型**
+- **通用原则**：发现 `package.json#scripts` 含 `gen*`/`generate*`/`codegen*` 时，先生成再写业务代码
+
+误判代价：sw-nvr session 实测 agent 没读 `genApi` 配置，凭通用经验决定"给 BaseApi 加 patchJson"，经 3 次 advisory + 1 次 user steering 才纠正——**读项目骨架 30 秒胜过 3 轮纠偏 30 分钟**。
+
 ## 何时使用此技能
 
 **必须触发**的场景：
@@ -132,6 +157,36 @@ echo '{
 - `Confidence`（可选）：信心级别（low/medium/high）
 - `Tested`（可选）：已验证的内容
 - `Not-tested`（可选）：未验证的内容
+
+#### 引用其他 commit 的 Lore-id（Related / Supersedes / Depends-on）
+
+`Related` / `Supersedes` / `Depends-on` 字段需要 **8-char hex Lore-id**，**不是 git commit hash**（7-char short hash）。Lore-id 是 lore CLI 在 commit 时自动生成的独立命名空间。
+
+获取某 commit 的 Lore-id：
+
+```bash
+# 方法 1：按文件路径查最近一条 lore commit 的 lore_id
+lore log <file-path> --limit 1 --json | grep lore_id
+
+# 方法 2：按 git hash 反查（取最新一条 lore log，比对 commit 字段前 7 位）
+lore log --limit 20 --json | jq ".results[] | select(.commit | startswith(\"<短hash>\")) | .lore_id"
+
+# 方法 3：runCommit 返回值（ADR-019 Step 10）—— gate-runner.ts 成功后 GateResult.loreId 字段
+```
+
+引用示例：
+
+```json
+{
+  "intent": "refactor: extract withRollback",
+  "trailers": {
+    "Related": ["2c22153e"],
+    "Supersedes": ["a9004e8c"]
+  }
+}
+```
+
+**错误模式**：直接填 git short hash（7-char）→ lore commit 报 `Invalid Lore-id reference... Must be 8-character hex`。
 
 ## 常见场景
 

@@ -16,6 +16,7 @@ import {
 import type { CheckSeverity } from "../../src/cli/lib/validator";
 import { stagedFiles } from "../../src/cli/lib/orchestration/git";
 import { handleSdd } from "./sdd-router";
+import { registerSddTools } from "./tools";
 import { runReview } from "../../src/cli/lib/gate-runner";
 
 // ===== 类型兜底(unknown,跟 hooks/sdd/index.ts 同构) =====
@@ -26,6 +27,10 @@ interface ExtensionAPI {
   ): void;
   on(event: string, handler: (e: unknown) => void | Promise<unknown>): void;
   sendMessage(msg: { role: "system" | "user"; content: string }): void;
+  /** ADR-019 Step 12: omp tool 注册 API（17.0+ 一等公民） */
+  registerTool?(tool: unknown): void;
+  /** omp 注入的 zod 实例（用于 tool parameters schema） */
+  zod?: { z: unknown };
 }
 interface ToolCallBlockResult {
   block: true;
@@ -107,6 +112,18 @@ const SDD_COMMAND_REMINDER = [
   "  /sdd sync [--fix]                        # meta↔markdown 同步",
   "",
   "状态行篡改会被 tool_call 硬拦截(block)。",
+].join("\n");
+
+const SDD_VERSION_PROBE_REMINDER = [
+  "📜 sdd-pack 版本探测(始终生效,sdd-pack extension ADR-019 注入):",
+  "",
+  "调用 /sdd 命令前,如果遇到 '未知子命令' 或命令行为与文档不符,可能是 omp marketplace cache 漂移:",
+  "  1. cat ~/.omp/plugins/omp-plugins.lock.json  # 查 version + enabled",
+  "  2. readlink ~/.omp/plugins/node_modules/sdd-pack  # 查 symlink 真实指向",
+  "  3. 若版本不一致: omp plugin install sdd-pack --force  # 刷新 cache",
+  "  4. 或绕过 slash command,直接用 bunx sdd <sub>  # ADR-019 新增 bin 入口",
+  "",
+  "外部项目(非 sdd-pack 仓库)优先用 bunx sdd <sub>(真 CLI,不依赖 omp cache)。",
 ].join("\n");
 
 const DOCS_UPDATE_HINT =
@@ -205,10 +222,11 @@ export default function (pi: ExtensionAPI): void {
     handler: handleSdd,
   });
 
-  // ===== session_start — 注入 lore protocol + SDD command reminder =====
+  // ===== session_start — 注入 lore protocol + SDD command + 版本探测 reminder =====
   pi.on("session_start", (_e) => {
     pi.sendMessage({ role: "system", content: LORE_PROTOCOL_REMINDER });
     pi.sendMessage({ role: "system", content: SDD_COMMAND_REMINDER });
+    pi.sendMessage({ role: "system", content: SDD_VERSION_PROBE_REMINDER });
   });
 
   // ===== tool_call — commit 硬拦截 + docs/ 写入提示 =====
@@ -264,4 +282,10 @@ export default function (pi: ExtensionAPI): void {
       }
     }
   });
+
+  // ===== ADR-019 Step 12: 注册 18 个 sdd_* omp tool（绕过 slash command cache 漂移）=====
+  // pi.registerTool 在 omp 17.0+ 可用；旧版本静默跳过（仍走 slash command）
+  if (typeof pi.registerTool === "function") {
+    registerSddTools(pi as Parameters<typeof registerSddTools>[0]);
+  }
 }

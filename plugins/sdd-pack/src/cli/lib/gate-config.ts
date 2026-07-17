@@ -38,6 +38,10 @@ export interface GateResult {
   stderr: string;
   exitCode: number;
   message?: string;
+  /** commit 阶段专用：成功后的 git commit hash（ADR-019 Step 10） */
+  commitHash?: string;
+  /** commit 阶段专用：成功后的 Lore-id（8-char hex，通过 lore log 反查；ADR-019 Step 10） */
+  loreId?: string;
 }
 
 /** gate.json 路径 */

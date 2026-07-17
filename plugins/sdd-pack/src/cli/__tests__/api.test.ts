@@ -176,15 +176,139 @@ describe("archivePhase", () => {
     expect(r.status).toBe("error");
   });
 
-  test("dry-run on existing phase succeeds with noCommit", async () => {
-    const r = await archivePhase({
-      phasePath: "docs/phase/archive/2026-06-24-sdd-pack.md",
-      reason: "completed",
-      dryRun: true,
-      noCommit: true,
-    });
-    expect(r.status).toBe("pass");
-    expect(r.operations.length).toBeGreaterThan(0);
+  test("dry-run on phase with file but no meta returns error", async () => {
+    // ADR-018: meta.json 是事实源。文件存在但 meta 反查无匹配，应 error
+    const tmpRoot = pathResolve(import.meta.dir, "../../.test-tmp-archive-phase-nometa");
+    if (existsSync(tmpRoot)) rmSync(tmpRoot, { recursive: true, force: true });
+    const docsPhase = pathResolve(tmpRoot, "docs/phase/prd-20260717-001");
+    const docsPrd = pathResolve(tmpRoot, "docs/prd");
+    for (const d of [docsPhase, docsPrd]) mkdirSync(d, { recursive: true });
+    mkdirSync(pathResolve(tmpRoot, ".sdd/meta"), { recursive: true });
+    const phaseRel = "docs/phase/prd-20260717-001/001-foundation.md";
+    writeFileSync(pathResolve(tmpRoot, phaseRel), `# Phase 001\n\n> 状态：已完成\n`);
+    // 有 index.json 但 phaseIds 为空（无 phase meta）
+    writeFileSync(
+      pathResolve(tmpRoot, ".sdd/meta/index.json"),
+      JSON.stringify({ activePrdId: null, prdIds: [], phaseIds: [], updatedAt: "2026-07-17T00:00:00.000Z" }),
+    );
+    const originalCwd = process.cwd();
+    process.chdir(tmpRoot);
+    try {
+      const r = await archivePhase({ phasePath: phaseRel, reason: "completed", dryRun: true, noCommit: true });
+      expect(r.status).toBe("error");
+      expect(r.errors[0]).toMatch(/未找到 phase meta/);
+    } finally {
+      process.chdir(originalCwd);
+      rmSync(tmpRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("dry-run on terminal phase with meta succeeds", async () => {
+    // ADR-017 happy path: phase 已到终态（Completed）+ 有 meta，dry-run 应成功
+    const tmpRoot = pathResolve(import.meta.dir, "../../.test-tmp-archive-phase-dryrun");
+    if (existsSync(tmpRoot)) rmSync(tmpRoot, { recursive: true, force: true });
+    const docsPhase = pathResolve(tmpRoot, "docs/phase/prd-20260717-001");
+    const docsPrd = pathResolve(tmpRoot, "docs/prd");
+    const metaPhase = pathResolve(tmpRoot, ".sdd/meta/phase");
+    for (const d of [docsPhase, docsPrd, metaPhase]) mkdirSync(d, { recursive: true });
+    const phaseRel = "docs/phase/prd-20260717-001/001-foundation.md";
+    writeFileSync(pathResolve(tmpRoot, phaseRel), `# Phase 001\n\n> 状态：已完成\n`);
+    const phaseMeta: PhaseMeta = {
+      id: "001-foundation", parentId: "prd-20260717-001", title: "Foundation",
+      status: PhaseStatus.Completed, seq: 1, transitions: [],
+      createdAt: "2026-07-17T00:00:00.000Z", updatedAt: "2026-07-17T00:00:00.000Z",
+      filePath: phaseRel,
+    };
+    writeFileSync(pathResolve(metaPhase, "001-foundation.json"), JSON.stringify(phaseMeta));
+    writeFileSync(
+      pathResolve(tmpRoot, ".sdd/meta/index.json"),
+      JSON.stringify({ activePrdId: null, prdIds: [], phaseIds: ["001-foundation"], updatedAt: "2026-07-17T00:00:00.000Z" }),
+    );
+    const originalCwd = process.cwd();
+    process.chdir(tmpRoot);
+    try {
+      const r = await archivePhase({ phasePath: phaseRel, reason: "completed", dryRun: true, noCommit: true });
+      expect(r.status).toBe("pass");
+      expect(r.operations.length).toBeGreaterThan(0);
+    } finally {
+      process.chdir(originalCwd);
+      rmSync(tmpRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("集成: 物理移动 + meta.filePath 更新 + PRD 回指重写", async () => {
+    const tmpRoot = pathResolve(import.meta.dir, "../../.test-tmp-archive-phase-integ");
+    if (existsSync(tmpRoot)) rmSync(tmpRoot, { recursive: true, force: true });
+    const docsPhase = pathResolve(tmpRoot, "docs/phase/prd-20260717-001");
+    const docsPhaseArchive = pathResolve(tmpRoot, "docs/phase/archive/prd-20260717-001");
+    const metaPhase = pathResolve(tmpRoot, ".sdd/meta/phase");
+    const metaPrd = pathResolve(tmpRoot, ".sdd/meta/prd");
+    for (const d of [docsPhase, docsPhaseArchive, metaPhase, metaPrd]) mkdirSync(d, { recursive: true });
+
+    // PRD markdown 含 "> 对应阶段:" 回指 phase 链接
+    const prdPath = pathResolve(tmpRoot, "docs/prd/2026-07-17-test.md");
+    mkdirSync(pathResolve(tmpRoot, "docs/prd"), { recursive: true });
+    const phaseRel = "docs/phase/prd-20260717-001/001-foundation.md";
+    const phaseAbs = pathResolve(tmpRoot, phaseRel);
+    writeFileSync(
+      prdPath,
+      `# Test PRD\n\n> 状态：已规划任务\n> 对应阶段：[001-foundation](../phase/prd-20260717-001/001-foundation.md)\n`,
+    );
+    writeFileSync(phaseAbs, `# Phase 001\n\n> 状态：已完成\n`);
+    writeFileSync(
+      pathResolve(tmpRoot, "docs/index.md"),
+      `# idx\n\n## 产品需求文档（PRD）\n\n| 日期 | 文档名称 | 状态 | 对应 Phase | 说明 |\n| ---- | -------- | ---- | ---------- | ---- |\n\n## 阶段文档（Phase）\n\n| 日期 | 阶段名称 | 状态 | 对应 PRD | 说明 |\n| ---- | -------- | ---- | -------- | ---- |\n| 2026-07-17 | [001-foundation](phase/prd-20260717-001/001-foundation.md) | 进行中 | — | — |\n`,
+    );
+
+    // phase meta（Completed 终态 — ADR-017: 归档前 phase 必须已到终态）
+    const phaseMeta: PhaseMeta = {
+      id: "001-foundation",
+      parentId: "prd-20260717-001",
+      title: "Foundation",
+      status: PhaseStatus.Completed,
+      seq: 1,
+      transitions: [],
+      createdAt: "2026-07-17T00:00:00.000Z",
+      updatedAt: "2026-07-17T00:00:00.000Z",
+      filePath: phaseRel,
+    };
+    writeFileSync(pathResolve(metaPhase, "001-foundation.json"), JSON.stringify(phaseMeta, null, 2));
+    // PRD meta + index（activePrdId 指向）
+    writeFileSync(
+      pathResolve(metaPrd, "prd-20260717-001.json"),
+      JSON.stringify({ id: "prd-20260717-001", title: "Test", status: PrdStatus.Planned, transitions: [], phaseIds: ["001-foundation"], nextPhaseSeq: 2, createdAt: "2026-07-17T00:00:00.000Z", updatedAt: "2026-07-17T00:00:00.000Z", filePath: "docs/prd/2026-07-17-test.md", version: "1.0.0" }, null, 2),
+    );
+    writeFileSync(
+      pathResolve(tmpRoot, ".sdd/meta/index.json"),
+      JSON.stringify({ activePrdId: "prd-20260717-001", prdIds: ["prd-20260717-001"], phaseIds: ["001-foundation"], updatedAt: "2026-07-17T00:00:00.000Z" }),
+    );
+
+    const originalCwd = process.cwd();
+    process.chdir(tmpRoot);
+    try {
+      const r = await archivePhase({
+        phasePath: phaseRel,
+        reason: "completed",
+        noCommit: true,
+      });
+      expect(r.status).toBe("pass");
+      expect(r.errors).toEqual([]);
+
+      // 物理移动：原位置不存在，archive 下存在
+      expect(existsSync(phaseAbs)).toBe(false);
+      expect(existsSync(pathResolve(docsPhaseArchive, "001-foundation.md"))).toBe(true);
+
+      // meta.filePath 更新到 archive 路径
+      const updatedMeta = JSON.parse(readFileSync(pathResolve(metaPhase, "001-foundation.json"), "utf-8")) as PhaseMeta;
+      expect(updatedMeta.filePath).toContain("archive/prd-20260717-001/001-foundation.md");
+
+      // PRD 回指链接重写到 archive 路径
+      const prdContent = readFileSync(prdPath, "utf-8");
+      expect(prdContent).toMatch(/archive\/prd-20260717-001\/001-foundation\.md/);
+    } finally {
+      process.chdir(originalCwd);
+      rmSync(tmpRoot, { recursive: true, force: true });
+    }
   });
 });
 
@@ -520,6 +644,32 @@ describe("Phase 002 流转集成测试", () => {
     expect(idx.activePrdId).toBeNull();
   });
 
+  test("archivePrdV2 phase 已先归档后 abandoned 不报 ENOTEMPTY（bug fix 回归）", async () => {
+    // 场景：phase 通过 archivePhase 先归档（移走 phase 文件到 archive/），
+    // 然后 PRD abandoned 归档时 phase group 目录为空，archive 目录已存在非空
+    // 修复前：renameSync(空目录, 非空目标) → ENOTEMPTY
+    // 修复后：检测源目录为空则 rmdir，目标已存在则逐文件合并
+    const initR = await initPrd({ title: "Phase Pre-Archived Test" });
+    await reviewPrd();
+    await approvePrd({});
+    await planPrd({ phase: "Foundation" });
+    // phase start → abandon → archive（用 abandon 跳过 gate，测试聚焦 ENOTEMPTY 而非 gate）
+    const phases = listPhaseMetas(initR.prdId!);
+    const phase = phases[0];
+    await phaseTransition({ id: phase.id, action: "start" });
+    await phaseTransition({ id: phase.id, action: "abandon" });
+    const phaseArchiveR = await archivePhase({ phasePath: phase.filePath, reason: "abandoned", noCommit: true });
+    expect(phaseArchiveR.status).toBe("pass");
+    // PRD abandoned 归档（phase group 目录此时为空）
+    const r = await archivePrdV2({ reason: "abandoned" });
+    expect(r.status).toBe("pass");
+    expect(r.errors).toEqual([]);
+    // 验证空 phase group 目录已清理
+    const repoRoot = findRepoRoot();
+    const phaseGroupDir = resolve(repoRoot, "docs", "phase", initR.prdId!);
+    expect(existsSync(phaseGroupDir)).toBe(false);
+  });
+
   test("archivePrdV2 --reason completed 门禁失败时 block", async () => {
     // init + review + approve + plan + start
     const initR = await initPrd({ title: "Archive Gate Test" });
@@ -531,6 +681,46 @@ describe("Phase 002 流转集成测试", () => {
     const r = await archivePrdV2({ reason: "completed" });
     expect(r.status).toBe("error");
     expect(r.errors.length).toBeGreaterThan(0);
+  });
+
+  test("archivePrdV2 归档中途失败触发回滚（meta/文件/index 还原）", async () => {
+    // init + review + approve + plan + start
+    const initR = await initPrd({ title: "Rollback Test" });
+    await reviewPrd();
+    await approvePrd({});
+    await planPrd({ phase: "Foundation" });
+    await startPrd();
+
+    const metaBefore = readPrdMeta(initR.prdId!);
+    const idxBefore = readMetaIndex();
+    const repoRoot = findRepoRoot();
+    const prdAbs = resolve(repoRoot, metaBefore!.filePath);
+    const prdContentBefore = readFileSync(prdAbs, "utf-8");
+    // 通过 globalThis 标志触发 archivePrdV2 内部 renameSync 第二次调用失败
+    // api-flow.ts 在 renameSync 调用前检查 globalThis.__SDD_TEST_INJECT_RENAME_FAIL
+    (globalThis as Record<string, unknown>).__SDD_TEST_RENAME_COUNT = 0;
+    (globalThis as Record<string, unknown>).__SDD_TEST_INJECT_RENAME_FAIL = 2;
+
+    try {
+      const r = await archivePrdV2({ reason: "abandoned" });
+      expect(r.status).toBe("error");
+      expect(r.errors[0]).toContain("归档失败已回滚");
+
+      // 验证回滚：PRD 文件回到原位置
+      expect(existsSync(prdAbs)).toBe(true);
+      // PRD markdown 内容还原（状态行回到 InProgress）
+      const prdContentAfter = readFileSync(prdAbs, "utf-8");
+      expect(prdContentAfter).toBe(prdContentBefore);
+      // meta 状态还原
+      const metaAfter = readPrdMeta(initR.prdId!);
+      expect(metaAfter!.status).toBe(metaBefore!.status);
+      // activePrdId 还原
+      const idxAfter = readMetaIndex();
+      expect(idxAfter.activePrdId).toBe(idxBefore.activePrdId);
+    } finally {
+      delete (globalThis as Record<string, unknown>).__SDD_TEST_INJECT_RENAME_FAIL;
+      delete (globalThis as Record<string, unknown>).__SDD_TEST_RENAME_COUNT;
+    }
   });
 
   test("phaseTransition start NotStarted→InProgress", async () => {

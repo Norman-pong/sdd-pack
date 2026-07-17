@@ -10,6 +10,8 @@ export interface TemplateOptions {
   type: TemplateType;
   title: string;
   date: string;
+  /** 覆盖自动生成的 slug（ASCII kebab-case）；ADR-019 §3.2.3 */
+  slug?: string;
   supersedes?: string;
   supersedesTitle?: string;
   specPath?: string;
@@ -24,12 +26,15 @@ export interface TemplateResult {
 /**
  * 从标题生成文件名
  * YYYY-MM-DD-<kebab-case>.md
+ * ADR-019 §3.2.3: slug 正则去掉 \u4e00-\u9fff，统一为 ASCII kebab-case（与 validator Check #7 一致）
  */
-function titleToFileName(date: string, title: string): string {
-  const slug = title
-    .toLowerCase()
-    .replace(/[^a-z0-9\u4e00-\u9fff]+/g, "-")
-    .replace(/^-|-$/g, "");
+function titleToFileName(date: string, title: string, slugOverride?: string): string {
+  const slug = slugOverride
+    ? slugOverride.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+    : title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")  // ADR-019 §3.2.3: 去掉 \u4e00-\u9fff，统一为 ASCII kebab-case
+        .replace(/^-|-$/g, "");
   return `${date}-${slug}.md`;
 }
 
@@ -46,7 +51,7 @@ function generateFullTemplate(options: TemplateOptions): string {
   return `# ${title} PRD
 
 > 状态：草稿
-> 修改记录：执行 \`lore log docs/prd/${titleToFileName(date, options.title)}\`
+> 修改记录：执行 \`lore log docs/prd/${titleToFileName(date, options.title, options.slug)}\`
 > 对应阶段：TBD - 待设计评审后由 sdd-phase 补全
 ${supersedesHeader}
 > [!IMPORTANT] PRD 生命周期状态机（ADR-016, 6 状态 + 已归档终态）
@@ -243,7 +248,7 @@ function generateDeltaTemplate(options: TemplateOptions): string {
   return `# ${title} PRD
 
 > 状态：草稿
-> 修改记录：执行 \`lore log docs/prd/${titleToFileName(date, options.title)}\`
+> 修改记录：执行 \`lore log docs/prd/${titleToFileName(date, options.title, options.slug)}\`
 > 对应阶段：TBD - 待设计评审后由 sdd-phase 补全
 > 替代：[${supersedesTitle || "旧 PRD"}](${supersedes || "#"})
 
@@ -291,7 +296,7 @@ export function generateTemplate(options: TemplateOptions): TemplateResult {
   const content =
     options.type === "delta" ? generateDeltaTemplate(options) : generateFullTemplate(options);
 
-  const fileName = titleToFileName(options.date, options.title);
+  const fileName = titleToFileName(options.date, options.title, options.slug);
 
   return { content, fileName };
 }

@@ -11,7 +11,11 @@
     "README.md"
   ],
   "scripts": {
-    "test": "bun test"
+    "test": "bun test",
+    "gen:commands": "bun run scripts/gen-commands-json.ts"
+  },
+  "bin": {
+    "sdd": "./src/cli/bin.ts"
   },
   "omp": {
     "extensions": [

@@ -83,12 +83,22 @@ describe("generateTemplate", () => {
     expect(result.fileName).toBe("2026-06-29-sdd-cli.md");
   });
 
-  test("中文标题也能生成合法文件名", () => {
+  test("中文标题无 slug 时生成空 slug（ADR-019 §3.2.3: 去中文，需手工 slug）", () => {
     const result = generateTemplate({
       type: "full",
       title: "新功能",
       date: "2026-07-01",
     });
-    expect(result.fileName).toMatch(/^\d{4}-\d{2}-\d{2}-.+\.md$/);
+    expect(result.fileName).toBe("2026-07-01-.md");
+  });
+
+  test("中文标题传 slug override 生成合法文件名（ADR-019 §3.2.3）", () => {
+    const result = generateTemplate({
+      type: "full",
+      title: "新功能",
+      date: "2026-07-01",
+      slug: "new-feature",
+    });
+    expect(result.fileName).toBe("2026-07-01-new-feature.md");
   });
 });
