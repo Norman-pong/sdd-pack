@@ -2,7 +2,7 @@
 
 > 修改记录：执行 `lore log docs/architecture/sdd-gate.md`
 
-本文档描述 sdd-pack 的**门禁流水线（sdd-gate）**子系统。阻断机制：omp hook（`sendMessage` 引导走流水线）+ slash command 执行结果（status=block/fail 告知 LLM 是否继续）。**非 OS 进程退出码阻断**（omp hook API v16.1.16 不支持 throw/block），本质是"强约束的 LLM 引导"而非硬阻断。硬阻断仅在 CI 环境（`api-runner.ts` 的 `process.exit`）。
+本文档描述 sdd-pack 的**门禁流水线（sdd-gate）**子系统。阻断机制：extension `pi.on('tool_call')` `{block:true}` 硬拦截（v1.6.0 起，ADR-015 落地）+ slash command / tool 执行结果（status=block/fail 告知 LLM 是否继续）+ CI 环境 `api-runner.ts` 的 `process.exit` 进程级阻断。
 
 ## 1. 设计动机
 
@@ -13,10 +13,10 @@ sdd-pack 原有的门禁依赖三层防线：
 | 防线 | 机制 | 强度 |
 |---|---|---|
 | `lore-commit-guard.md` rule | LLM 读到文本规则才遵守 | 弱（可跳过） |
-| `hooks/sdd/index.ts` omp hook | 发 `sendMessage` system message | 中（LLM 可无视） |
-| `api-runner.ts` CI runner | `bun run` 退出码阻断 | 强（但仅 CI 环境） |
+| `extensions/sdd-extension/index.ts` `pi.on('tool_call')` | 匹配 `(git\|lore)\s+commit` 时返回 `{block:true, reason}` | 强（程序级硬拦截，ADR-015） |
+| `api-runner.ts` CI runner | `bun run` 退出码阻断 | 强（仅 CI 环境） |
 
-核心缺陷：**omp session 内（LLM 编码场景）没有进程级阻断**。hook 只能发 message，LLM 看到消息可以无视，直接跳过门禁提交。
+历史对照：早期 v1.4.x 依赖独立 `hooks/sdd/index.ts` omp hook 发 `sendMessage` 引导（中等强度，LLM 可无视）；v1.6.0 起 hook 逻辑合并进 extension（ADR-015），`pi.on('tool_call')` 的 `{block:true}` 提供了真正的程序级拦截能力。
 
 ### 1.2 目标
 
@@ -36,7 +36,7 @@ sdd-pack 原有的门禁依赖三层防线：
 | 决策点 | 选择 | 理由 |
 |---|---|---|
 | 执行入口 | omp slash command（`/sdd gate *`） | omp extension 在进程内直接 import lib 函数，`process.cwd()` 自动解析为用户项目根；独立 CLI 入口（`bun run gate-runner.ts`）的路径在第三方用户项目里不存在 |
-| 拦截机制 | omp hook 引导 + slash command 结果 | omp hook 拦截 `git commit`/`lore commit` → 发消息引导走 `/sdd gate *` 流水线；LLM 按 slash command 返回的 status 决定是否继续 |
+| 拦截机制 | extension `tool_call` 硬拦截 + slash command 结果 | `pi.on('tool_call')` 匹配 `git commit`/`lore commit` → `{block:true}` 强制走 `/sdd gate *` 流水线；LLM 按 slash command 返回的 status 决定后续 |
 | lint 配置 | `.sdd/gate.json` 显式配置 > 项目类型自动检测 > 阻塞 | 与 SDD 文档体系同源放 `.sdd/` 目录，git 可追踪 |
 | review 集成 | CLI 检查 reviewer 产物文件（`.sdd/review/staged.json`） | CLI 不能 spawn omp agent；reviewer agent 执行后写产物，`/sdd gate review` 检查产物存在且 verdict 通过 |
 
@@ -68,7 +68,7 @@ flowchart LR
 | gate-config | `src/cli/lib/gate-config.ts` | `.sdd/gate.json` 读取 + 4 类项目自动检测 + lint/test/build 命令解析 |
 | gate-runner | `src/cli/lib/gate-runner.ts` | 5 阶段执行器（runLint / runTest / runReview / runPrecommit / runCommit） |
 | sdd-extension | `extensions/sdd-extension/index.ts` | 注册 5 个 `/sdd gate *` slash command，在 omp 进程内执行 |
-| hooks/sdd | `hooks/sdd/index.ts` | 拦截 `git/lore commit`，发消息引导走 `/sdd gate *` 流水线 |
+| commit 拦截 | `extensions/sdd-extension/index.ts`（`pi.on('tool_call')`） | 拦截 `git/lore commit`，`{block:true}` 强制走 `/sdd gate *` 流水线（v1.6.0 起替代独立 hooks/sdd） |
 | reviewer agent | `agents/reviewer.md` | step 8 写 `.sdd/review/staged.json` 产物 |
 
 ### 2.3 依赖方向
@@ -196,11 +196,11 @@ reviewer.md 的 procedure 新增 step 8：yield 前用 bash 写 `.sdd/review/sta
 ```mermaid
 sequenceDiagram
     participant LLM as LLM / 用户
-    participant Hook as hooks/sdd/index.ts
+    participant Ext as sdd-extension (tool_call)
     participant SC as Slash Command
 
-    LLM->>Hook: bash: git commit / lore commit
-    Hook->>LLM: sendMessage(LORE_COMMIT_BLOCK_REASON)
+    LLM->>Ext: bash: git commit / lore commit
+    Ext--xLLM: return {block:true} (LORE_COMMIT_BLOCK_REASON)
     Note over LLM: 看到 6 步流水线指引
     LLM->>SC: /sdd gate lint
     SC-->>LLM: GateResult
@@ -216,9 +216,9 @@ sequenceDiagram
     SC-->>LLM: GateResult (lore commit done)
 ```
 
-### 6.2 限制
+### 6.2 演进说明
 
-omp hook（v16.1.16）**不能 throw / 不能阻断 tool 执行**，只能发 `sendMessage`。因此 hook 的角色是**引导**（告诉 LLM 走流水线），**不是硬阻断**。硬阻断由 slash command 的 status（block/fail）实现——LLM 看到 fail 后应停止后续操作。
+v1.6.0 起独立 `hooks/` 目录删除、hook 逻辑合并进 extension（ADR-015）：`pi.on('tool_call')` 支持返回 `{block:true}` 实现程序级硬拦截，tool 调用在发起前即被拒绝。早期版本（v1.4.x）依赖 omp hook API v16.1.16，该版本只能 `sendMessage` 不能 throw/block，hook 角色仅为引导——此段保留作历史对照。当前硬阻断由两层构成：extension `{block:true}`（omp session 内）+ slash command 的 status（block/fail，LLM 决策依据）。
 
 ## 7. 数据流
 
@@ -317,7 +317,7 @@ bunx tsc --noEmit           # 0 errors
 
 | 限制 | 原因 | 缓解 |
 |---|---|---|
-| omp hook 不能硬阻断 | omp v16.1.16 hook API 只能 sendMessage | slash command 的 status（block/fail）是事实阻断点 |
+| extension `{block:true}` 依赖 omp 运行时 | 硬拦截只在 omp session 内生效 | CI 环境由 api-runner.ts `process.exit` 提供进程级阻断 |
 | `/sdd gate review` 不能 spawn agent | omp agent spawn 需要 omp session 上下文 | 文件契约：reviewer 写产物，CLI 检查产物 |
 | `runCommit` 需要 lore CLI | lore 是外部依赖 | runCommit 在 lore 不可用时 block（exit 2） |
 | `stagedHash` 在无 git 时返回 "empty" | 非 git 项目无 staged diff | review 产物 hash 校验在非 git 项目中等效为只检查 verdict |
@@ -328,4 +328,4 @@ bunx tsc --noEmit           # 0 errors
 - [架构决策记录](decisions.md) — ADR-012（sdd-gate 门禁流水线）
 - `rule://backend-toolchain` — 项目类型检测规则来源
 - `rule://lore-protocol` — lore commit trailer JSON schema
-- `rule://lore-commit-guard` — 提交质量门禁 rule（文本规则，被 hook 替代）
+- `rule://lore-commit-guard` — 提交质量门禁 rule（文本规则；程序级硬拦截由 extension `tool_call` 承接，ADR-015）

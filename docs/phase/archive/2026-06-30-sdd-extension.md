@@ -2,7 +2,7 @@
 
 > 状态：已替换 | 创建日期：2026-06-30 | 发布日期：2026-07-02 | 收尾日期：2026-06-30 | 替换日期：2026-07-01
 > 修改记录：执行 `lore log docs/phase/2026-06-30-sdd-extension.md`
-> 对应 PRD：[sdd Extension PRD](../prd/2026-06-30-sdd-extension.md)（已替换）
+> 对应 PRD：[sdd Extension PRD](../../prd/archive/2026-06-30-sdd-extension.md)（已替换）
 > 替代：[双范式架构实施 phase](2026-07-01-sdd-dual-paradigm.md)
 
 > [!NOTE] **本文已替换（2026-07-01）** — 本 phase 描述的 v1.4.0-alpha「单范式 + 单 hook 聚合 + 单 extension」落地已被 [双范式架构实施 phase](2026-07-01-sdd-dual-paradigm.md) 整体替代:双范式(SDD 正本 + OpenSpec 可选 hook 默认实现)+ 双 hook 装载 + 双 extension 注册。本文件保留作为 v1.4.0-alpha 历史档案。
@@ -87,7 +87,7 @@
 - 新增 `"omp": { "extensions": ["./extensions/sdd-extension/index.ts"] }`
 - version 升级到 `1.4.0-alpha`
 
-**对应 PRD**：[ADR-009 manifest 段](../prd/2026-06-30-sdd-extension.md#336-packagejson-ompextensions-manifest-设计前置)
+**对应 PRD**：[ADR-009 manifest 段](../../prd/archive/2026-06-30-sdd-extension.md#336-packagejson-ompextensions-manifest-设计前置)
 
 **验收标准**：
 
@@ -105,10 +105,10 @@
 
 **约束**：
 
-- 单文件，≤400 行（[§3.3.5 F3.2 硬上限](../prd/2026-06-30-sdd-extension.md#335-模块边界硬约束arch-reviewer-p1-三条修正)）——当前估 ~290 行
+- 单文件，≤400 行（[§3.3.5 F3.2 硬上限](../../prd/archive/2026-06-30-sdd-extension.md#335-模块边界硬约束arch-reviewer-p1-三条修正)）——当前估 ~290 行
 - 不用 `@oh-my-pi/pi-coding-agent` 类型，跟 hooks/index.ts 同构（unknown 类型兜底）
 - 每个 command handler 分三段：arg parse → api call → UI notify
-- 统一 arg parser 入口 + 统一 UI adapter（[§3.3.5 F3.2 理由 B/C](../prd/2026-06-30-sdd-extension.md#335-模块边界硬约束arch-reviewer-p1-三条修正)）
+- 统一 arg parser 入口 + 统一 UI adapter（[§3.3.5 F3.2 理由 B/C](../../prd/archive/2026-06-30-sdd-extension.md#335-模块边界硬约束arch-reviewer-p1-三条修正)）
 
 **8 个 slash command**：
 
@@ -139,7 +139,7 @@
 
 **约束**：
 
-- 总行数 ≤ 300 行（[§3.3.5 F3.1 硬上限](../prd/2026-06-30-sdd-extension.md#335-模块边界硬约束arch-reviewer-p1-三条修正)）
+- 总行数 ≤ 300 行（[§3.3.5 F3.1 硬上限](../../prd/archive/2026-06-30-sdd-extension.md#335-模块边界硬约束arch-reviewer-p1-三条修正)）
 - 每个函数 ≤ 80 行（不含类型声明与 import）
 - 零新逻辑——仅做 lib/orchestration/_ + lib/_ 调用 + 结果组装
 - 不依赖 omp / ExtensionAPI——可在 hook 和 CI 中复用

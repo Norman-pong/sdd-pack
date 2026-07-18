@@ -2,8 +2,8 @@
 
 > 状态：已归档 | 发布日期：2026-07-16
 > 修改记录：执行 `lore log docs/prd/2026-07-01-openspec-harness.md`
-> 对应阶段：[双范式架构实施 phase](../phase/2026-07-01-sdd-dual-paradigm.md)
-> 关键决策：[ADR-011 双范式架构](../architecture/decisions.md)（Accepted）· [OpenSpec Harness 参考](../reference/openspec-harness.md)
+> 对应阶段：[双范式架构实施 phase](../../phase/archive/2026-07-01-sdd-dual-paradigm.md)
+> 关键决策：[ADR-011 双范式架构](../../architecture/decisions.md)（Accepted）· [OpenSpec Harness 参考](../../reference/archive/openspec-harness.md)
 
 > [!IMPORTANT] PRD 生命周期状态机（遵循 `rule://prd-change-management`）
 > 草稿 → 评审中 → 已评审 → 已发布 → 已归档/已替换；已废弃为任意阶段的终态分支。
@@ -442,10 +442,10 @@ openspec/
 
 ### 11.2 参考资料
 
-- [OpenSpec Harness 参考](../reference/openspec-harness.md) — OpenSpec 规范摘要
+- [OpenSpec Harness 参考](../../reference/archive/openspec-harness.md) — OpenSpec 规范摘要
 - [双范式架构总览 PRD](2026-07-01-sdd-dual-paradigm.md) — 横切关注点 + 边界约束
-- [ADR-011 双范式架构](../architecture/decisions.md) — Directive 1/2 决策
-- [omp Extension API 参考](../reference/omp-extension-api.md) — extension / slash command 装载机制
+- [ADR-011 双范式架构](../../architecture/decisions.md) — Directive 1/2 决策
+- [omp Extension API 参考](../../reference/archive/omp-extension-api.md) — extension / slash command 装载机制
 
 ### 11.3 OpenSpec 7 slash command 对照表(本仓库 vs 官方 CLI)
 

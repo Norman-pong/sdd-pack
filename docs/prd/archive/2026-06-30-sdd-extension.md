@@ -2,8 +2,8 @@
 
 > 状态：已归档 | 发布日期：2026-07-16
 > 修改记录：执行 `lore log docs/prd/2026-06-30-sdd-extension.md`
-> 对应阶段：[sdd Extension 阶段文档](../phase/2026-06-30-sdd-extension.md)（已替换）
-> 关键决策：[ADR-009 sdd Extension 替代独立 CLI](../architecture/decisions.md)（Accepted）· [ADR-010 hook 默认实现 + 资产回归正本](../architecture/decisions.md)（Revised）· [ADR-011 双范式架构](../architecture/decisions.md)（Accepted）· [omp Extension API 参考](../reference/omp-extension-api.md)
+> 对应阶段：[sdd Extension 阶段文档](../../phase/archive/2026-06-30-sdd-extension.md)（已替换）
+> 关键决策：[ADR-009 sdd Extension 替代独立 CLI](../../architecture/decisions.md)（Accepted）· [ADR-010 hook 默认实现 + 资产回归正本](../../architecture/decisions.md)（Revised）· [ADR-011 双范式架构](../../architecture/decisions.md)（Accepted）· [omp Extension API 参考](../../reference/archive/omp-extension-api.md)
 
 > [!NOTE] **本文已替换（2026-07-01）** — 本 PRD 描述的「单范式(SDD 资产退役) + 单 hook 聚合 + 单 extension」形态已被 [2026-07-01-sdd-dual-paradigm.md](2026-07-01-sdd-dual-paradigm.md) 整体替代:双范式(SDD 正本 + OpenSpec 可选 hook 默认实现)+ 双 hook 装载 + 双 extension 注册。本文件保留作为 v1.4.0-alpha 历史档案,所有活跃变更请走新 PRD。
 
@@ -14,7 +14,7 @@
 
 ## Δ 变更摘要（仅 supersedes 型 PRD 填写）
 
-> 本 PRD 替代 [sdd CLI PRD](../prd/2026-06-29-sdd-cli.md)。
+> 本 PRD 替代 [sdd CLI PRD](2026-06-29-sdd-cli.md)。
 > 以下仅列出相对于旧 PRD 的变更点。**未提及的章节/内容沿用旧 PRD 对应内容，无需在本文件重复。**
 
 ### ADDED
@@ -111,7 +111,7 @@
 
 ### 1.1 业务背景
 
-[沿用旧 PRD §1.1](../prd/2026-06-29-sdd-cli.md#11-业务背景) —— v1.2.3 状态行堆叠、PRD 生命周期操作纯手工、docs-check.sh 缺失状态机校验、归档机制半自动化四大痛点未变。
+[沿用旧 PRD §1.1](2026-06-29-sdd-cli.md#11-业务背景) —— v1.2.3 状态行堆叠、PRD 生命周期操作纯手工、docs-check.sh 缺失状态机校验、归档机制半自动化四大痛点未变。
 
 ### 1.2 第三方市场安装角度的再设计
 
@@ -154,7 +154,7 @@
 
 ### 2.1 目标用户
 
-[沿用旧 PRD §2.1](../prd/2026-06-29-sdd-cli.md#21-目标用户) —— 维护者、贡献者、用户三类身份不变。
+[沿用旧 PRD §2.1](2026-06-29-sdd-cli.md#21-目标用户) —— 维护者、贡献者、用户三类身份不变。
 
 ### 2.2 使用场景
 
@@ -481,7 +481,7 @@ async function runSddValidate(pi: HookAPI, files: string[]): Promise<void> {
 
 ### 4.1 性能要求
 
-[沿用旧 PRD §4.1](../prd/2026-06-29-sdd-cli.md#41-性能要求)：
+[沿用旧 PRD §4.1](2026-06-29-sdd-cli.md#41-性能要求)：
 
 - `/sdd-validate` 在 sdd-pack 仓库规模（~30 docs 文件）下 < 100ms
 - `/sdd-propose` 创建文件 < 500ms
@@ -489,7 +489,7 @@ async function runSddValidate(pi: HookAPI, files: string[]): Promise<void> {
 
 ### 4.2 安全要求
 
-[沿用旧 PRD §4.2](../prd/2026-06-29-sdd-cli.md#42-安全要求)：
+[沿用旧 PRD §4.2](2026-06-29-sdd-cli.md#42-安全要求)：
 
 - 不修改 git 历史（不执行 `git reset` / `git rebase`）
 - 不向网络发送数据（纯本地文件操作）
@@ -497,7 +497,7 @@ async function runSddValidate(pi: HookAPI, files: string[]): Promise<void> {
 
 ### 4.3 可用性要求
 
-[沿用旧 PRD §4.3](../prd/2026-06-29-sdd-cli.md#43-可用性要求)：
+[沿用旧 PRD §4.3](2026-06-29-sdd-cli.md#43-可用性要求)：
 
 - 每个 slash command 有 `description`（omp autocomplete 用）
 - 错误信息人类可读
@@ -515,7 +515,7 @@ async function runSddValidate(pi: HookAPI, files: string[]): Promise<void> {
 
 ### 5.1 数据模型
 
-[沿用旧 PRD §5.1](../prd/2026-06-29-sdd-cli.md#51-数据模型) —— `docs/prd/*.md` / `docs/phase/*.md` / `docs/spec/*.md` / `docs/index.md` / `docs/prd/archive/*.md` 数据源不变。
+[沿用旧 PRD §5.1](2026-06-29-sdd-cli.md#51-数据模型) —— `docs/prd/*.md` / `docs/phase/*.md` / `docs/spec/*.md` / `docs/index.md` / `docs/prd/archive/*.md` 数据源不变。
 
 ### 5.2 数据迁移
 
@@ -628,7 +628,7 @@ bun run src/cli/api-runner.ts validate --staged --json
 
 ### 8.1 功能验收
 
-[沿用旧 PRD §8.1](../prd/2026-06-29-sdd-cli.md#81-功能验收) 的 10 项校验清单 + 8 个 slash command 行为。
+[沿用旧 PRD §8.1](2026-06-29-sdd-cli.md#81-功能验收) 的 10 项校验清单 + 8 个 slash command 行为。
 
 #### 安装验收（新增）
 
@@ -650,7 +650,7 @@ bun run src/cli/api-runner.ts validate --staged --json
 
 ### 8.2 非功能验收
 
-[沿用旧 PRD §8.2](../prd/2026-06-29-sdd-cli.md#82-非功能验收)：
+[沿用旧 PRD §8.2](2026-06-29-sdd-cli.md#82-非功能验收)：
 
 - 状态机 100% 与 `prd-change-management` rule §3 一致
 - docs-check.sh 不删除
@@ -737,10 +737,10 @@ bun run src/cli/api-runner.ts validate --staged --json
 
 | 文档                                                            | 位置                                                     | 适用关系                                                                                                   |
 | --------------------------------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| **[omp Extension API 参考](../reference/omp-extension-api.md)** | `docs/reference/omp-extension-api.md`（2026-06-30 整理） | 本 PRD 实施期的**一手 omp 官方文档摘要**——extension 形态 / manifest / API / UI / 装载路径 / 已知风险全覆盖 |
-| [omp Task Agent 机制参考](../reference/omp-task-agent.md)       | `docs/reference/omp-task-agent.md`（2026-06-25 整理）    | agent 机制及三层守门 agent 运行时依据                                                                      |
+| **[omp Extension API 参考](../../reference/archive/omp-extension-api.md)** | `docs/reference/omp-extension-api.md`（2026-06-30 整理） | 本 PRD 实施期的**一手 omp 官方文档摘要**——extension 形态 / manifest / API / UI / 装载路径 / 已知风险全覆盖 |
+| [omp Task Agent 机制参考](../../reference/archive/omp-task-agent.md)       | `docs/reference/omp-task-agent.md`（2026-06-25 整理）    | agent 机制及三层守门 agent 运行时依据                                                                      |
 | [OpenSpec 官方文档](https://openspec.dev/)                      | 外部资料                                                 | 文档驱动约束思想的成熟实践（沿用旧 PRD）                                                                   |
-| [sdd CLI 设计文档](../architecture/sdd-cli-design.md) §11       | 本仓库架构文档                                           | 设计与借鉴对象详细分析                                                                                     |
+| [sdd CLI 设计文档](../../architecture/sdd-cli-design.md) §11       | 本仓库架构文档                                           | 设计与借鉴对象详细分析                                                                                     |
 
 **omp Extension API 参考文档 涵盖内容**（详见 `omp-extension-api.md`）：
 

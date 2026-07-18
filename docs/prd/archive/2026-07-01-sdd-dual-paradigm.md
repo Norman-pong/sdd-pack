@@ -2,8 +2,8 @@
 
 > 状态：已归档 | 发布日期：2026-07-16
 > 修改记录：执行 `lore log docs/prd/2026-07-01-sdd-dual-paradigm.md`
-> 对应阶段：[双范式架构实施 phase](../phase/2026-07-01-sdd-dual-paradigm.md)
-> 关键决策：[ADR-009 sdd Extension 替代独立 CLI](../architecture/decisions.md)（Accepted）· [ADR-010 hook 改默认实现 + skills/rules/agents 恢复正本](../architecture/decisions.md)（Revised）· [ADR-011 双范式架构](../architecture/decisions.md)（Accepted）
+> 对应阶段：[双范式架构实施 phase](../../phase/archive/2026-07-01-sdd-dual-paradigm.md)
+> 关键决策：[ADR-009 sdd Extension 替代独立 CLI](../../architecture/decisions.md)（Accepted）· [ADR-010 hook 改默认实现 + skills/rules/agents 恢复正本](../../architecture/decisions.md)（Revised）· [ADR-011 双范式架构](../../architecture/decisions.md)（Accepted）
 
 > [!IMPORTANT] PRD 生命周期状态机（遵循 `rule://prd-change-management`）
 > 草稿 → 评审中 → 已评审 → 已发布 → 已归档/已替换；已废弃为任意阶段的终态分支。
@@ -438,12 +438,12 @@ sdd-pack/                                  # GitHub repo root
 
 ### 11.2 参考资料
 
-- [omp Extension API 参考](../reference/omp-extension-api.md) — omp extension / slash command / UI / manifest 一手参考
-- [omp Task Agent 机制参考](../reference/omp-task-agent.md) — agent 发现 / 合并 / 装载机制
-- [OpenSpec Harness 参考](../reference/openspec-harness.md) — OpenSpec 规范摘要,本仓库 OpenSpec 范式依据
-- [ADR-009 sdd Extension 替代独立 CLI](../architecture/decisions.md) — v1.4 起点
-- [ADR-010 hook 默认实现 + skills/rules/agents 回归正本](../architecture/decisions.md) — v1.5 修订
-- [ADR-011 双范式架构](../architecture/decisions.md) — v1.5 决策
+- [omp Extension API 参考](../../reference/archive/omp-extension-api.md) — omp extension / slash command / UI / manifest 一手参考
+- [omp Task Agent 机制参考](../../reference/archive/omp-task-agent.md) — agent 发现 / 合并 / 装载机制
+- [OpenSpec Harness 参考](../../reference/archive/openspec-harness.md) — OpenSpec 规范摘要,本仓库 OpenSpec 范式依据
+- [ADR-009 sdd Extension 替代独立 CLI](../../architecture/decisions.md) — v1.4 起点
+- [ADR-010 hook 默认实现 + skills/rules/agents 回归正本](../../architecture/decisions.md) — v1.5 修订
+- [ADR-011 双范式架构](../../architecture/decisions.md) — v1.5 决策
 
 ### 11.3 双范式对照表
 

@@ -2,7 +2,7 @@
 
 > 状态：已完成 | 创建日期：2026-07-01 | 完成日期：2026-07-01
 > 修改记录：执行 `lore log docs/phase/2026-07-01-sdd-dual-paradigm.md`
-> 对应 PRD：[双范式架构总览 PRD](../prd/2026-07-01-sdd-dual-paradigm.md)
+> 对应 PRD：[双范式架构总览 PRD](../../prd/archive/2026-07-01-sdd-dual-paradigm.md)
 
 ## 1. 阶段目标
 

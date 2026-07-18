@@ -48,12 +48,13 @@
 | -------- | ------------------------------------------- | ----------------------------------------------------------------- |
 | PR #1173 | `.omp-plugin/marketplace.json` 优先路径支持 | 决定 catalog 放置位置（选 `.omp-plugin/` 而非 `.claude-plugin/`） |
 
-## 6. omp Task Agent 机制
+## 6. omp 架构与 Extension 实战（本仓库整理，2026-07-18 重写）
 
-| 文档名称                | 来源                               | 说明                                                     | 版本        |
-| ----------------------- | ---------------------------------- | -------------------------------------------------------- | ----------- |
-| Task Agent Discovery    | `omp://task-agent-discovery.md`    | agent 发现/合并/装载/执行约束机制（权威来源）            | omp 16.1.17 |
-| omp Task Agent 机制摘要 | `docs/reference/omp-task-agent.md` | 本仓库整理的 agent 机制参考，三层守门 agent 的运行时依据 | 2026-06-25  |
+| 文档名称 | 来源 | 说明 |
+| --- | --- | --- |
+| [omp 架构分层](omp-architecture-layers.md) | `docs/reference/omp-architecture-layers.md` | omp 装载层 / capability registry / 运行时层 / 宿主层 分层总览 + 实证关键事实 |
+| [omp Extension 实战](omp-extension-cookbook.md) | `docs/reference/omp-extension-cookbook.md` | Extension API 摘要 + slash command vs tool + cache 漂移 + 踩坑合集 + 提交流程 + e2e 验证 |
+| Task Agent Discovery | `omp://task-agent-discovery.md` | agent 发现/合并/装载/执行约束机制（权威来源，omp 16.1.17） |
 
 ## 7. 三层守门 Agent（sdd-pack 自有）
 
@@ -70,15 +71,11 @@
 - omp 内部文档通过 `omp://` URI 访问（harness 内部协议）
 - 项目内开发文档通过 `docs/` 目录查阅
 
-## 9. Omp Extension API 参考（sdd-extension 实施依据）
+## 9. Omp Extension 官方权威源
 
-### 9.1 本仓库整理摘要
+本仓库整理的 extension 实战见 [omp Extension 实战](omp-extension-cookbook.md)（§6）。
 
-| 文档名称                   | 来源                                  | 说明                                                                                                                | 版本       |
-| -------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ---------- |
-| **Omp Extension API 参考** | `docs/reference/omp-extension-api.md` | 本仓库整理的 extension / slash command / UI / manifest / 安装路径摘要，作为 sdd-extension（方案 A）实施期的一手参考 | 2026-06-30 |
-
-### 9.2 omp 官方权威源（11 份）
+### 9.1 omp 官方权威源（11 份）
 
 | 文档                               | 来源                                                                                                                                                                                 | 用途                                                                          |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
@@ -95,7 +92,7 @@
 | Discovery wiring PR #1498          | `https://github.com/can1357/oh-my-pi/pull/1498`                                                                                                                                      | `omp plugin install/link` 注册的 sub-dirs 发现修复（2026-05-29）              |
 | Manifest 目录形式修复 PR #2714     | `https://github.com/can1357/oh-my-pi/pull/2714`                                                                                                                                      | `pi.extensions: ["./extensions"]` 目录形式解析支持                            |
 
-### 9.3 生态参考项目（扩展思路借鉴）
+### 9.2 生态参考项目（扩展思路借鉴）
 
 | 项目                                     | 路径                                                                                                                                                  | 借鉴点                                                    |
 | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
@@ -105,3 +102,9 @@
 | `usr-bin-roygbiv/omp-cmux-browser-tools` | `https://github.com/usr-bin-roygbiv/omp-cmux-browser-tools`                                                                                           | extension + marketplace 双重发布                          |
 | `pi-mono` examples                       | `https://app.unpkg.com/@oh-my-pi/pi-coding-agent@16.1.11/files/examples/extensions/reload-runtime.ts` + `06-extensions.ts` + `extensions/commands.ts` | 综合性 extension / reload-runtime / 列表 + arg completion |
 | `@aliou/pi-dev-kit`                      | `https://cdn.jsdelivr.net/npm/@aliou/pi-dev-kit@0.8.0/src/skills/pi-extension/references/messages.md`                                                 | persistent vs ephemeral 消息区分                          |
+
+## 10. 范式设计教训（吸收外部范式）
+
+| 文档名称 | 来源 | 说明 | 最后更新 |
+| --- | --- | --- | --- |
+| [OpenSpec 思想精华](openspec-essence.md) | `docs/reference/openspec-essence.md` | v1.8.0 移除 OpenSpec 双范式后，记录 3 个吸收精华 + 2 个拒绝特性 + 2 条元教训 | 2026-07-18 |

@@ -1,12 +1,12 @@
 # sdd CLI 架构设计
 
-> 状态：草稿（与 [PRD](../prd/2026-06-29-sdd-cli.md) 同源）
+> 状态：草稿（与 [PRD](../prd/archive/2026-06-29-sdd-cli.md) 同源）
 > 修改记录：执行 `lore log docs/architecture/sdd-cli-design.md`
-> 对应 PRD：[sdd CLI PRD](../prd/2026-06-29-sdd-cli.md)
+> 对应 PRD：[sdd CLI PRD](../prd/archive/2026-06-29-sdd-cli.md)
 > 设计日期：2026-06-29
 > 设计人：sdd-pack CLI 架构设计子代理
 
-本文档是 [PRD](../prd/2026-06-29-sdd-cli.md) 的实施指导。PRD 定义「为什么做、做什么、验收标准」，本文档定义「怎么落地、API 形态、模块划分」。两者通过头部交叉引用保持一致。
+本文档是 [PRD](../prd/archive/2026-06-29-sdd-cli.md) 的实施指导。PRD 定义「为什么做、做什么、验收标准」，本文档定义「怎么落地、API 形态、模块划分」。两者通过头部交叉引用保持一致。
 
 ---
 
@@ -240,7 +240,7 @@ sdd propose --spec docs/spec/2026-06-29-new-feature.md --dry-run
 ```markdown
 ## Δ 变更摘要（仅 supersedes 型 PRD 填写）
 
-> 本 PRD 替代 [旧 PRD 名称](../prd/YYYY-MM-DD-<old>.md)。
+> 本 PRD 替代「旧 PRD 名称」（模板占位符示意；实际为指向旧 PRD 的 markdown 链接）。
 > 以下仅列出相对于旧 PRD 的变更点。**未提及的章节/内容沿用旧 PRD 对应内容,无需在本文件重复。**
 > `sdd archive --merge-delta` 执行后,本段将被消费并从文件中移除,变更内容合并到上方对应章节。
 
@@ -276,7 +276,7 @@ sdd propose --spec docs/spec/2026-06-29-new-feature.md --dry-run
 
 ```markdown
 > 状态：已发布 | 发布日期：2026-06-25 | 版本：1.2.3
-> 变更历史：见 [CHANGELOG](./CHANGELOG-2026-06-24-sdd-pack.md)
+> 变更历史：见 [CHANGELOG](../prd/archive/CHANGELOG-2026-06-24-sdd-pack.md)
 ```
 
 **禁止模式**（`sdd validate` 报 `block`）：
@@ -448,7 +448,7 @@ CLI 在最底层：做**不需要 LLM 推理的结构化检查**。三层守门 
 
    ```markdown
    > 状态：已发布 | 发布日期：2026-06-25 | 版本：1.2.3
-   > 变更历史：见 [CHANGELOG](./CHANGELOG-2026-06-24-sdd-pack.md)
+   > 变更历史：见 [CHANGELOG](../prd/archive/CHANGELOG-2026-06-24-sdd-pack.md)
    ```
 
 5. **更新交叉引用**：检查所有引用此 PRD 的链接

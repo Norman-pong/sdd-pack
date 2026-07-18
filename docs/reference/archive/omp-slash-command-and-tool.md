@@ -553,4 +553,4 @@ bunx sdd validate --json | jq '.checks[] | select(.severity=="error") | .passed'
 | (d) runCommit schema 扩展 | GateResult 加 loreId/commitHash（非 breaking） | 坑 8 |
 | (e) pi.registerTool 18 tool | 绕过 cache 漂移，agent 直调 | 坑 1, 2, 3 |
 
-详见 [ADR-019](../architecture/decisions.md#adr-019)。
+详见 [ADR-019](../../architecture/decisions.md#adr-019)。

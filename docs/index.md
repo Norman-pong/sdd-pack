@@ -21,11 +21,11 @@
 | ------------------------------------------------- | --------------------------------------------------------------------- | -------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | [2026-07-16](prd/archive/2026-07-16-sdd-pack-v18.md)     | [sdd-pack PRD (v1.8 强状态流转)](prd/archive/2026-07-16-sdd-pack-v18.md)     | 已归档 | [3 Phase](phase/archive/prd-20260716-001/)  | v1.8: /sdd 主命令体系 + meta.json 事实源 + 全链路强状态流转 + tool_call 硬拦截 + 移除 OpenSpec 双范式 |
 | [2026-07-16](prd/archive/2026-07-16-sdd-pack.md) | [sdd-pack 总览 PRD (v1.7 整合)（已归档）](prd/archive/2026-07-16-sdd-pack.md) | 已归档 | TBD | v1.7 整合 5 个历史 PRD + 6 PrdStatus 状态机重构 - 已被 v1.8 替代 |
-| [2026-06-24](prd/archive/2026-06-24-sdd-pack.md)  | [SDD Pack (omp marketplace 插件) PRD（已归档）](prd/archive/2026-06-24-sdd-pack.md) | 已归档   | [阶段文档](phase/2026-06-24-sdd-pack.md)                | 一键安装、版本化管理、按需启用/禁用 SDD 技能家族 — 已被 v1.7 总览 PRD 整合                          |
-| [2026-06-29](prd/archive/2026-06-29-sdd-cli.md)   | [sdd CLI PRD（已归档）](prd/archive/2026-06-29-sdd-cli.md)            | 已归档   | [阶段文档](phase/2026-06-29-sdd-cli.md)（已归档）       | 独立 CLI 形态已被 [ADR-009](architecture/decisions.md#adr-009-sdd-extension替代独立-cli) Superseded |
-| [2026-06-30](prd/archive/2026-06-30-sdd-extension.md) | [sdd Extension PRD（已归档）](prd/archive/2026-06-30-sdd-extension.md) | 已归档 | [阶段文档](phase/2026-06-30-sdd-extension.md)（已替换） | sdd Extension（Omp Slash Commands）— 替代独立 CLI 形态                                            |
+| [2026-06-24](prd/archive/2026-06-24-sdd-pack.md)  | [SDD Pack (omp marketplace 插件) PRD（已归档）](prd/archive/2026-06-24-sdd-pack.md) | 已归档   | [阶段文档](phase/archive/2026-06-24-sdd-pack.md)                | 一键安装、版本化管理、按需启用/禁用 SDD 技能家族 — 已被 v1.7 总览 PRD 整合                          |
+| [2026-06-29](prd/archive/2026-06-29-sdd-cli.md)   | [sdd CLI PRD（已归档）](prd/archive/2026-06-29-sdd-cli.md)            | 已归档   | [阶段文档](phase/archive/2026-06-29-sdd-cli.md)（已归档）       | 独立 CLI 形态已被 [ADR-009](architecture/decisions.md#adr-009-sdd-extension替代独立-cli) Superseded |
+| [2026-06-30](prd/archive/2026-06-30-sdd-extension.md) | [sdd Extension PRD（已归档）](prd/archive/2026-06-30-sdd-extension.md) | 已归档 | [阶段文档](phase/archive/2026-06-30-sdd-extension.md)（已替换） | sdd Extension（Omp Slash Commands）— 替代独立 CLI 形态                                            |
 | [2026-07-01](prd/archive/2026-07-01-openspec-harness.md) | [OpenSpec Harness PRD（已归档）](prd/archive/2026-07-01-openspec-harness.md) | 已归档 | TBD | OpenSpec 作为 hook 默认实现的详细 PRD（init/validate/change/archive 工作流）                  |
-| [2026-07-01](prd/archive/2026-07-01-sdd-dual-paradigm.md) | [双范式架构总览 PRD（已归档）](prd/archive/2026-07-01-sdd-dual-paradigm.md) | 已归档 | [阶段文档](phase/2026-07-01-sdd-dual-paradigm.md) | v1.5.0 双范式架构 — 已被 v1.7 总览 PRD 整合                                              |
+| [2026-07-01](prd/archive/2026-07-01-sdd-dual-paradigm.md) | [双范式架构总览 PRD（已归档）](prd/archive/2026-07-01-sdd-dual-paradigm.md) | 已归档 | [阶段文档](phase/archive/2026-07-01-sdd-dual-paradigm.md) | v1.5.0 双范式架构 — 已被 v1.7 总览 PRD 整合                                              |
 | [2026-07-17](prd/2026-07-17-archive-consistency-internalization.md) | [归档一致性内化](prd/2026-07-17-archive-consistency-internalization.md) | 待评审 | — | — |
 
 ## 阶段文档（Phase）
@@ -50,21 +50,21 @@
 | [sdd CLI 设计文档（已归档）](architecture/sdd-cli-design.md)   | sdd CLI 设计（Superseded）              | 2026-06-29 | ADR-008 sdd CLI 工作流设计文档，已被 ADR-009 sdd Extension 替代。仅作历史参考。                                |
 ## 参考资料（Reference）
 
-| [参考资料索引](reference/README.md) | omp 文档索引 | 2026-06-30 | omp marketplace / skills / rules / task agent / extension API 官方文档链接 |
-| [omp Task Agent 机制](reference/omp-task-agent.md) | agent 机制参考 | 2026-06-25 | agent 发现/合并/装载/执行约束，三层守门 agent 运行时依据 |
-| [Omp Extension API](reference/omp-extension-api.md) | extension API 参考 | 2026-07-17 | omp extension / slash command / tool / UI / manifest 摘要;§2.2/§6.4/§9 已加 ADR-019 修订标注(command+tool 共存) |
-| [omp Slash Command + Tool 共存经验](reference/omp-slash-command-and-tool.md) | 实战经验 | 2026-07-17 | slash command 与 pi.registerTool 的机制对比 + 9 个实战坑(cache 漂移/zod 注入/状态机/测试污染/lore commit 拦截) |
-| [OpenSpec Harness 参考](reference/openspec-harness.md) | OpenSpec 规范 | 2026-07-01 | OpenSpec 文档驱动约束规范 — 本仓库 OpenSpec 范式依据（已归档，v1.8.0 移除）                            |
-| [OMP Verification](reference/omp-verification.md) | omp 装载实证 | 2026-07-01 | omp marketplace / extension / hook 装载路径实测记录                          |
+| 文档名称 | 主题 | 最后更新 | 说明 |
+| --- | --- | --- | --- |
+| [参考资料索引](reference/README.md) | omp 文档索引 | 2026-07-18 | omp marketplace / skills / rules / task agent / extension 官方文档链接 |
+| [omp 架构分层](reference/omp-architecture-layers.md) | omp 机制总览 | 2026-07-18 | 装载层 / capability registry / 运行时层 / 宿主层 + 实证关键事实（rule 无程序拦截、tool_call {block:true}、cache 漂移根因） |
+| [omp Extension 实战](reference/omp-extension-cookbook.md) | extension 实战 | 2026-07-18 | Extension API 摘要 + slash command vs tool + cache 漂移 + zod fallback + 归档/状态机踩坑 + 提交流程 + e2e 验证 |
+| [OpenSpec 思想精华](reference/openspec-essence.md) | 范式设计教训 | 2026-07-18 | v1.8.0 移除 OpenSpec 双范式后，3 个吸收精华 + 2 个拒绝特性 + 2 条元教训（吸收 > 并存） |
 
 ## 贡献指南
 
 - [文档贡献指南](CONTRIBUTING.md)：了解如何参与 sdd-pack 仓库的文档编写、插件维护与发布。
 
 ## 文档统计
-- Phase 总数：7（含 2 个已归档/已替换 + 2 个已完成/已发布 + 3 个已完成/v1.8）
-- PRD 总数：5（含 2 个已替换 + 3 个已发布）
+- Phase 总数：7（prd-20260716-001 组 3 篇 + archive 顶层 4 篇，全部已归档/已完成）
+- PRD 总数：9（archive 8 篇已归档 + 1 篇进行中）
 - 架构文档：4（decisions + overview + sdd-gate + sdd-cli-design 已归档）
-- 参考资料：6
+- 参考资料：4（README 索引 + 3 篇本仓库整理；旧 5 篇已归档至 reference/archive/）
 
-最后更新：2026-07-17
+最后更新：2026-07-18
