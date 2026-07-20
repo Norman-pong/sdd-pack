@@ -203,10 +203,10 @@ export function runReview(repoRoot: string, sha?: string): GateResult {
       continue;
     }
 
-    // 时效校验：staged hash 不匹配 -> 旧产物
+    // 时效校验：staged hash 不匹配 -> 旧产物(stale)。新语义下 stale 不阻塞,但仍记录,
+    // 且 verdict 校验继续执行——stale + verdict=incorrect 仍走 failed 分支。
     if (artifact.staged_hash !== currentHash) {
       stale.push(reviewer);
-      continue;
     }
 
     if (artifact.overall_correctness === "incorrect" || artifact.overall_correctness === "incorrect_with_minor_defects") {
@@ -229,19 +229,7 @@ export function runReview(repoRoot: string, sha?: string): GateResult {
     };
   }
 
-  if (stale.length > 0) {
-    return {
-      stage: "review",
-      status: "block",
-      stdout: "",
-      stderr: "",
-      exitCode: 2,
-      message:
-        `review 产物已过期（staged diff 已变更）: ${stale.join(", ")}\n` +
-        `请重新 spawn 对应 reviewer agent 审查最新的 staged diff。`,
-    };
-  }
-
+  // failed(verdict 失败) 优先于 stale——stale+incorrect 走 fail 分支,不被 stale-pass 吞掉。
   if (failed.length > 0) {
     return {
       stage: "review",
@@ -250,6 +238,22 @@ export function runReview(repoRoot: string, sha?: string): GateResult {
       stderr: "",
       exitCode: 1,
       message: `review 未通过:\n${failed.join("\n")}`,
+    };
+  }
+
+  // stale 降级为 pass(ADR: 无 PRD/Phase 项目 lore commit 只需 reviewer 通过即可提交)
+  // 产物存在 + verdict=pass 即视为通过;staged_hash 不匹配提示 agent 产物可能过时,但不阻塞。
+  // 真正的阻塞由 missing(产物缺失) + failed(verdict 失败) 保证(failed 已在上面处理)。
+  if (stale.length > 0) {
+    return {
+      stage: "review",
+      status: "pass",
+      stdout: "",
+      stderr: "",
+      exitCode: 0,
+      message:
+        `⚠ reviewer 产物 staged_hash 与当前 staged diff 不匹配(stale),已降级放行: ${stale.join(", ")}\n` +
+        `产物存在 + verdict 通过即视为有效审查。若改动范围已变,建议重新 spawn reviewer。`,
     };
   }
 

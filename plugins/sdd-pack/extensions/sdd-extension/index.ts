@@ -207,13 +207,29 @@ async function runSddValidate(pi: ExtensionAPI): Promise<void> {
 }
 
 // 调 runReview 检查 reviewer 产物,返回 block result 或 null
-function runLoreReviewGate(): ToolCallBlockResult | null {
+// stale-pass(verdict 通过但 hash 不匹配)时注入 system message 提示 agent 产物可能过时
+function runLoreReviewGate(pi: ExtensionAPI): ToolCallBlockResult | null {
   const result = runReview(process.cwd());
   if (result.status === "block") {
     return {
       block: true,
       reason: `🚫 /sdd gate review 硬拦截:\n${result.message ?? "reviewer 产物缺失或未通过"}`,
     };
+  }
+  // reviewer verdict 失败(incorrect/incorrect_with_minor_defects)也拦截
+  // 既有行为只拦 block,现补 fail——避免 agent 看到 reviewer 判失败仍继续 commit
+  if (result.status === "fail") {
+    return {
+      block: true,
+      reason: `🚫 /sdd gate review 硬拦截:\n${result.message ?? "reviewer verdict 未通过"}`,
+    };
+  }
+  // stale-pass: status=pass + message 含"stale"警告——通知 agent 产物可能过时
+  if (result.status === "pass" && result.message?.includes("stale")) {
+    pi.sendMessage({
+      role: "system",
+      content: result.message,
+    });
   }
   return null;
 }
@@ -258,7 +274,7 @@ export default function (pi: ExtensionAPI): void {
 
       pi.sendMessage({ role: "system", content: LORE_COMMIT_BLOCK_REASON });
       await runSddValidate(pi);
-      const reviewBlock = runLoreReviewGate();
+      const reviewBlock = runLoreReviewGate(pi);
       if (reviewBlock) return reviewBlock;
       return;
     }

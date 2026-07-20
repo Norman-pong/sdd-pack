@@ -221,6 +221,90 @@ describe("sdd-extension — tool_call lore commit", () => {
     expect(capturedMessages.some((m) => m.content.includes("lore-commit-guard"))).toBe(true);
   });
 });
+describe("sdd-extension — lore commit review gate (runLoreReviewGate)", () => {
+  // REVIEW_DIR 在 test 执行时动态求值(beforeAll 已 chdir 到 TEST_REPO),
+  // 用 process.cwd() 保证绝对路径——module load 时 TEST_REPO 尚未赋值。
+  function reviewDir() {
+    return resolve(process.cwd(), ".sdd", "review");
+  }
+
+  function writeReviewArtifact(stagedHash: string, verdict: string) {
+    const dir = reviewDir();
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      resolve(dir, "staged.reviewer.json"),
+      JSON.stringify({
+        commit_sha: "staged",
+        timestamp: new Date().toISOString(),
+        reviewer: "reviewer",
+        overall_correctness: verdict,
+        staged_hash: stagedHash,
+      }) + "\n",
+    );
+  }
+
+  function clearReviewArtifact() {
+    rmSync(reviewDir(), { recursive: true, force: true });
+  }
+
+  test("fresh + verdict=correct 放行(无 review block)", async () => {
+    capturedMessages.length = 0;
+    writeReviewArtifact("empty", "correct");
+    const h = getEventHandler("tool_call");
+    await h({ toolName: "bash", input: { command: "lore commit --intent test" } });
+    const hasReviewBlock = capturedMessages.some(
+      (m) => m.content.includes("review 硬拦截") || m.content.includes("缺少 review 产物"),
+    );
+    expect(hasReviewBlock).toBe(false);
+    clearReviewArtifact();
+  });
+
+  test("stale + verdict=correct 放行 + 注入 stale 警告 message", async () => {
+    capturedMessages.length = 0;
+    writeReviewArtifact("outdated-hash", "correct");
+    const h = getEventHandler("tool_call");
+    await h({ toolName: "bash", input: { command: "lore commit --intent test" } });
+    expect(capturedMessages.some((m) => m.content.includes("stale"))).toBe(true);
+    const hasReviewBlock = capturedMessages.some((m) => m.content.includes("review 硬拦截"));
+    expect(hasReviewBlock).toBe(false);
+    clearReviewArtifact();
+  });
+
+  test("stale + verdict=incorrect 拦截(failed 优先于 stale-pass)", async () => {
+    capturedMessages.length = 0;
+    writeReviewArtifact("outdated-hash", "incorrect");
+    const h = getEventHandler("tool_call");
+    const result = await h({ toolName: "bash", input: { command: "lore commit --intent test" } });
+    expect(result).toBeDefined();
+    if (
+      result &&
+      typeof result === "object" &&
+      "block" in result &&
+      result.block === true &&
+      "reason" in result
+    ) {
+      expect(result.reason).toContain("review 硬拦截");
+    }
+    clearReviewArtifact();
+  });
+
+  test("missing 产物 拦截(无 .sdd/review/)", async () => {
+    capturedMessages.length = 0;
+    clearReviewArtifact();
+    const h = getEventHandler("tool_call");
+    const result = await h({ toolName: "bash", input: { command: "lore commit --intent test" } });
+    expect(result).toBeDefined();
+    if (
+      result &&
+      typeof result === "object" &&
+      "block" in result &&
+      result.block === true &&
+      "reason" in result
+    ) {
+      expect(result.reason).toContain("缺少 review 产物");
+    }
+  });
+});
 
 describe("sdd-extension — tool_call docs/ 写入提示", () => {
   test("write + docs/ 路径触发 sdd-doc-edit-guard", async () => {

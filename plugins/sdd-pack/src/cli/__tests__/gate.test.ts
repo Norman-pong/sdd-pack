@@ -307,7 +307,7 @@ describe("runReview", () => {
     rmSync(root, { recursive: true });
   });
 
-  test("blocks when staged hash mismatches (stale review artifact)", () => {
+  test("passes when staged hash mismatches but verdict is correct (stale-pass)", () => {
     const root = makeTmpProject(makeVitePlusProject);
     const artifact: ReviewArtifact = {
       commit_sha: "staged",
@@ -318,10 +318,30 @@ describe("runReview", () => {
     };
     writeReviewArtifact(root, artifact);
     // runReview computes stagedHash from git diff --cached, which returns
-    // "empty" when no git repo exists -> mismatch with "outdated-hash"
+    // "empty" when no git repo exists -> mismatch with "outdated-hash" -> stale
+    // 新语义: stale + verdict=pass 降级为 pass(无 PRD/Phase 项目 lore commit 只需 reviewer 通过)
     const result = runReview(root, "staged");
-    expect(result.status).toBe("block");
-    expect(result.message).toContain("review 产物已过期");
+    expect(result.status).toBe("pass");
+    expect(result.exitCode).toBe(0);
+    expect(result.message).toContain("stale");
+    rmSync(root, { recursive: true });
+  });
+
+  test("fails when staged hash mismatches AND verdict is incorrect (failed beats stale)", () => {
+    const root = makeTmpProject(makeVitePlusProject);
+    const artifact: ReviewArtifact = {
+      commit_sha: "staged",
+      timestamp: new Date().toISOString(),
+      overall_correctness: "incorrect",
+      reviewer: "reviewer",
+      staged_hash: "outdated-hash",
+    };
+    writeReviewArtifact(root, artifact);
+    // failed 优先于 stale: verdict=incorrect 即使产物 stale 也走 fail 分支
+    const result = runReview(root, "staged");
+    expect(result.status).toBe("fail");
+    expect(result.exitCode).toBe(1);
+    expect(result.message).toContain("verdict=incorrect");
     rmSync(root, { recursive: true });
   });
 });
