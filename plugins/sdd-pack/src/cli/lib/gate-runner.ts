@@ -7,7 +7,7 @@
  * 阶段映射：
  *   lint      -> 跑 lint 命令（必需，缺则 block）
  *   test      -> 跑 test 命令（可选，缺则 skip）
- *   review    -> 检查 review 产物存在 + verdict 通过 + staged hash 匹配（防旧产物复用）
+ *   review    -> 检查 review 产物存在 + verdict 通过(staged hash 不匹配降级为 stale-pass 放行)
  *   precommit -> 再跑一次 lint（lore 约束检查由 reviewer agent step 3 负责，不重复）
  *   commit    -> 调 lore commit
  *
@@ -67,14 +67,16 @@ function stagedHash(repoRoot: string): string {
 
 /**
  * 获取当前 staged changes 的标识（pre-commit 场景无真实 SHA，用 "staged"）
+ * repoRoot 参数确保 git 命令在目标仓库执行(避免子目录/测试临时仓库读到父级仓库)
  */
-function currentSha(): string {
-  const r = spawnSync("git", ["rev-parse", "HEAD"], { encoding: "utf-8" });
+function currentSha(repoRoot: string): string {
+  const r = spawnSync("git", ["rev-parse", "HEAD"], { encoding: "utf-8", cwd: repoRoot });
   if (r.status !== 0) return "staged";
   const sha = r.stdout.trim();
   // 如果有 staged changes，标记为 staged（review 在 commit 前执行）
   const stagedR = spawnSync("git", ["diff", "--cached", "--name-only"], {
     encoding: "utf-8",
+    cwd: repoRoot,
   });
   if (stagedR.stdout.trim().length > 0) return "staged";
   return sha.slice(0, 12);
@@ -177,7 +179,7 @@ export function runTest(repoRoot: string): GateResult {
  * 默认 ["reviewer"]。可配置 ["reviewer", "arch-reviewer", "sdd-reviewer"]。
  */
 export function runReview(repoRoot: string, sha?: string): GateResult {
-  const targetSha = sha ?? currentSha();
+  const targetSha = sha ?? currentSha(repoRoot);
   const currentHash = stagedHash(repoRoot);
 
   // 默认只检查 reviewer；gate.json 可配置多 reviewer
@@ -337,6 +339,13 @@ export function runCommit(repoRoot: string, commitMessageJson?: string): GateRes
         "缺少 commit message。请通过 --message 传入 JSON。\n" +
         '示例: /sdd gate commit --message \'{"intent":"fix: ...","trailers":{}}\'',
     };
+  }
+
+  // 强制 review 门禁: commit 前自检 reviewer 产物(所有 commit 入口共享此门禁)
+  // missing/failed 阻塞; stale-pass 放行(本次改动新语义)
+  const reviewResult = runReview(repoRoot);
+  if (reviewResult.status === "block" || reviewResult.status === "fail") {
+    return reviewResult;
   }
 
   const r = spawnSync("lore", ["commit"], {

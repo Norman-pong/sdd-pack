@@ -18,6 +18,7 @@ import {
   runLint,
   runTest,
   runReview,
+  runCommit,
   writeReviewArtifact,
   type ReviewArtifact,
 } from "../lib/gate-runner";
@@ -359,6 +360,43 @@ describe("writeReviewArtifact", () => {
     const path = writeReviewArtifact(root, artifact);
     expect(existsSync(path)).toBe(true);
     expect(path).toContain("abc123.reviewer.json");
+    rmSync(root, { recursive: true });
+  });
+});
+
+describe("runCommit - review 门禁自检", () => {
+  // runCommit 内部先 runReview: missing/failed 直接 return(不到 lore 调用)
+  // stale-pass 放行进到 lore(此处不测,避免真 lore commit)
+  test("missing reviewer 产物 -> review block, 不进 commit", () => {
+    const root = makeTmpProject(makeVitePlusProject);
+    const result = runCommit(root, JSON.stringify({ intent: "test" }));
+    expect(result.stage).toBe("review");
+    expect(result.status).toBe("block");
+    rmSync(root, { recursive: true });
+  });
+
+  test("stale + verdict=incorrect -> review fail, 不进 commit", () => {
+    const root = makeTmpProject(makeVitePlusProject);
+    const artifact: ReviewArtifact = {
+      commit_sha: "staged",
+      timestamp: new Date().toISOString(),
+      overall_correctness: "incorrect",
+      reviewer: "reviewer",
+      staged_hash: "outdated-hash",
+    };
+    writeReviewArtifact(root, artifact);
+    const result = runCommit(root, JSON.stringify({ intent: "test" }));
+    expect(result.stage).toBe("review");
+    expect(result.status).toBe("fail");
+    rmSync(root, { recursive: true });
+  });
+
+  test("无 commit message -> commit block(在 review 门禁之前)", () => {
+    const root = makeTmpProject(makeVitePlusProject);
+    const result = runCommit(root);
+    // commitMessageJson 校验在 review 门禁之前, stage="commit"
+    expect(result.stage).toBe("commit");
+    expect(result.status).toBe("block");
     rmSync(root, { recursive: true });
   });
 });

@@ -90,9 +90,11 @@ export async function handleGateCommit(args: string, ctx: unknown): Promise<unkn
   const opts = parseArgs(splitArgs(args));
   const messageFile = getStringOption(opts, "message-file");
   const message = getStringOption(opts, "message");
+  const repoRoot = findProjectRoot();
+  // runCommit 内部自带 review 门禁(missing/failed 阻塞, stale-pass 放行)
   const result = messageFile
-    ? runCommitWithFile(findProjectRoot(), messageFile)
-    : runCommit(findProjectRoot(), message);
+    ? runCommitWithFile(repoRoot, messageFile)
+    : runCommit(repoRoot, message);
   gateNotify(result, ctx);
   return result;
 }
