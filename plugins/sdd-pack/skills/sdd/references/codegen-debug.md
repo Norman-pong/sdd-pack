@@ -1,31 +1,4 @@
----
-name: sdd-codegen-buf-debug
-description: |
-  buf generate / protoc-gen-tsnas-http / yarn genApi 代码生成失败的调试技能。
-  覆盖：PATH 顺序问题、buf v1/v2 模板差异、临时模板配置、禁止覆盖根 buf.gen.yaml、
-  protoc-gen-tsnas-http 已生成方法清单、避免手写 stub。
-
-  触发场景：buf generate 报错、protoc-gen-* plugin not found、genApi 产出 0 行 TS、
-  "手写 http stub"、"BaseApi 没有 patchJson"、"codegen 失败"、PATH 配置、buf 模板语法。
-
-  不适用：非 buf/protobuf 项目的代码生成（如 openapi-generator）；proto 协议设计本身。
----
-
 # buf generate / genApi 代码生成调试
-
-## 何时使用此技能
-
-**必须触发**：
-
-- `buf generate` / `yarn genApi` / `protoc-gen-*` 报错或产出 0 行 TS
-- agent 考虑"手写 http stub"或"给 BaseApi 加 patchJson/deleteJson"
-- `protoc-gen-tsnas-http: not found` 或 `command not found`
-- buf 模板语法错误（v1 vs v2 差异）
-
-**不应触发**：
-
-- proto 协议设计（用 librarian 或 proto-migration 技能）
-- openapi-generator 或其他非 buf 代码生成
 
 ## 核心规则（硬约束）
 
@@ -153,9 +126,3 @@ export PATH="$HOME/.swTool/codeGen:$PATH"
 ### 错误 4: 覆盖根 buf.gen.yaml
 
 **禁止**。根配置是项目正式 codegen 入口，覆盖会导致后续 `yarn genApi` 行为异常。用临时模板 + `--template` 指定。
-
-## 关联
-
-- **sw-nvr 专用 genApi 流程**：`skill://sw-nvr-buf-genapi-local`
-- **proto 协议设计**：librarian agent
-- **codegen 产物路径**：`src/api/<scope>/<version>/*.http.ts`（sw-nvr 约定）

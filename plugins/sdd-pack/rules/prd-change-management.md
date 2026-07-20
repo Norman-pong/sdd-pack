@@ -116,4 +116,4 @@ PRD 范围可塑，是最便宜的窗口期。动作：
 
 - 版本对齐止损 skill（`sdd-pack-version-alignment-guard`，本机辅助 skill，非插件资产）— 9 字段版本对齐与状态行堆叠止损。
 - `rule://docs-update-guard` — commit 前文档同步检查（本 rule 是其上游：决定"改哪个 PRD"，docs-update-guard 决定"是否要改文档"）。
-- `skill://sdd-core` — 完整 SDD 流程（模板、命名、lore、index 同步）。
+- `skill://sdd` - 完整 SDD 流程（模板、命名、lore、index 同步）。

@@ -563,13 +563,13 @@ describe("Phase 002 流转集成测试", () => {
   });
 
   test("planPrd 回填 PRD markdown: 老格式占位链接 → 整段替换为新链接", async () => {
-    // sw-nvr 真实场景: PRD 第 5 行已被手动转为 `[TBD - 待 sdd-phase 补全](../phase/...)` 链接占位
+    // sw-nvr 真实场景: PRD 第 5 行已被手动转为 `[TBD - 待 sdd 补全](../phase/...)` 链接占位
     const initR = await initPrd({ title: "Legacy Link Placeholder" });
     const prdAbs = resolve(findRepoRoot(), initR.path!);
     const original = readFileSync(prdAbs, "utf-8");
     const withLegacyPlaceholder = original.replace(
       /^>\s*对应阶段[：:].*$/m,
-      "> 对应阶段：[TBD - 待 sdd-phase 补全](../phase/legacy.md)",
+      "> 对应阶段：[TBD - 待 sdd 补全](../phase/legacy.md)",
     );
     writeFileSync(prdAbs, withLegacyPlaceholder, "utf-8");
     await reviewPrd();

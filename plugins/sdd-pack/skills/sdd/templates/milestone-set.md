@@ -1,4 +1,4 @@
-# 里程碑 / 风险 / 依赖(阶段 3 产物 · sdd-phase)
+# 里程碑 / 风险 / 依赖(阶段 3 产物 · sdd)
 
 > 用法:在任务清单之上,组织里程碑节点、识别阶段风险、列协作需求。
 > 本阶段产物:`docs/phase/.working/YYYY-MM-DD-<phase-name>/milestone-set.md`

@@ -1,4 +1,4 @@
-# 任务分解(阶段 2 产物 · sdd-phase)
+# 任务分解(阶段 2 产物 · sdd)
 
 > 用法:从 PRD §3 功能需求拆解为可执行任务,每条任务 = 1 工程师 1-3 天可完成 + 客观可验收。
 > 本阶段产物:`docs/phase/.working/YYYY-MM-DD-<phase-name>/task-breakdown.md`
@@ -89,7 +89,7 @@ email 字段需要 unique constraint(对齐业务规则)。
 **备注**:
 
 - 外部依赖:邮件服务(由 T004 调用)
-- API 文档自动生成(对齐 sdd-core 阶段 4 NFR 工具链)
+- API 文档自动生成(对齐 conventions.md §4 NFR 工具链)
 
 ---
 

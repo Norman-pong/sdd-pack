@@ -127,7 +127,7 @@ const SDD_VERSION_PROBE_REMINDER = [
 ].join("\n");
 
 const DOCS_UPDATE_HINT =
-  "💡 docs-update-guard [hook]: 检测到 commit 命令。如果本次改动触及 docs/ 请确认 PRD↔Phase 双向引用已更新(skill://sdd-core)。";
+  "💡 docs-update-guard [hook]: 检测到 commit 命令。如果本次改动触及 docs/ 请确认 PRD↔Phase 双向引用已更新(skill://sdd)。";
 
 const LORE_COMMIT_BLOCK_REASON = [
   "🚫 lore-commit-guard [hook]: bash 中禁止 `git commit` / `lore commit`(ADR-020)。",
@@ -150,15 +150,15 @@ const LORE_COMMIT_BLOCK_REASON = [
 
 const DOC_EDIT_GUIDANCE_DOC = [
   "📝 sdd-doc-edit-guard [hook]: 检测到写 docs/ 目录。",
-  "   docs/ 写入请走 skill://sdd-core 流程:",
-  "   - 新需求 → skill://sdd-input → spec → PRD → Phase",
-  "   - PRD 修改 → skill://sdd-prd",
-  "   - Phase 任务 → skill://sdd-phase",
+  "   docs/ 写入请走 skill://sdd 流程:",
+  "   - 新需求 → skill://sdd → spec → PRD → Phase",
+  "   - PRD 修改 → skill://sdd",
+  "   - Phase 任务 → skill://sdd",
 ].join("\n");
 
 const DOC_EDIT_GUIDANCE_PHASE = [
   "📝 sdd-doc-edit-guard [hook]: 检测到写 docs/phase/ 目录。",
-  "   Phase 写入请走 skill://sdd-phase 流程。Phase 归档用 /sdd phase-archive（ADR-017）。",
+  "   Phase 写入请走 skill://sdd 流程。Phase 归档用 /sdd phase-archive（ADR-017）。",
 ].join("\n");
 
 const DOC_EDIT_GUIDANCE_ARCH_REF = [

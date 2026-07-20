@@ -52,7 +52,7 @@ function generateFullTemplate(options: TemplateOptions): string {
 
 > 状态：草稿
 > 修改记录：执行 \`lore log docs/prd/${titleToFileName(date, options.title, options.slug)}\`
-> 对应阶段：TBD - 待设计评审后由 sdd-phase 补全
+> 对应阶段：TBD - 待设计评审后由 sdd 补全
 ${supersedesHeader}
 > [!IMPORTANT] PRD 生命周期状态机（ADR-016, 6 状态 + 已归档终态）
 > 草稿 ↔ 待评审（可灵活切换） → 已评审 → 已规划任务 → 进行中 → **已归档**（终态）
@@ -249,7 +249,7 @@ function generateDeltaTemplate(options: TemplateOptions): string {
 
 > 状态：草稿
 > 修改记录：执行 \`lore log docs/prd/${titleToFileName(date, options.title, options.slug)}\`
-> 对应阶段：TBD - 待设计评审后由 sdd-phase 补全
+> 对应阶段：TBD - 待设计评审后由 sdd 补全
 > 替代：[${supersedesTitle || "旧 PRD"}](${supersedes || "#"})
 
 > [!IMPORTANT] 本 PRD 替代 [${supersedesTitle || "旧 PRD"}](${supersedes || "#"})。

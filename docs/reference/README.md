@@ -15,16 +15,12 @@
 | 插件管理器实现细节    | `omp://plugin-manager-installer-plumbing.md`       | 插件安装/链接内部机制                          | 持续更新 |
 | 最小 marketplace 示例 | `omp://skills/examples/mini-marketplace/README.md` | omp 官方最小 marketplace 示例                  | 持续更新 |
 
-## 2. SDD 技能家族引用
+## 2. SDD 技能引用
 
 | 文档名称             | 来源                                                         | 说明                                   |
 | -------------------- | ------------------------------------------------------------ | -------------------------------------- |
-| sdd-core SKILL.md    | `plugins/sdd-pack/skills/sdd-core/SKILL.md`                  | 文档体系管理（init/index/lore commit） |
-| sdd-core conventions | `plugins/sdd-pack/skills/sdd-core/references/conventions.md` | PRD/Phase 双向引用强制规则             |
-| sdd-core docs-check  | `plugins/sdd-pack/skills/sdd-core/references/docs-check.sh`  | 4 项结构校验脚本                       |
-| sdd-input SKILL.md   | `plugins/sdd-pack/skills/sdd-input/SKILL.md`                 | 从口语化想法产出 spec                  |
-| sdd-prd SKILL.md     | `plugins/sdd-pack/skills/sdd-prd/SKILL.md`                   | 从 spec 提纯为 PRD                     |
-| sdd-phase SKILL.md   | `plugins/sdd-pack/skills/sdd-phase/SKILL.md`                 | PRD 拆解为可执行阶段                   |
+| sdd SKILL.md    | `plugins/sdd-pack/skills/sdd/SKILL.md`                  | SDD 全流程（spec → PRD → Phase + init/review/approve/plan/start/archive + lore commit） |
+| sdd conventions | `plugins/sdd-pack/skills/sdd/references/conventions.md` | PRD/Phase 双向引用强制规则             |
 
 ## 3. omp 规则（rules）引用
 

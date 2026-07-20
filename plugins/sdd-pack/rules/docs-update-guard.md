@@ -27,7 +27,7 @@ If **none** of the above applies — purely internal refactor, test-only change,
 1. **Read the skill** for the full discipline (templates, conventions, lore query, index sync, commit format):
 
    ```
-   skill://sdd-core
+   skill://sdd
    ```
 
 2. **Run the sdd skill's workflow**:
@@ -81,7 +81,7 @@ Never let `lore commit` go through with stale docs in the same change set.
 
 ## Cross-references
 
-- `skill://sdd-core` — the full Software Development Documentation discipline (templates, conventions, full workflow).
+- `skill://sdd` - the full Software Development Documentation discipline (templates, conventions, full workflow).
 - `rule://lore-commit-guard` — the commit quality gate (lint / test / build / reviewer / lore commit).
 - `rule://lore-protocol` — the Lore protocol for embedding decision context in commits.
 - `rule://frontend-use-vp` — Vite+ enforced command surface (`vp check` / `vp test` / `vp build`).

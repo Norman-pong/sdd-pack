@@ -63,7 +63,7 @@ docs/
 2. 检查冲突：遵守 Constraint、避免 Rejected
 3. 修改文档
 4. 同步更新相关引用与索引
-5. 跑 `docs-check.sh` 验证（见 §3）
+5. 跑 `sdd validate` 验证（见 §3）
 6. lore commit
 
 ## 3. 质量检查
@@ -71,10 +71,10 @@ docs/
 提交前必须运行：
 
 ```bash
-bash <sdd-core>/references/docs-check.sh docs
+sdd validate
 ```
 
-校验 4 项：
+校验 12 项（含下方 4 项核心检查）：
 
 1. PRD ↔ Phase 双向引用
 2. 回指格式规范（`> 对应阶段:` / `> 对应 PRD:`）
@@ -107,7 +107,7 @@ sdd-pack 仓库**有两个**内容区域：
 
 ### 4.3 PRD ↔ Phase 强制对应
 
-每个 PRD 必须有 Phase 文档对应。Phase 必含 sdd-core conventions.md §4.1 强制 5 章节 + 顶部 `> 对应 PRD:` 反向链接。
+每个 PRD 必须有 Phase 文档对应。Phase 必含 sdd conventions.md §4.1 强制 5 章节 + 顶部 `> 对应 PRD:` 反向链接。
 
 ## 5. Lore 协议
 

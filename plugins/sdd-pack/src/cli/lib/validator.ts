@@ -2,7 +2,7 @@
  * validator.ts — SDD 文档校验引擎
  *
  * 11 项检查，分级 severity: warn / error / block
- * 对应 docs-check.sh 超集 + 状态机校验 + 补充检查
+ * 含状态机校验 + 结构校验 + 命令漂移检查等
  */
 
 import { existsSync, readdirSync, readFileSync, statSync } from "fs";

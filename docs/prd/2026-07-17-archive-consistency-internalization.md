@@ -2,7 +2,7 @@
 
 > 状态：待评审 | 发布日期：2026-07-17 | 版本：1.0.0
 > 修改记录：执行 `lore log docs/prd/2026-07-17-archive-consistency-internalization.md`
-> 对应阶段：TBD - 待设计评审后由 sdd-phase 补全
+> 对应阶段：TBD - 待设计评审后由 sdd 补全
 
 > [!IMPORTANT] PRD 生命周期状态机（ADR-016, 6 状态 + 已归档终态）
 > 草稿 ↔ 待评审（可灵活切换） → 已评审 → 已规划任务 → 进行中 → **已归档**（终态）

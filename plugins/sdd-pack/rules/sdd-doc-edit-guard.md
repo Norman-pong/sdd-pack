@@ -1,23 +1,23 @@
 ---
-description: Before writing or editing any file under docs/, route through the SDD skill family (sdd-core/sdd-input/sdd-prd/sdd-phase) instead of bare write/edit — ensures naming conventions, required sections, and PRD↔Phase cross-references are honored at write time, not patched at commit time.
+description: Before writing or editing any file under docs/, route through the SDD skill (sdd) instead of bare write/edit - ensures naming conventions, required sections, and PRD↔Phase cross-references are honored at write time, not patched at commit time.
 scope: "tool:write(docs/**), tool:edit(docs/**)"
 layer: soft-gate
 enforcement: ttsr
 ---
 
-Before you `write` or `edit` a file whose path starts with `docs/`, stop and route through the SDD skill family. Documents under `docs/` follow naming conventions, required sections, and cross-reference rules that bare file edits will violate.
+Before you `write` or `edit` a file whose path starts with `docs/`, stop and route through the SDD skill. Documents under `docs/` follow naming conventions, required sections, and cross-reference rules that bare file edits will violate.
 
 ## Quick routing table
 
 | What you're about to do                                  | Skill to use                                                            |
 | -------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Create/modify a spec (`docs/spec/**`)                    | `skill://sdd-input` (idea → spec) or `skill://sdd-core` (structure fix) |
-| Create/modify a PRD (`docs/prd/**`)                      | `skill://sdd-prd` (spec → PRD) or `skill://sdd-core` (structure fix)    |
-| Create/modify a Phase (`docs/phase/**`)                  | `skill://sdd-phase` (PRD → Phase) or `skill://sdd-core` (structure fix) |
-| Create/modify architecture docs (`docs/architecture/**`) | `skill://sdd-core`                                                      |
-| Create/modify reference docs (`docs/reference/**`)       | `skill://sdd-core`                                                      |
-| Initialize the docs/ tree                                | `skill://sdd-core` (scenario 4)                                         |
-| Edit `docs/index.md` or `docs/CONTRIBUTING.md`           | `skill://sdd-core`                                                      |
+| Create/modify a spec (`docs/spec/**`)                    | `skill://sdd` (idea -> spec) |
+| Create/modify a PRD (`docs/prd/**`)                      | `skill://sdd` (spec -> PRD) |
+| Create/modify a Phase (`docs/phase/**`)                  | `skill://sdd` (PRD -> Phase) |
+| Create/modify architecture docs (`docs/architecture/**`) | `skill://sdd` |
+| Create/modify reference docs (`docs/reference/**`)       | `skill://sdd` |
+| Initialize the docs/ tree                                | `skill://sdd` (scenario 4) |
+| Edit `docs/index.md` or `docs/CONTRIBUTING.md`           | `skill://sdd` |
 
 ## When this rule does NOT fire
 
@@ -37,14 +37,11 @@ The two rules are complementary:
 ## What to do if the rule fires
 
 1. Identify the doc type from the path (`docs/prd/**` → PRD, `docs/phase/**` → Phase, etc.).
-2. Read the matching skill (`skill://sdd-core` for structure, or the specialized skill for content).
+2. Read the matching skill (`skill://sdd`).
 3. If the user explicitly asked for a quick edit that doesn't warrant the full 4-stage workflow (e.g., fixing a typo), note the SDD convention, make the edit, and mention that the full skill workflow was skipped.
 
 ## Cross-references
 
-- `skill://sdd-core` — document system base (directory structure, naming, conventions, lore commit).
-- `skill://sdd-input` — idea → spec (upstream).
-- `skill://sdd-prd` — spec → PRD.
-- `skill://sdd-phase` — PRD → Phase.
+- `skill://sdd` - the complete SDD workflow (idea -> spec -> PRD -> Phase; directory structure, naming, conventions, lore commit).
 - `rule://docs-update-guard` — commit-time docs sync check.
 - `rule://lore-protocol` — lore query before edit, lore commit after.

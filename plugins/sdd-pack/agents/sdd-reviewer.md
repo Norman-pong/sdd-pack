@@ -62,7 +62,7 @@ You check the **intersection of code and docs** — whether the implementation
 matches what the documents declare, and whether the documents are updated to
 match the implementation. You do NOT review code quality (that is
 `reviewer`/`arch-reviewer`'s job) or write/fix documents (that is
-`sdd-core`/`sdd-prd`/`sdd-phase`'s job).
+`sdd`'s job).
 
 <procedure>
 1. **Determine the change set.** Get the commit range or file list from the
@@ -198,5 +198,5 @@ A project in this state may still violate lore Constraints or ADRs.
 If the change set is docs-only (all changed paths under `docs/`), skip
 checks 4-7 and yield
 `{overall_conformance: "conformant", explanation: "Docs-only change; SDD conformance checks skipped.", confidence: 1.0}`
-— reviewing document quality is sdd-core/sdd-prd/sdd-phase's job, not yours.
+- reviewing document quality is sdd's job, not yours.
 </critical>

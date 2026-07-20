@@ -1,8 +1,8 @@
-# 架构决策记录(ADR 集 · 阶段 2 产物 · sdd-prd)
+# 架构决策记录(ADR 集 · 阶段 2 产物 · sdd)
 
 > 每条 ADR 记录一个关键选型的确定过程。ADR 编号用递增序号,一旦采纳就不再删改(即使后来推翻——推翻记录是新 ADR,覆盖旧 ADR 的状态)。
 >
-> **sdd-prd 路径约定**:阶段 2 产物 `docs/prd/.working/YYYY-MM-DD-<name>/adr-set.md`,阶段 4 后合并入 `docs/architecture/decisions.md`(若不存在则创建;若已存在则在末尾追加,标注日期)。
+> **路径约定**:阶段 2 产物 `docs/prd/.working/YYYY-MM-DD-<name>/adr-set.md`,阶段 4 后合并入 `docs/architecture/decisions.md`(若不存在则创建;若已存在则在末尾追加,标注日期)。
 
 ---
 

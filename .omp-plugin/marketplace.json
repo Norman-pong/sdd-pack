@@ -2,7 +2,7 @@
   "name": "sdd-pack",
   "owner": { "name": "norman" },
   "metadata": {
-    "description": "sdd-pack 一体化开发管理工具：SDD 技能家族(sdd-core/input/prd/phase/codegen-buf-debug) + 三层守门 agent(reviewer/arch-reviewer/sdd-reviewer) + SDD extension(/sdd 主命令) + SDD CI runner",
+    "description": "sdd-pack 一体化开发管理工具：SDD 技能(sdd) + 三层守门 agent(reviewer/arch-reviewer/sdd-reviewer) + SDD extension(/sdd 主命令) + SDD CI runner",
     "version": "1.8.0",
     "pluginRoot": "plugins"
   },
@@ -29,7 +29,7 @@
       ],
       "version": "1.8.0",
       "assets": {
-        "skills": ["sdd-core", "sdd-input", "sdd-prd", "sdd-phase", "sdd-codegen-buf-debug"],
+        "skills": ["sdd"],
         "rules": [
           "lore-protocol",
           "docs-update-guard",

@@ -1,22 +1,20 @@
-# Phase 大纲(阶段 4 产物 · sdd-phase)
+# Phase 大纲(阶段 4 产物 · sdd)
 
-> 本模板是 sdd-phase 的最终交付结构,目标是**与 sdd-core 文档体系完全兼容**。
-> 必填章节对齐 sdd-core conventions §4.1 5 必填 + 顶部 PRD 反向链接(§4.3 强制)。
-> Phase 写入 `docs/phase/YYYY-MM-DD-<phase>.md`,命名遵循 sdd-core §2.2(与对应 PRD 同日期)。
+> 本模板是 Phase 框架的唯一来源,目标是**与 sdd 文档体系完全兼容**。
+> 必填章节对齐 conventions.md §4.1 5 必填 + 顶部 PRD 反向链接(§4.3 强制)。
+> Phase 写入 `docs/phase/YYYY-MM-DD-<phase>.md`,命名遵循 conventions.md §2.2(与对应 PRD 同日期)。
 
 ---
 
 ## 模板使用优先级
 
-1. **优先**:用 `sdd propose` CLI 生成 Phase 框架（模板由 `template-engine.ts` 内联生成）
-2. **参考**:`sdd-core/references/templates.md` §2(sdd-core 内置 Phase 模板结构说明)
-3. **本技能模板**:本文件(sdd-phase 内置,已含 PRD 反向链接强化)
+1. **本文件是 Phase 框架的唯一来源**（CLI `sdd propose` 只生成 PRD 模板，不生成 Phase）
+2. **本技能强化**:本文件已含 PRD 反向链接强化
 
 **实际操作**:
 
-- 读项目内或 sdd-core 内置模板作基础
+- 以本文件为基础
 - 顶部 `> 对应 PRD:` 行**必填**(本技能强化)
-- 其余章节保持 sdd-core 模板原样
 
 ---
 
@@ -25,13 +23,13 @@
 ```markdown
 # {阶段名称} 阶段文档
 
-> 状态:未开始 | 进行中 | 已完成(sdd-core conventions §4.4)
+> 状态:未开始 | 进行中 | 已完成(conventions.md §4.4)
 > 修改记录:执行 `lore log docs/phase/<filename>.md`
-> 对应 PRD:[{PRD 名称}](../prd/YYYY-MM-DD-<prd-name>.md)(sdd-core §4.3 必填)
+> 对应 PRD:[{PRD 名称}](../prd/YYYY-MM-DD-<prd-name>.md)(conventions.md §4.3 必填)
 
 ---
 
-## 1. 阶段目标(sdd-core §4.1 必填)
+## 1. 阶段目标(conventions.md §4.1 必填)
 
 ### 1.1 阶段定位
 
@@ -49,7 +47,7 @@
 
 ---
 
-## 2. 任务分解(sdd-core §4.1 必填 · sdd-phase 强化)
+## 2. 任务分解(conventions.md §4.1 必填 · sdd 强化)
 
 ### 2.1 任务清单
 
@@ -82,7 +80,7 @@
 
 ---
 
-## 3. 里程碑(sdd-core §4.1 必填)
+## 3. 里程碑(conventions.md §4.1 必填)
 
 | 里程碑 | 日期       | 交付物   | 状态            |
 | ------ | ---------- | -------- | --------------- |
@@ -92,7 +90,7 @@
 
 ---
 
-## 4. 风险与问题(sdd-core §4.1 必填)
+## 4. 风险与问题(conventions.md §4.1 必填)
 
 ### 4.1 阶段风险
 
@@ -109,7 +107,7 @@
 
 ---
 
-## 5. 验收(sdd-core §4.1 必填)
+## 5. 验收(conventions.md §4.1 必填)
 
 ### 5.1 验收清单
 
@@ -129,7 +127,7 @@
 
 ---
 
-## 6. 依赖与协作(sdd-core §4.2 可选 · sdd-phase 强化)
+## 6. 依赖与协作(conventions.md §4.2 可选 · sdd 强化)
 
 ### 6.1 前置依赖
 
@@ -158,8 +156,7 @@
 
 - [PRD 文档](../prd/YYYY-MM-DD-<prd-name>.md)
 - [ADR 集](../architecture/decisions.md)
-- [sdd-core 规范](sdd-core/references/conventions.md) §4
-- [sdd-core 模板](sdd-core/references/templates.md) §2
+- [conventions.md](../references/conventions.md) §4
 
 ### 7.3 术语表
 
@@ -185,8 +182,8 @@
 - [ ] **任务依赖闭环**:每个任务的依赖是否都存在?无循环?
 - [ ] **验收标准可测性**:每条验收标准是否客观可判定?
 - [ ] **里程碑合理性**:3-5 个?均匀分布?有日期+交付物?
-- [ ] **sdd-core 一致性**:
-  - 命名符合 sdd-core §2.2:`YYYY-MM-DD-<phase>.md`(与对应 PRD 同日期)
+- [ ] **sdd 一致性**:
+  - 命名符合 conventions.md §2.2:`YYYY-MM-DD-<phase>.md`(与对应 PRD 同日期)
   - 顶部 `> 对应 PRD:` 反向链接存在且指向真实文件
   - 顶部 `> 状态:` 字段存在
   - 5 必填章节(§1-§5)齐备

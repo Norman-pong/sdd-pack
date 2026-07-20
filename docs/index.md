@@ -2,7 +2,7 @@
 
 > 修改记录：执行 `lore log docs/index.md`
 
-本文档是 sdd-pack 仓库的文档总入口。sdd-pack 是一个 omp marketplace 插件仓库，将 SDD 技能家族（sdd-core/sdd-input/sdd-prd/sdd-phase）、三层守门 agent、hook 守卫、slash command extension 一并打包分发，并在 v1.8.0 起移除 OpenSpec 双范式，转为 SDD 单范式 + meta.json 事实源 + 强状态流转。
+本文档是 sdd-pack 仓库的文档总入口。sdd-pack 是一个 omp marketplace 插件仓库，将 SDD 技能（sdd）、三层守门 agent、hook 守卫、slash command extension 一并打包分发，并在 v1.8.0 起移除 OpenSpec 双范式，转为 SDD 单范式 + meta.json 事实源 + 强状态流转。
 
 ## 快速导航
 
